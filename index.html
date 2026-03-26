@@ -99,6 +99,23 @@
 
 <body>
 
+<div id="loader" style="
+  display:none;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.8);
+  color:white;
+  font-size:20px;
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+">
+  ⏳ Procesando...
+</div>
+
 <!-- HEADER -->
 <div class="topbar">INICIO</div>
 
@@ -111,27 +128,90 @@
   <!-- LOGO (CAMBIAS LA RUTA LUEGO) -->
   <img src="logo.png" class="logo">
 
-  <!-- FORM -->
+<!-- BOTÓN PRINCIPAL -->
+<button onclick="iniciarEscaneo()">📷 Escanear QR</button>
+
+<button id="btnCancelar" onclick="detenerCamara()" style="display:none;">
+  ❌ Cancelar
+</button>
+
+<video id="video" style="display:none;"></video>
+<canvas id="canvas" style="display:none;"></canvas>
+
+<p id="mensaje"></p>
+
+<!-- FORMULARIO (APARECE DESPUÉS DEL QR) -->
+<div id="formulario" style="display:none; margin-top:20px;">
+
   <input type="text" id="dni" placeholder="DNI">
   <input type="text" id="nombre" placeholder="Nombre completo">
   <input type="text" id="ubo" placeholder="UBO / Compañía">
 
-  <button onclick="iniciarEscaneo()">📷 Escanear QR</button>
+  <select id="seccion">
+    <option value="">Selecciona sección</option>
+    <option>Sección A (Martes y Jueves presencial B28)</option>
+    <option>Sección B (Sábado presencial B28)</option>
+    <option>Sección C (Sábado virtual)</option>
+  </select>
 
-  <button id="btnCancelar" onclick="detenerCamara()" style="display:none;">
-    ❌ Cancelar
-  </button>
-
-  <video id="video" style="display:none;"></video>
-  <canvas id="canvas" style="display:none;"></canvas>
-
-  <p id="mensaje"></p>
+  <button onclick="guardarAsistencia()">✅ Registrar Asistencia</button>
 
 </div>
+
+<!-- ADMIN -->
+<button onclick="mostrarAdmin()">👩‍💼 Panel Admin</button>
 
 <footer>
   Luiz-Labs © 2026
 </footer>
+
+<div id="adminModal" style="
+  display:none;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:#000;
+  z-index:999;
+  overflow:auto;
+  padding:20px;
+">
+
+  <div style="max-width:800px; margin:auto; color:white;">
+
+    <button onclick="cerrarAdmin()" style="
+      background:red;
+      padding:10px;
+      border:none;
+      border-radius:8px;
+      margin-bottom:15px;
+    ">
+      ❌ Cerrar
+    </button>
+
+    <h2>Panel Administrativo</h2>
+    <input type="date" id="filtroFecha" onchange="cargarDatos()">
+    <button onclick="exportarExcel()">📥 Excel</button>
+
+
+    <div id="indicadores"></div>
+
+    <table border="1" style="width:100%; margin-top:15px;">
+      <thead>
+        <tr>
+          <th>DNI</th>
+          <th>Nombre</th>
+          <th>UBO</th>
+          <th>Fecha</th>
+          <th>Hora</th>
+        </tr>
+      </thead>
+      <tbody id="tablaBody"></tbody>
+    </table>
+
+  </div>
+</div>
 
 <!-- LIBRERÍAS -->
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -158,15 +238,6 @@ function getDeviceId() {
 let streamGlobal = null
 
 function iniciarEscaneo() {
-
-  const dni = document.getElementById("dni").value
-  const nombre = document.getElementById("nombre").value
-  const ubo = document.getElementById("ubo").value
-
-  if (!dni || !nombre || !ubo) {
-    document.getElementById("mensaje").innerText = "⚠ Completa todos los campos"
-    return
-  }
 
   const video = document.getElementById("video")
   const btnCancelar = document.getElementById("btnCancelar")
@@ -199,7 +270,14 @@ function scanQR() {
 
     if (code) {
       detenerCamara()
-      registrarAsistencia(code.data)
+
+      if (code.data !== "ESBAS-2026") {
+        mostrarMensaje("❌ QR inválido", "error")
+        return
+      }
+
+      mostrarMensaje("✅ QR válido, completa tus datos", "ok")
+      document.getElementById("formulario").style.display = "block"
       return
     }
   }
@@ -216,13 +294,15 @@ function detenerCamara() {
   document.getElementById("btnCancelar").style.display = "none"
 }
 
+
+
 // REGISTRAR
 async function registrarAsistencia(qrData) {
 
   const QR_VALIDO = "ESBAS-2026"
 
   if (qrData !== QR_VALIDO) {
-    document.getElementById("mensaje").innerText = "❌ QR inválido"
+    mostrarMensaje("❌ QR inválido", "error")
     return
   }
 
@@ -243,15 +323,219 @@ async function registrarAsistencia(qrData) {
       ])
 
     if (error) {
-      document.getElementById("mensaje").innerText = "⚠ Ya registraste hoy o error"
+
+      // detectar duplicado
+      if (error.message.includes("duplicate")) {
+        mostrarMensaje("⚠ Ya registraste asistencia hoy", "warn")
+      } else {
+        mostrarMensaje("❌ Error al registrar", "error")
+      }
+
     } else {
-      document.getElementById("mensaje").innerText = "✅ Asistencia registrada"
+      mostrarMensaje("✅ Asistencia registrada", "ok")
     }
 
   }, function() {
-    document.getElementById("mensaje").innerText = "⚠ Activa GPS"
+    mostrarMensaje("⚠ Activa GPS", "warn")
   })
 }
+
+// 🔐 CLAVE SIMPLE
+const ADMIN_PASS = "1234"
+
+// Mostrar panel
+function mostrarAdmin() {
+  const pass = prompt("Ingrese clave admin")
+
+  if (pass === ADMIN_PASS) {
+    document.getElementById("adminModal").style.display = "block"
+  } else {
+    alert("Clave incorrecta")
+  }
+}
+
+function cerrarAdmin() {
+  document.getElementById("adminModal").style.display = "none"
+}
+
+function mostrarMensaje(texto, tipo="ok") {
+
+  const el = document.getElementById("mensaje")
+
+  let color = "white"
+
+  if (tipo === "ok") color = "lightgreen"
+  if (tipo === "error") color = "red"
+  if (tipo === "warn") color = "yellow"
+
+  el.style.color = color
+  el.innerText = texto
+}
+
+// 📊 Cargar datos
+async function cargarDatos() {
+
+  const filtroFecha = document.getElementById("filtroFecha").value
+  const TOTAL_CLASES = 10
+
+  let query = supabaseClient
+    .from('asistencias')
+    .select('*')
+    .order('fecha', { ascending: true })
+
+  if (filtroFecha) {
+    query = query.eq('fecha', filtroFecha)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    alert("Error al cargar datos")
+    return
+  }
+
+  const tbody = document.getElementById("tablaBody")
+  tbody.innerHTML = ""
+
+  let alumnos = {}
+
+  data.forEach(row => {
+
+    if (!alumnos[row.dni]) {
+      alumnos[row.dni] = {
+        nombre: row.nombre,
+        ubo: row.ubo,
+        asistencias: 0
+      }
+    }
+
+    alumnos[row.dni].asistencias++
+
+    tbody.innerHTML += `
+      <tr>
+        <td>${row.dni}</td>
+        <td>${row.nombre}</td>
+        <td>${row.ubo}</td>
+        <td>${row.fecha}</td>
+        <td>${row.hora}</td>
+      </tr>
+    `
+  })
+
+  let html = "<h3>Indicadores</h3>"
+
+  for (let dni in alumnos) {
+
+    let asistencias = alumnos[dni].asistencias
+    let faltas = TOTAL_CLASES - asistencias
+    let porcentaje = ((asistencias / TOTAL_CLASES) * 100).toFixed(0)
+
+    let color = "green"
+
+    if (porcentaje < 70) color = "red"
+    else if (porcentaje < 90) color = "yellow"
+
+    html += `
+      <div style="
+        background:#222;
+        margin:10px 0;
+        padding:10px;
+        border-radius:8px;
+        border-left:6px solid ${color};
+      ">
+        <strong>${alumnos[dni].nombre}</strong><br>
+        DNI: ${dni} | UBO: ${alumnos[dni].ubo}<br>
+        ✔ Asistencias: ${asistencias} <br>
+        ❌ Faltas: ${faltas} <br>
+        📊 % Asistencia: ${porcentaje}%
+      </div>
+    `
+  }
+
+  document.getElementById("indicadores").innerHTML = html
+}
+
+
+
+// 📥 EXPORTAR EXCEL
+function exportarExcel() {
+
+  let contenido = "DNI,Nombre,UBO,Fecha,Hora\n"
+
+  document.querySelectorAll("#tablaBody tr").forEach(row => {
+    let cols = row.querySelectorAll("td")
+
+    contenido += `${cols[0].innerText},${cols[1].innerText},${cols[2].innerText},${cols[3].innerText},${cols[4].innerText}\n`
+  })
+
+  let blob = new Blob([contenido], { type: "text/csv;charset=utf-8;" })
+
+  let url = URL.createObjectURL(blob)
+
+  let a = document.createElement("a")
+  a.href = url
+  a.download = "reporte_esbas.csv"
+  a.click()
+}
+
+function mostrarLoader() {
+  document.getElementById("loader").style.display = "flex"
+}
+
+function ocultarLoader() {
+  document.getElementById("loader").style.display = "none"
+}
+
+async function guardarAsistencia() {
+
+  const dni = document.getElementById("dni").value
+  const nombre = document.getElementById("nombre").value
+  const ubo = document.getElementById("ubo").value
+  const seccion = document.getElementById("seccion").value
+
+  if (!dni || !nombre || !ubo || !seccion) {
+    mostrarMensaje("⚠ Completa todos los campos", "warn")
+    return
+  }
+
+  mostrarLoader()
+
+  const deviceId = getDeviceId()
+
+  navigator.geolocation.getCurrentPosition(async function(position) {
+
+    const lat = position.coords.latitude
+    const lng = position.coords.longitude
+
+    const { error } = await supabaseClient
+      .from('asistencias')
+      .insert([
+        { dni, nombre, ubo, seccion, latitud: lat, longitud: lng, device_id: deviceId }
+      ])
+
+    ocultarLoader()
+
+    if (error) {
+
+      if (error.message.includes("duplicate")) {
+        mostrarMensaje("⚠ Ya registraste hoy", "warn")
+      } else {
+        mostrarMensaje("❌ Error al registrar", "error")
+      }
+
+    } else {
+      mostrarMensaje("✅ Asistencia registrada", "ok")
+
+      // limpiar form
+      document.getElementById("formulario").style.display = "none"
+    }
+
+  }, function() {
+    ocultarLoader()
+    mostrarMensaje("⚠ Activa GPS", "warn")
+  })
+}
+
 </script>
 
 </body>
