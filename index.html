@@ -26,6 +26,8 @@
     max-width: 500px;
     margin: auto;
     padding: 20px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 12px;
   }
 
   h2 {
@@ -33,9 +35,12 @@
   }
 
   .logo {
-    width: 120px;
-    margin: 20px auto;
+    width: 140px;
+    max-width: 80%;
+    height: auto;
+    margin: 25px auto;
     display: block;
+    object-fit: contain;
   }
 
   input {
@@ -48,15 +53,26 @@
   }
 
   button {
-    width: 100%;
-    padding: 14px;
-    margin-top: 10px;
-    border-radius: 10px;
-    border: none;
-    background: #2d8cf0;
-    color: white;
-    font-size: 16px;
-    font-weight: bold;
+  width: auto;
+  padding: 14px;
+  margin-top: 10px;
+  border-radius: 12px;
+  border: none;
+  background: #2d8cf0;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  }
+
+  button:hover {
+    transform: scale(1.02);
+    opacity: 0.9;
+  }
+
+  button:active {
+    transform: scale(0.98);
   }
 
   video {
@@ -115,6 +131,29 @@
     border-color: #2d8cf0;
   }
 
+  th, td {
+  padding: 10px;
+  text-align: left;
+  }
+
+  th {
+    background: #2d8cf0;
+  }
+
+  tr:nth-child(even) {
+    background: #111;
+  }
+
+  * {
+    transition: all 0.2s ease;
+  }
+
+  @media (min-width: 768px) {
+    #btnMenu {
+      display: none;
+    }
+  }
+
   </style>
 
 </head>
@@ -152,7 +191,7 @@
   <img src="logo.png" class="logo">
 
 <!-- BOTÓN PRINCIPAL -->
-<button onclick="iniciarEscaneo()">📷 Escanear QR</button>
+<button onclick="iniciarEscaneo()" style="width:100%;">📷 Escanear QR</button>
 
 <button id="btnCancelar" onclick="detenerCamara()" style="display:none;">
   ❌ Cancelar
@@ -175,76 +214,208 @@
   <div id="secciones">
 
     <button type="button" class="btn-seccion" onclick="seleccionarSeccion(this, 'A')">
-      Sección A
+      Sección A (Martes y Jueves Presencial)
     </button>
 
     <button type="button" class="btn-seccion" onclick="seleccionarSeccion(this, 'B')">
-      Sección B
+      Sección B (Sábado Presencial)
     </button>
 
     <button type="button" class="btn-seccion" onclick="seleccionarSeccion(this, 'C')">
-      Sección C
+      Sección C (Sábado Virtual)
     </button>
 
   </div>
 
-  <button onclick="guardarAsistencia()">✅ Registrar Asistencia</button>
+  <button onclick="guardarAsistencia()" style="width:100%;">✅ Registrar Asistencia</button>
 
 </div>
 
 <!-- ADMIN -->
-<button onclick="mostrarAdmin()">👩‍💼 Panel Admin</button>
+<button onclick="mostrarAdmin()" style="width:100%;">👩‍💼 Panel Admin</button>
 
 <footer>
   Desarrollado por  Luiz-Labs © 2026
 </footer>
 
-<div id="adminModal" style="
+<div id="adminPanel" style="
   display:none;
   position:fixed;
   top:0;
   left:0;
   width:100%;
   height:100%;
-  background:#000;
-  z-index:999;
-  overflow:auto;
-  padding:20px;
+  background:black;
+  z-index:9999;
 ">
 
-  <div style="max-width:800px; margin:auto; color:white;">
+  <!-- HEADER -->
+  <div style="
+    background:#2d8cf0;
+    height:60px;
+    padding:0 20px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  ">
 
-    <button onclick="cerrarAdmin()" style="
-      background:red;
-      padding:10px;
-      border:none;
-      border-radius:8px;
-      margin-bottom:15px;
+    <!-- IZQUIERDA -->
+    <div style="
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-weight:600;
+      font-size:18px;
     ">
-      ❌ Cerrar
-    </button>
+      📊 ESBAS Admin
+    </div>
 
-    <h2>Panel Administrativo</h2>
-    <input type="date" id="filtroFecha" onchange="cargarDatos()">
-    <button onclick="exportarExcel()">📥 Excel</button>
+    <!-- DERECHA -->
+    <div style="
+      display:flex;
+      align-items:center;
+      gap:12px;
+    ">
 
+      <div style="
+        display:flex;
+        align-items:center;
+        gap:6px;
+        height:34px;
+        font-size:14px;
+      ">
+        <span>👤</span>
+        <span>Admin</span>
+      </div>
 
-    <div id="indicadores"></div>
+      <button onclick="cerrarAdmin()" style="
+        height:34px;
+        padding:0 14px;
+        background:rgba(255,255,255,0.9);
+        color:#2d8cf0;
+        border:none;
+        border-radius:10px;
+        font-weight:600;
+        cursor:pointer;
+        display:flex;
+        align-items:center;
+      ">
+        Salir
+      </button>
 
-    <table border="1" style="width:100%; margin-top:15px;">
-      <thead>
-        <tr>
-          <th>DNI</th>
-          <th>Nombre</th>
-          <th>UBO</th>
-          <th>Fecha</th>
-          <th>Hora</th>
-        </tr>
-      </thead>
-      <tbody id="tablaBody"></tbody>
-    </table>
+    </div>
+
+  </div> <!-- 🔥 ESTE ERA EL DIV QUE FALTABA -->
+
+  <!-- CONTENEDOR FLEX -->
+  <div style="
+    display:flex;
+    height:calc(100vh - 60px);
+  ">
+
+    <!-- SIDEBAR -->
+    <div id="sidebar" style="
+      width:220px;
+      background:#0d0d0d;
+      padding:20px;
+      border-right:1px solid #222;
+      transition: all 0.3s ease;
+      overflow:hidden;
+      text-align:left;
+      flex-shrink:0;
+    ">
+
+      <button onclick="toggleSidebar()" style="width:100%; margin-bottom:20px;">
+        ☰
+      </button>
+
+      <p onclick="mostrarVista('reportes')" style="cursor:pointer;">📊 Reportes</p>
+      <p onclick="mostrarVista('config')" style="cursor:pointer;">
+        ⚙ Configuración
+      </p>
+
+    </div>
+
+    <!-- CONTENIDO -->
+    <div style="
+      flex:1;
+      padding:20px;
+      overflow-y:auto;
+    ">
+
+      <!-- VISTA INICIO -->
+      <div id="vistaInicio">
+        <h2>Bienvenido</h2>
+        <p>Panel ESBAS listo</p>
+      </div>
+
+      <!-- VISTA REPORTES -->
+      <div id="vistaReportes" style="display:none;">
+
+        <h2>Reportes</h2>
+
+        <!-- FILTROS -->
+        <div style="
+          display:flex;
+          gap:10px;
+          flex-wrap:wrap;
+          align-items:center;
+          margin-bottom:20px;
+        ">
+          <button onclick="filtrarHoy()">Hoy</button>
+          <button onclick="filtrar7()">7 días</button>
+          <button onclick="filtrar30()">30 días</button>
+
+          <button onclick="cargarDatos()">Aplicar</button>
+          <button onclick="limpiarFiltros()">Limpiar</button>
+
+          <button onclick="exportarExcel()" style="margin-left:auto;">
+            📥 Exportar
+          </button>
+        </div>
+
+        <!-- TABLA -->
+        <div style="width:100%; padding-bottom:50px;">
+          <table style="
+            width:100%;
+            border-collapse: collapse;
+            background:#1a1a1a;
+            border-radius:10px;
+          ">
+            <thead>
+              <tr>
+                <th>DNI</th>
+                <th>Nombre</th>
+                <th>UBO</th>
+                <th>Fecha</th>
+                <th>Hora</th>
+              </tr>
+            </thead>
+            <tbody id="tablaBody"></tbody>
+          </table>
+        </div>
+
+        <div id="indicadores" style="margin-top:20px;"></div>
+
+      </div>
+
+      <!-- CONFIG -->
+      <div id="vistaConfig" style="display:none;">
+        <h2>Configuración</h2>
+
+        <p>⚙ Próximamente:</p>
+
+        <ul style="text-align:left;">
+          <li>📍 GPS configurable</li>
+          <li>📅 Inicio y fin de curso</li>
+          <li>📆 Días de asistencia por sección</li>
+        </ul>
+      </div>
+
+    </div>
 
   </div>
+
 </div>
 
 <!-- LIBRERÍAS -->
@@ -382,54 +553,81 @@ function mostrarAdmin() {
   const pass = prompt("Ingrese clave admin")
 
   if (pass === ADMIN_PASS) {
-    document.getElementById("adminModal").style.display = "block"
+    document.getElementById("adminPanel").style.display = "block"
+
+    setTimeout(() => {
+      mostrarVista("reportes")
+    }, 300)
+
   } else {
     alert("Clave incorrecta")
   }
 }
 
 function cerrarAdmin() {
-  document.getElementById("adminModal").style.display = "none"
+  document.getElementById("adminPanel").style.display = "none"
 }
 
 function mostrarMensaje(texto, tipo="ok") {
 
   const el = document.getElementById("mensaje")
 
-  let color = "white"
+  let bg = "#2d8cf0"
 
-  if (tipo === "ok") color = "lightgreen"
-  if (tipo === "error") color = "red"
-  if (tipo === "warn") color = "yellow"
+  if (tipo === "error") bg = "#ff4d4f"
+  if (tipo === "warn") bg = "#faad14"
 
-  el.style.color = color
+  el.style.background = bg
+  el.style.color = "white"
+  el.style.padding = "10px"
+  el.style.borderRadius = "8px"
+  el.style.marginTop = "15px"
+
   el.innerText = texto
+
+  setTimeout(() => {
+    el.innerText = ""
+    el.style.background = "transparent"
+  }, 3000)
 }
 
 // 📊 Cargar datos
 async function cargarDatos() {
 
-  const filtroFecha = document.getElementById("filtroFecha").value
-  const TOTAL_CLASES = 10
+  console.log("Inicio:", window.fechaInicio)
+  console.log("Fin:", window.fechaFin)
+
+  if (!window.fechaInicio || !window.fechaFin) {
+    mostrarMensaje("⚠ Primero selecciona Hoy, 7 días o 30 días", "warn")
+    return
+  }
+
+  mostrarMensaje("📊 Cargando datos...", "ok")
 
   let query = supabaseClient
     .from('asistencias')
     .select('*')
     .order('fecha', { ascending: true })
 
-  if (filtroFecha) {
-    query = query.eq('fecha', filtroFecha)
-  }
+  query = query
+    .gte('fecha', window.fechaInicio)
+    .lte('fecha', window.fechaFin)
 
   const { data, error } = await query
 
   if (error) {
-    alert("Error al cargar datos")
+    console.log(error)
+    mostrarMensaje("❌ Error al cargar datos", "error")
     return
   }
 
   const tbody = document.getElementById("tablaBody")
   tbody.innerHTML = ""
+
+  if (!data || data.length === 0) {
+    document.getElementById("indicadores").innerHTML = "<p>No hay datos</p>"
+    return
+  }
 
   let alumnos = {}
 
@@ -461,33 +659,26 @@ async function cargarDatos() {
   for (let dni in alumnos) {
 
     let asistencias = alumnos[dni].asistencias
-    let faltas = TOTAL_CLASES - asistencias
-    let porcentaje = ((asistencias / TOTAL_CLASES) * 100).toFixed(0)
-
-    let color = "green"
-
-    if (porcentaje < 70) color = "red"
-    else if (porcentaje < 90) color = "yellow"
 
     html += `
       <div style="
-        background:#222;
-        margin:10px 0;
-        padding:10px;
-        border-radius:8px;
-        border-left:6px solid ${color};
+        background:#1a1a1a;
+        margin:12px 0;
+        padding:14px;
+        border-radius:12px;
+        border-left:6px solid green;
       ">
         <strong>${alumnos[dni].nombre}</strong><br>
         DNI: ${dni} | UBO: ${alumnos[dni].ubo}<br>
-        ✔ Asistencias: ${asistencias} <br>
-        ❌ Faltas: ${faltas} <br>
-        📊 % Asistencia: ${porcentaje}%
+        ✔ Asistencias: ${asistencias}
       </div>
     `
   }
 
-  document.getElementById("indicadores").innerHTML = html
+document.getElementById("indicadores").innerHTML = html
 }
+
+
 
 
 
@@ -542,8 +733,16 @@ async function guardarAsistencia() {
     const lng = position.coords.longitude
 
     const ahora = new Date()
-    const fechaLocal = ahora.toISOString().split("T")[0]
-    const horaLocal = ahora.toTimeString().split(" ")[0]
+
+    const fechaLocal =
+      ahora.getFullYear() + "-" +
+      String(ahora.getMonth() + 1).padStart(2, "0") + "-" +
+      String(ahora.getDate()).padStart(2, "0")
+
+    const horaLocal =
+      String(ahora.getHours()).padStart(2, "0") + ":" +
+      String(ahora.getMinutes()).padStart(2, "0") + ":" +
+      String(ahora.getSeconds()).padStart(2, "0")
 
     const { error } = await supabaseClient
       .from('asistencias')
@@ -576,6 +775,10 @@ async function guardarAsistencia() {
       mostrarMensaje("✅ Asistencia registrada", "ok")
 
       document.getElementById("formulario").style.display = "none"
+      document.getElementById("dni").value = ""
+      document.getElementById("nombre").value = ""
+      document.getElementById("ubo").value = ""
+      seccionSeleccionada = ""
     }
 
   }, function() {
@@ -595,6 +798,77 @@ function seleccionarSeccion(btn, valor) {
   })
 
   btn.classList.add("activo")
+}
+
+function filtrarHoy() {
+  const hoy = new Date()
+  aplicarRango(hoy, hoy)
+}
+
+function filtrar7() {
+  const fin = new Date()
+  const inicio = new Date()
+  inicio.setDate(fin.getDate() - 7)
+  aplicarRango(inicio, fin)
+}
+
+function filtrar30() {
+  const fin = new Date()
+  const inicio = new Date()
+  inicio.setDate(fin.getDate() - 30)
+  aplicarRango(inicio, fin)
+}
+
+function aplicarRango(inicio, fin) {
+  window.fechaInicio = formatearFecha(inicio)
+  window.fechaFin = formatearFecha(fin)
+
+  mostrarMensaje("📅 Filtro seleccionado, presiona Aplicar", "ok")
+}
+
+function limpiarFiltros() {
+  window.fechaInicio = null
+  window.fechaFin = null
+
+  document.getElementById("tablaBody").innerHTML = ""
+  document.getElementById("indicadores").innerHTML = ""
+
+  mostrarMensaje("🧹 Datos limpiados", "ok")
+}
+
+function formatearFecha(fecha) {
+  return fecha.getFullYear() + "-" +
+    String(fecha.getMonth() + 1).padStart(2, "0") + "-" +
+    String(fecha.getDate()).padStart(2, "0")
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar")
+
+  if (sidebar.style.width === "60px") {
+    sidebar.style.width = "220px"
+
+    sidebar.querySelectorAll("p").forEach(el => el.style.display = "block")
+
+  } else {
+    sidebar.style.width = "60px"
+
+    sidebar.querySelectorAll("p").forEach(el => el.style.display = "none")
+  }
+}
+
+function mostrarVista(vista) {
+  document.getElementById("vistaInicio").style.display = "none"
+  document.getElementById("vistaReportes").style.display = "none"
+  document.getElementById("vistaConfig").style.display = "none"
+
+  if (vista === "reportes") {
+    document.getElementById("vistaReportes").style.display = "block"
+  }
+
+  if (vista === "config") {
+    document.getElementById("vistaConfig").style.display = "block"
+  }
 }
 
 </script>
