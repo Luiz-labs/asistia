@@ -8,7 +8,13 @@
 <style>
 body{
   margin:0;
-  font-family:-apple-system, BlinkMacSystemFont;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Arial,
+    sans-serif;
   background:#e9ecf1; /* gris marcado estilo mac */
   color:#1c1c1e;
 }
@@ -44,15 +50,7 @@ body{
 }
 
 /* INPUTS */
-input, select{
-  padding:10px;
-  border-radius:10px;
-  border:1px solid #ddd;
-  font-size:14px;
-  background:white;
-  height:40px; /* 🔥 clave para igualar altura */
-  box-sizing:border-box;
-}
+
 select{
   appearance:none;
   -webkit-appearance:none;
@@ -171,13 +169,27 @@ th{
   border:1px solid #e0e0e0;
 }
 
-<video id="video" style="
-  display:none;
-  width:100%;
-  max-width:400px;
-  border-radius:12px;
-  margin-top:20px;
-"></video>
+
+input, select, button{
+  height:42px;
+  padding:0 12px;
+  border-radius:10px;
+  border:1px solid #ddd;
+  font-size:14px;
+  box-sizing:border-box;
+}
+
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+button{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
 
 </style>
 </head>
@@ -223,7 +235,7 @@ th{
     <h2 style="margin-bottom:20px;">ESBAS 2026</h2>
 
     <!-- INPUTS EN LINEA -->
-    <div style="display:flex;gap:10px;margin-bottom:15px;">
+    <div style="display:flex;gap:10px;margin-bottom:15px;align-items:stretch;">
       <input id="loginUser" placeholder="Usuario" style="flex:1;">
       <input id="loginPass" type="password" placeholder="Clave" style="flex:1;">
     </div>
