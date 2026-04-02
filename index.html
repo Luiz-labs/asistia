@@ -1,258 +1,4576 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>ESBAS - Asistencia</title>
+<meta charset="UTF-8">
+<title>ESBAS Panel de Asistencia - XXIV CD</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+:root{
+  --bg:#eff2f7;
+  --surface:#ffffff;
+  --surface-soft:#f8f9fc;
+  --line:#dce2ee;
+  --text:#172033;
+  --muted:#5f6f8f;
+  --brand:#0f6bfd;
+  --brand-dark:#0c5ad4;
+  --shadow:0 24px 50px rgba(20, 42, 80, 0.12), 0 10px 24px rgba(20, 42, 80, 0.08);
+}
 
-  <style>
-  body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: black;
-    color: white;
-    text-align: center;
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  font-family:"Sora", "Avenir Next", "Nunito Sans", sans-serif;
+  background:radial-gradient(circle at top right, #f7fbff 0%, var(--bg) 52%);
+  color:var(--text);
+}
+
+h2{
+  margin-bottom:12px;
+  letter-spacing:0.2px;
+}
+
+.header{
+  min-height:64px;
+  background:rgba(255,255,255,0.88);
+  backdrop-filter:blur(8px);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:0 20px;
+  border-bottom:1px solid var(--line);
+}
+
+.header-actions{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.sidebar{
+  width:228px;
+  padding:20px 14px;
+  background:var(--surface);
+  border-right:1px solid var(--line);
+}
+
+.nav-item{
+  margin:0 0 8px;
+  padding:11px 12px;
+  border-radius:12px;
+  color:#233252;
+  cursor:pointer;
+  font-weight:500;
+  transition:background .2s, transform .2s;
+}
+
+.nav-item:hover{
+  background:#eef4ff;
+}
+
+.nav-item.active{
+  background:linear-gradient(90deg, #e9f1ff, #eef7ff);
+  color:#0c57c9;
+  transform:translateX(2px);
+}
+
+.card{
+  background:var(--surface);
+  border-radius:16px;
+  padding:16px;
+  border:1px solid rgba(164, 179, 211, 0.25);
+  box-shadow:var(--shadow);
+}
+
+select{
+  appearance:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+}
+
+.filtros{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+button{
+  background:linear-gradient(180deg, #2783ff 0%, var(--brand) 100%);
+  color:white;
+  border:none;
+  padding:0 18px;
+  border-radius:10px;
+  font-size:14px;
+  cursor:pointer;
+  min-width:110px;
+  height:42px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  transition:transform .15s, filter .15s;
+}
+
+button:hover{
+  filter:brightness(0.97);
+  transform:translateY(-1px);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible{
+  outline:3px solid #a9caff;
+  outline-offset:1px;
+}
+
+button.secondary{
+  background:#edf1f8;
+  color:#172033;
+  min-width:100px;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+td,th{
+  padding:11px 10px;
+  border-bottom:1px solid var(--line);
+  font-size:14px;
+  text-align:left;
+}
+
+th{
+  background:var(--surface-soft);
+  font-weight:600;
+}
+
+#vistaDesktop button{
+  box-shadow:0 8px 20px rgba(15, 88, 216, 0.15);
+}
+
+.input-date{
+  position:relative;
+  display:flex;
+  align-items:center;
+}
+
+.input-date input{
+  padding-right:35px;
+}
+
+.input-date::after{
+  content:"";
+  width:16px;
+  height:16px;
+  background:url('https://cdn-icons-png.flaticon.com/512/747/747310.png') no-repeat center;
+  background-size:contain;
+  position:absolute;
+  right:10px;
+  opacity:0.5;
+  pointer-events:none;
+}
+
+.dias{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+.dias label{
+  background:#f4f7fd;
+  padding:8px 14px;
+  border-radius:12px;
+  cursor:pointer;
+  font-size:13px;
+  border:1px solid #dbe4f5;
+}
+
+input, select{
+  height:42px;
+  padding:0 12px;
+  border-radius:10px;
+  border:1px solid #ced7e8;
+  font-size:14px;
+  background:#fff;
+  color:var(--text);
+}
+
+#loginScreen input{
+  width:100%;
+  min-width:0;
+}
+
+.login-tenant-head{
+  display:inline-flex;
+  align-items:center;
+  gap:12px;
+}
+
+.login-tenant-head h1{
+  margin:0;
+  font-family:"Outfit","Sora","Avenir Next","Nunito Sans",sans-serif;
+  font-weight:800;
+  letter-spacing:-0.2px;
+  color:#1a2e57;
+}
+
+.login-project-title{
+  background:linear-gradient(98deg, #0b4fd6 8%, #1575ff 42%, #58a0ff 66%, #112a56 100%);
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+
+.login-brand-logo{
+  width:42px;
+  height:42px;
+  object-fit:contain;
+  border-radius:10px;
+}
+
+#tabla{
+  overflow:auto;
+}
+
+#topUbo p{
+  margin-top:8px;
+  color:#26375a;
+  font-weight:500;
+}
+
+#topUbo p:hover{
+  color:#0c58c9;
+}
+
+#modalContenido{
+  margin-top:12px;
+}
+
+.config-card{
+  padding:22px;
+}
+
+#vistaConfig .config-card + .config-card{
+  margin-top:20px;
+}
+
+#vistaConfig > h2{
+  margin-bottom:18px;
+}
+
+#vistaConfig .card h3{
+  margin-bottom:14px;
+  font-size:24px;
+  letter-spacing:0.2px;
+}
+
+.config-row{
+  display:flex;
+  gap:10px;
+  margin-bottom:12px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.config-row select,
+.config-row input{
+  min-width:170px;
+}
+
+#filtroUboConfig,
+#filtroRetirados{
+  min-width:230px;
+}
+
+.config-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:14px;
+}
+
+.config-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+  gap:10px;
+}
+
+.config-grid > div{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.config-grid label{
+  font-size:13px;
+  color:var(--muted);
+  font-weight:600;
+}
+
+.course-module{
+  margin-top:14px;
+  border:1px solid #e0e7f4;
+  border-radius:14px;
+  padding:14px;
+  background:#fafcff;
+}
+
+.course-module h4{
+  margin-bottom:10px;
+  font-size:16px;
+}
+
+.course-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+
+.course-footer-actions{
+  margin-top:16px;
+  padding-top:14px;
+  border-top:1px dashed #cfd9ec;
+}
+
+.course-footer-actions .hint{
+  margin-bottom:8px;
+}
+
+.table-wrap{
+  overflow:auto;
+  margin-top:10px;
+}
+
+.table-wrap table{
+  min-width:680px;
+}
+
+.days-select{
+  min-height:42px;
+  height:42px;
+  padding:6px 10px;
+}
+
+.days-select[multiple]{
+  overflow-y:auto;
+}
+
+.days-select[multiple] option{
+  padding:6px 8px;
+}
+
+.toggle-wrap{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:42px;
+  padding:8px 10px;
+  border:1px solid #ced7e8;
+  border-radius:10px;
+  background:#fff;
+}
+
+.toggle-wrap input[type="checkbox"]{
+  width:18px;
+  height:18px;
+  margin:0;
+}
+
+#vistaUsuarios .config-card + .config-card{
+  margin-top:26px;
+}
+
+#vistaUsuarios .config-card{
+  padding:24px 22px;
+}
+
+.user-table-wrap{
+  max-height:clamp(220px, 38vh, 460px);
+  overflow:auto;
+  border:1px solid #e3e9f5;
+  border-radius:12px;
+  background:#fff;
+}
+
+.table-actions{
+  display:flex;
+  gap:8px;
+}
+
+.table-actions button{
+  min-width:auto;
+  height:32px;
+  padding:0 10px;
+  font-size:12px;
+}
+
+.hint{
+  font-size:12px;
+  color:var(--muted);
+  margin-top:6px;
+}
+
+.tag-system{
+  display:inline-block;
+  font-size:11px;
+  padding:2px 8px;
+  border-radius:999px;
+  background:#eaf1ff;
+  color:#2d55a5;
+  margin-left:6px;
+}
+
+.btn-link{
+  background:transparent !important;
+  color:#0f6bfd !important;
+  border:none !important;
+  box-shadow:none !important;
+  min-width:auto !important;
+  height:auto !important;
+  padding:0 !important;
+  font-size:13px;
+  font-weight:700;
+  text-decoration:underline;
+}
+
+.btn-link:hover{
+  transform:none !important;
+  filter:none !important;
+  color:#0b56c8 !important;
+}
+
+.config-subtitle{
+  display:block;
+  margin-bottom:10px;
+  font-size:18px;
+}
+
+.section-top{
+  display:grid;
+  grid-template-columns:minmax(190px, 260px) minmax(190px, 260px);
+  gap:12px;
+}
+
+.section-mode{
+  margin-top:18px;
+}
+
+.mode-options{
+  display:flex;
+  gap:12px;
+  margin-top:8px;
+  flex-wrap:wrap;
+}
+
+.mode-options label{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  background:#f4f7fd;
+  padding:10px 12px;
+  border:1px solid #dbe4f5;
+  border-radius:12px;
+  font-size:16px;
+  cursor:pointer;
+}
+
+.mode-options input{
+  width:18px;
+  height:18px;
+  margin:0;
+}
+
+.dias{
+  margin-top:12px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+}
+
+.dias label{
+  background:#f4f7fd;
+  min-height:52px;
+  min-width:150px;
+  padding:10px 14px;
+  border-radius:12px;
+  cursor:pointer;
+  font-size:16px;
+  border:1px solid #dbe4f5;
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+}
+
+.dias label input{
+  width:20px;
+  height:20px;
+  margin:0;
+}
+
+.dias label:has(input:checked),
+.dias label.active-day{
+  background:linear-gradient(180deg, #eaf2ff 0%, #dce9ff 100%);
+  border-color:#9fbef8;
+  color:#0f3f92;
+  box-shadow:0 6px 14px rgba(39, 103, 222, 0.12);
+}
+
+.mode-options label:has(input:checked),
+.mode-options label.active-option{
+  background:linear-gradient(180deg, #eaf2ff 0%, #dce9ff 100%);
+  border-color:#9fbef8;
+  color:#0f3f92;
+  box-shadow:0 6px 14px rgba(39, 103, 222, 0.12);
+}
+
+#listaAspirantes p{
+  margin-bottom:8px;
+  padding:10px 12px;
+  border:1px solid #dbe4f5;
+  border-radius:10px;
+  background:#f8fbff;
+  cursor:pointer;
+}
+
+#listaAspirantes p:hover{
+  background:#edf4ff;
+}
+
+#listaRetirados p{
+  margin-bottom:8px;
+  padding:10px 12px;
+  border:1px solid #dbe4f5;
+  border-radius:10px;
+  background:#f8fbff;
+}
+
+#tablaAlertas{
+  margin-top:20px;
+}
+
+#vistaMovil{
+  max-width:420px;
+  margin:0 auto;
+  min-height:100dvh;
+  padding:14px 16px !important;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+
+#vistaMovilInicio{
+  max-width:420px;
+  margin:0 auto;
+  min-height:100dvh;
+  padding:14px 16px !important;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  text-align:center;
+}
+
+#vistaMovilInicio .mobile-step{
+  background:var(--surface);
+  border:1px solid rgba(164, 179, 211, 0.25);
+  box-shadow:var(--shadow);
+  border-radius:16px;
+  padding:16px;
+  margin-top:12px;
+}
+
+#vistaMovilInicio p{
+  color:var(--muted);
+}
+
+#vistaMovilInicio input{
+  width:100%;
+  margin:10px 0;
+}
+
+#vistaMovilInicio button{
+  width:min(100%, 320px);
+  min-height:48px;
+  border-radius:14px;
+  font-size:15px;
+  font-weight:600;
+}
+
+#vistaMovil h2{
+  margin-bottom:6px;
+  font-size:1.35rem;
+  line-height:1.15;
+}
+
+#vistaMovil .mobile-step{
+  background:var(--surface);
+  border:1px solid rgba(164, 179, 211, 0.25);
+  box-shadow:var(--shadow);
+  border-radius:16px;
+  padding:16px;
+  margin-top:12px;
+}
+
+#vistaMovil .mobile-step p{
+  margin-bottom:10px;
+  color:var(--muted);
+}
+
+#vistaMovil input{
+  width:100%;
+  margin-bottom:10px;
+}
+
+#vistaMovil button{
+  width:min(100%, 320px);
+  min-height:48px;
+  border-radius:14px;
+  font-size:15px;
+  font-weight:600;
+}
+
+#scanOverlay{
+  position:fixed;
+  inset:0;
+  background:rgba(11, 20, 38, 0.58);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:1200;
+  padding:16px;
+}
+
+#scanCard{
+  width:min(100%, 420px);
+  background:var(--surface);
+  border:1px solid rgba(164, 179, 211, 0.35);
+  border-radius:16px;
+  box-shadow:var(--shadow);
+  padding:14px;
+}
+
+#scanCardHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:10px;
+}
+
+#scanCardHeader strong{
+  font-size:14px;
+}
+
+#scanOverlay video{
+  width:100%;
+  max-height:52vh;
+  object-fit:cover;
+  border-radius:12px;
+  background:#111;
+}
+
+.scan-close{
+  min-width:auto !important;
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  padding:0;
+  background:#eef3ff;
+  color:#21457f;
+  border:1px solid #cfdbf3;
+  box-shadow:none !important;
+  font-size:18px;
+  line-height:1;
+}
+
+.scan-close:hover{
+  background:#dfeaff;
+  transform:none;
+  filter:none;
+}
+
+#formulario{
+  max-width:420px;
+  margin:0 auto;
+  background:var(--surface);
+  border:1px solid rgba(164, 179, 211, 0.3);
+  box-shadow:var(--shadow);
+  border-radius:16px;
+  padding:16px !important;
+}
+
+#formulario input{
+  width:100%;
+  margin-bottom:10px;
+}
+
+#formulario button{
+  width:100%;
+  margin-bottom:10px;
+}
+
+#formulario p{
+  margin:10px 0 12px;
+  color:var(--muted);
+}
+
+.mobile-section-btn{
+  background:#eef2f9 !important;
+  color:#243451 !important;
+  border:1px solid #d2deef !important;
+  box-shadow:none !important;
+  font-weight:600;
+  position:relative;
+  justify-content:flex-start;
+  text-align:left;
+  padding-left:14px;
+  padding-right:40px;
+  min-height:52px !important;
+  line-height:1.2;
+}
+
+.mobile-section-btn:hover{
+  background:#e5ecf8 !important;
+  transform:none;
+}
+
+.mobile-section-btn.active{
+  background:linear-gradient(180deg, #2783ff 0%, var(--brand) 100%) !important;
+  color:#fff !important;
+  border-color:#1e66de !important;
+  box-shadow:0 8px 18px rgba(23, 88, 210, 0.22) !important;
+}
+
+.mobile-section-btn.active::after{
+  content:"✓";
+  position:absolute;
+  right:14px;
+  top:50%;
+  transform:translateY(-50%);
+  font-size:16px;
+  font-weight:800;
+  color:#fff;
+}
+
+.mobile-primary{
+  margin-top:4px;
+  font-size:15px !important;
+  letter-spacing:0.2px;
+}
+
+.mobile-exit{
+  background:#f0f3fa !important;
+  color:#243451 !important;
+  border:1px solid #d3deef !important;
+  box-shadow:none !important;
+}
+
+.mobile-exit:hover{
+  background:#e8eef9 !important;
+  transform:none;
+}
+
+#mensaje{
+  display:none;
+  margin-top:8px !important;
+  padding:10px 12px;
+  border-radius:10px;
+  font-size:14px;
+  font-weight:600;
+  border:1px solid transparent;
+}
+
+#mensaje.ok{
+  display:block;
+  background:#e9f9ef;
+  color:#186a3b;
+  border-color:#b6e7c7;
+}
+
+#mensaje.error{
+  display:block;
+  background:#fff1f0;
+  color:#a33a34;
+  border-color:#f3c7c4;
+}
+
+#mensaje.warning{
+  display:block;
+  background:#fff8e8;
+  color:#8a5a00;
+  border-color:#f2ddad;
+}
+
+.badge-alerta{
+  display:inline-block;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+}
+
+.badge-alerta.ok{
+  background:#edf2fb;
+  color:#5c6f92;
+}
+
+.badge-alerta.warn{
+  background:#fff3dc;
+  color:#8a5a00;
+  border:1px solid #f2ddad;
+}
+
+.modal-close{
+  min-width:auto !important;
+  width:36px;
+  height:36px;
+  padding:0;
+  border-radius:50%;
+  background:#eef3ff;
+  color:#21457f;
+  border:1px solid #cfdbf3;
+  box-shadow:none !important;
+  font-size:18px;
+  font-weight:700;
+  line-height:1;
+}
+
+.modal-close:hover{
+  background:#dfeaff;
+  transform:none;
+  filter:none;
+}
+
+.view-switch{
+  min-width:auto !important;
+  padding:0 12px;
+}
+
+#vistaMovil .view-switch-wrap{
+  display:flex;
+  gap:8px;
+  justify-content:center;
+  margin:8px 0 4px;
+  flex-wrap:wrap;
+}
+
+#vistaMovil .view-switch-wrap button{
+  width:auto;
+  min-width:130px;
+  min-height:40px;
+  font-size:13px;
+}
+
+.tenant-screen{
+  position:fixed;
+  inset:0;
+  display:none;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  padding:20px;
+  background:radial-gradient(circle at 20% 0%, #f7fbff 0%, #eff2f7 55%);
+}
+
+.tenant-title{
+  text-align:center;
+  margin-bottom:24px;
+  transform:translateY(-34px);
+}
+
+.tenant-title h1{
+  margin:0;
+  font-size:1.85rem;
+  letter-spacing:0.2px;
+}
+
+.tenant-title p{
+  margin-top:8px;
+  color:#5b6c8a;
+}
+
+.brand-main{
+  margin:0 0 14px;
+  font-family:"Outfit","Sora","Avenir Next","Nunito Sans",sans-serif;
+  font-size:clamp(3.45rem, 6.9vw, 5.15rem);
+  font-weight:800;
+  line-height:0.96;
+  letter-spacing:-0.8px;
+  background:linear-gradient(98deg, #0b4fd6 8%, #1575ff 42%, #58a0ff 66%, #112a56 100%);
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+  text-shadow:0 10px 28px rgba(15, 88, 216, 0.2);
+}
+
+.tenant-subtitle{
+  margin:0;
+  font-size:clamp(1.35rem, 2.2vw, 1.95rem);
+  font-weight:600;
+  letter-spacing:0.4px;
+  color:#3d5b8f;
+}
+
+.tenant-caption{
+  margin:0 0 8px;
+  font-size:1.08rem;
+  font-weight:600;
+  color:#5a6f95 !important;
+  text-align:center;
+}
+
+.brand-mobile{
+  margin:0 0 6px;
+  font-size:1.55rem;
+  letter-spacing:0.2px;
+}
+
+.tenant-grid{
+  width:min(980px, 100%);
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+  gap:16px;
+}
+
+.tenant-card{
+  background:rgba(255,255,255,0.88);
+  backdrop-filter:blur(8px);
+  border:1px solid #dbe4f4;
+  border-radius:18px;
+  padding:18px;
+  box-shadow:0 22px 40px rgba(24, 46, 80, 0.12), 0 8px 18px rgba(24, 46, 80, 0.08);
+}
+
+.tenant-brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.tenant-logo{
+  width:52px;
+  height:52px;
+  border-radius:14px;
+  object-fit:cover;
+  border:1px solid #d5e0f4;
+  background:#fff;
+  padding:6px;
+}
+
+.tenant-logo-fake{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:17px;
+  font-weight:800;
+  color:#153b7a;
+  background:linear-gradient(180deg, #f4f8ff 0%, #e4edff 100%);
+}
+
+.tenant-meta strong{
+  display:block;
+  line-height:1.3;
+}
+
+.tenant-meta small{
+  color:#5b6c8a;
+}
+
+.tenant-tag{
+  margin-top:12px;
+  display:inline-block;
+  font-size:12px;
+  font-weight:700;
+  padding:4px 10px;
+  border-radius:999px;
+  background:#e9f2ff;
+  color:#1f4e9f;
+}
+
+.tenant-tag.disabled{
+  background:#f1f4fb;
+  color:#627394;
+}
+
+.tenant-card button{
+  margin-top:12px;
+  width:100%;
+}
+
+.tenant-note{
+  margin-top:14px;
+  color:#637595;
+  font-size:12px;
+  text-align:center;
+}
+
+@media (max-width: 1024px){
+  .sidebar{
+    width:190px;
+    padding:16px 10px;
   }
 
-  .topbar {
-    background: #2d8cf0;
-    padding: 15px;
-    font-weight: bold;
-    font-size: 18px;
+  #vistaDesktop > div:nth-child(2) > div:last-child{
+    padding:14px;
+  }
+}
+
+@media (max-width: 900px){
+  #vistaDesktop > div:nth-child(2){
+    flex-direction:column;
   }
 
-  .container {
-    max-width: 500px;
-    margin: auto;
-    padding: 20px;
+  .sidebar{
+    width:100%;
+    border-right:none;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
   }
 
-  h2 {
-    margin-top: 10px;
+  .nav-item{
+    margin:0;
   }
 
-  .logo {
-    width: 120px;
-    margin: 20px auto;
-    display: block;
+  #modal > div{
+    width:94% !important;
+    max-height:86% !important;
   }
 
-  input {
-    width: 100%;
-    padding: 12px;
-    margin: 8px 0;
-    border-radius: 8px;
-    border: none;
-    font-size: 16px;
+  .section-top{
+    grid-template-columns:1fr;
   }
 
-  button {
-    width: 100%;
-    padding: 14px;
-    margin-top: 10px;
-    border-radius: 10px;
-    border: none;
-    background: #2d8cf0;
-    color: white;
-    font-size: 16px;
-    font-weight: bold;
+  .dias label{
+    min-width:135px;
+  }
+}
+
+@media (max-width: 640px){
+  .tenant-grid{
+    grid-template-columns:1fr;
   }
 
-  video {
-    width: 100%;
-    margin-top: 15px;
-    border-radius: 10px;
+  .brand-main{
+    font-size:3rem;
   }
 
-  #mensaje {
-    margin-top: 15px;
-    font-weight: bold;
+  #loginScreen > div:nth-child(2){
+    width:94% !important;
+    padding:20px !important;
   }
 
-  footer {
-    margin-top: 30px;
-    font-size: 12px;
-    color: #aaa;
+  #vistaMovil{
+    padding:12px !important;
   }
+}
 
-  /* 📱 CELULAR */
-  @media (max-width: 600px) {
-    .logo {
-      width: 140px;
-    }
-  }
-
-  /* 💻 PANTALLA GRANDE */
-  @media (min-width: 900px) {
-    .container {
-      margin-top: 40px;
-    }
-
-    .logo {
-      width: 100px;
-    }
-  }
-  </style>
-
+</style>
 </head>
 
 <body>
 
-<!-- HEADER -->
-<div class="topbar">INICIO</div>
+<!-- SELECCIÓN INSTITUCIONAL -->
+<div id="tenantScreen" class="tenant-screen">
+  <div class="tenant-title">
+    <h1 class="brand-main">AsistIA</h1>
+    <p class="tenant-subtitle">Control Inteligente de Asistencia</p>
+  </div>
+  <p class="tenant-caption">Selecciona la institución para continuar</p>
+  <div id="tenantGrid" class="tenant-grid"></div>
+  <p class="tenant-note">Puedes cambiar de institución más adelante desde esta misma pantalla.</p>
+  <div style="position:absolute;bottom:15px;font-size:12px;color:#777;">
+    Desarrollado por Luiz-Labs @ 2026
+  </div>
+</div>
 
-<!-- CONTENIDO -->
-<div class="container">
+<!-- LOGIN -->
+<div id="loginScreen" style="
+  position:fixed;
+  width:100%;
+  height:100%;
+  display:none;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  background:#f2f2f7;
+">
 
-  <h2>ESBAS 2026</h2>
-  <p>Área de Instrucción</p>
+  <!-- TITULO FUERA -->
+  <div style="text-align:center;margin-bottom:30px;">
+    <div class="login-tenant-head">
+      <img src="asistIA_logo.png" class="login-brand-logo" alt="asistIA">
+      <h1 id="tenantTituloLogin" style="margin:0;">XXIV Comandancia Departamental Lima Sur</h1>
+    </div>
+    <h2 id="tenantSubtituloLogin" style="margin:5px 0;">Incorporación y ESBAS</h2>
+    <p id="tenantCursoLogin" style="color:#666;">Instrucción ESBAS 2026</p>
+  </div>
 
-  <!-- LOGO (CAMBIAS LA RUTA LUEGO) -->
-  <img src="logo.png" class="logo">
+  <!-- CARD LOGIN -->
+  <div style="
+    background:white;
+    padding:25px;
+    border-radius:18px;
+    box-shadow:
+      0 30px 60px rgba(0, 0, 0, 0.18),
+      0 10px 20px rgba(0, 0, 0, 0.10),
+      0 2px 6px rgba(0, 0, 0, 0.06);
+    width:380px;
+    text-align:center;
+    border:1px solid rgba(0,0,0,0.05);
+    transform: translateY(-2px);
+  ">
 
-  <!-- FORM -->
-  <input type="text" id="dni" placeholder="DNI">
-  <input type="text" id="nombre" placeholder="Nombre completo">
-  <input type="text" id="ubo" placeholder="UBO / Compañía">
+    <img src="logo.png" style="width:80px;margin-bottom:10px;">
 
-  <button onclick="iniciarEscaneo()">📷 Escanear QR</button>
+    <h2 style="margin-bottom:20px;">ESBAS 2026</h2>
 
-  <button id="btnCancelar" onclick="detenerCamara()" style="display:none;">
-    ❌ Cancelar
-  </button>
+    <!-- INPUTS EN LINEA -->
+    <div style="
+      display:flex;
+      gap:10px;
+      margin-bottom:15px;
+      align-items:stretch;
+      width:100%;
+    ">
+      <input id="loginUser" placeholder="Usuario" style="flex:1;">
+      <input id="loginPass" type="password" placeholder="Clave" style="flex:1;">
+    </div>
 
-  <video id="video" style="display:none;"></video>
-  <canvas id="canvas" style="display:none;"></canvas>
+    <!-- BOTON -->
+    <button onclick="login()" style="width:100%;">Ingresar</button>
+
+    <p id="loginMsg" style="margin-top:10px;color:red;"></p>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div style="
+    position:absolute;
+    bottom:15px;
+    font-size:12px;
+    color:#777;
+  ">
+    Desarrollado por Luiz-Labs @ 2026
+  </div>
+
+</div>
+
+<!-- 📱 VISTA MOVIL -->
+<div id="vistaMovilInicio" style="display:none;">
+  <h1 class="brand-mobile">AsistIA</h1>
+  <h2>Asistencia Aspirantes</h2>
+  <p>Escaneo QR</p>
+  <div class="mobile-step">
+    <p>Ingresa tu DNI para continuar</p>
+    <input id="mobileDniInicio" placeholder="Ingrese DNI" inputmode="numeric" pattern="[0-9]*" maxlength="8">
+    <button onclick="ingresarMovilInicio()">INGRESAR</button>
+  </div>
+  <footer style="margin-top:20px;font-size:12px;color:#97a4bf;">
+    Desarrollado por Luiz-Labs @ 2026
+  </footer>
+</div>
+
+<div id="vistaMovil" style="display:none;text-align:center;padding:20px;">
+  <h1 class="brand-mobile">AsistIA</h1>
+
+  <h2 id="tenantTituloMovil">XXIV Comandancia Departamental Lima Sur</h2>
+  <h2 id="tenantSubtituloMovil">Incorporación y ESBAS</h2>
+  <p id="tenantCursoMovil">Instrucción ESBAS 2026</p>
+
+  <div class="view-switch-wrap">
+    <button id="btnForzarDesktop" class="secondary view-switch" onclick="irEscritorioAdmin()">Ver escritorio</button>
+    <button id="btnVistaAutoMovil" class="secondary view-switch" onclick="setVistaManual('auto')" title="Automático: usa detección de dispositivo para decidir vista móvil o escritorio.">Automático</button>
+  </div>
+
+  <img src="logo.png" style="width:108px;margin:10px auto;">
+
+  <div id="mobileStepIngreso" class="mobile-step">
+    <p>Ingresa tu DNI para iniciar</p>
+    <input id="mobileDni" placeholder="Ingrese DNI" inputmode="numeric" pattern="[0-9]*" maxlength="8">
+    <button onclick="ingresarMovil()">INGRESAR</button>
+  </div>
+
+  <div id="mobileStepScan" class="mobile-step" style="display:none;">
+    <p>DNI validado. Continúa con el escaneo.</p>
+    <button onclick="iniciarEscaneo()">📷 Escanear QR</button>
+  </div>
+
+  <footer style="margin-top:20px;font-size:12px;color:#97a4bf;">
+    Desarrollado por Luiz-Labs @ 2026
+  </footer>
+
+</div>
+
+<!-- FORMULARIO -->
+<div id="formulario" style="display:none;padding:20px;text-align:center;">
+
+  <input id="nombres" placeholder="Nombres">
+  <input id="apellidos" placeholder="Apellidos">
+  <input id="ubo" placeholder="UBO" inputmode="numeric" pattern="[0-9]*" maxlength="4">
+
+  <p>Selecciona tu sección</p>
+
+  <button class="mobile-section-btn" data-seccion="A" onclick="setSeccion('A')">Sección A (Martes y Jueves Presencial)</button>
+  <button class="mobile-section-btn" data-seccion="B" onclick="setSeccion('B')">Sección B (Sábados Presencial)</button>
+  <button class="mobile-section-btn" data-seccion="C" onclick="setSeccion('C')">Sección C (Sábados Virtual)</button>
+
+  <button class="mobile-primary" onclick="guardarAsistencia()">REGISTRAR ASISTENCIA</button>
+  <button class="mobile-exit" onclick="volverInicio()">Salir</button>
 
   <p id="mensaje"></p>
 
 </div>
 
-<footer>
-  Luiz-Labs © 2026
-</footer>
+<div id="scanOverlay">
+  <div id="scanCard">
+    <div id="scanCardHeader">
+      <strong>Escanear QR</strong>
+      <button class="scan-close" onclick="cerrarScanner()" aria-label="Cerrar escáner">×</button>
+    </div>
+    <video id="video" style="display:none;"></video>
+    <p style="margin-top:8px;font-size:12px;color:#657799;">Apunta la cámara al código QR</p>
+  </div>
+</div>
+<canvas id="canvas" style="display:none;"></canvas>
 
-<!-- LIBRERÍAS -->
+<!-- 💻 ADMIN (TU PANEL ORIGINAL) -->
+<div id="vistaDesktop" style="display:none;">
+
+  <div class="header">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <img src="logo.png" style="width:28px;">
+      <strong id="tenantPanelTitulo">ESBAS Panel Administrativo</strong>
+    </div>
+    <div class="header-actions">
+      <button id="btnInstitucion" onclick="volverSeleccionCliente()" class="secondary">Institución</button>
+      <button id="btnForzarMovil" onclick="setVistaManual('mobile')" class="secondary view-switch">Ver móvil</button>
+      <button id="btnVistaAutoDesktop" onclick="setVistaManual('auto')" class="secondary view-switch" title="Automático: usa detección de dispositivo para decidir vista móvil o escritorio.">Automático</button>
+      <button onclick="logout()" class="secondary">Salir</button>
+    </div>
+  </div>
+
+  <div style="display:flex;min-height:calc(100vh - 60px);">
+
+    <div class="sidebar">
+      <p class="nav-item active" onclick="mostrarVista('reportes')">📄 Reportes</p>
+      <p class="nav-item" onclick="mostrarVista('dashboard')">📊 Dashboard</p>
+      <p class="nav-item" onclick="mostrarVista('config')">⚙️ Configuración</p>
+      <p class="nav-item" onclick="mostrarVista('usuarios')">👥 Usuarios</p>
+    </div>
+
+    <div style="flex:1;padding:20px;">
+
+      <div id="vistaDashboard" style="display:none;">
+
+        <h2>Dashboard</h2>
+
+        <div class="card" style="margin-bottom:15px;">
+
+          <h3 style="margin-bottom:10px;">Filtros</h3>
+
+          <div class="filtros">
+
+            <div class="input-date">
+              <input type="date" id="dashDesde">
+            </div>
+
+            <div class="input-date">
+              <input type="date" id="dashHasta">
+            </div>
+
+            <select id="dashUbo" style="width:170px;">
+              <option value="">Todas las UBO</option>
+            </select>
+
+            <select id="dashSeccion" style="width:170px;">
+              <option value="">Todas las Secciones</option>
+            </select>
+
+            <button onclick="cargarDashboard()">Filtrar</button>
+            <button class="secondary" onclick="limpiarDashboard()">Limpiar</button>
+            <button onclick="exportarDashboardPDF()">EXPORTAR PDF</button>
+            <button class="secondary" onclick="exportarRiesgoUboExcel()">Riesgo UBO Excel</button>
+
+          </div>
+
+        </div>
+
+        <div id="dashboardKpiCapture">
+        <!-- KPIs -->
+        <div style="display:flex; gap:15px; margin-bottom:20px;">
+
+          <div class="card" style="flex:1; text-align:center;">
+            <h3 id="kpiTotal">0</h3>
+            <p>Total Activos</p>
+          </div>
+
+          <div class="card" style="flex:1; text-align:center;">
+            <h3 id="kpiAsistencia">0%</h3>
+            <p>% Asistencia</p>
+          </div>
+
+          <div class="card" style="flex:1; text-align:center;">
+            <h3 id="kpiInasistencia">0</h3>
+            <p>Inasistencias</p>
+          </div>
+
+          <div class="card" style="flex:1; text-align:center;">
+            <h3 id="kpiCobertura">0%</h3>
+            <p>% Cobertura</p>
+          </div>
+
+          <div id="kpiDispCard" class="card" style="flex:1; text-align:center; cursor:pointer;" onclick="verAlertasDispositivo()">
+            <h3 id="kpiDispNoHabitual">0</h3>
+            <p>Alertas Dispositivo</p>
+          </div>
+
+        </div>
+
+        <!-- SEMÁFORO -->
+        <div style="display:flex; gap:15px; margin-bottom:20px;">
+
+          <div class="card" style="flex:1; text-align:center; cursor:pointer;" onclick="verDetalle('verde')">
+            <h3 id="verdeCount">0</h3>
+            <p>🟢 Verde</p>
+          </div>
+
+          <div class="card" style="flex:1; text-align:center; cursor:pointer;" onclick="verDetalle('amarillo')">
+            <h3 id="amarilloCount">0</h3>
+            <p>🟡 Amarillo</p>
+          </div>
+
+          <div class="card" style="flex:1; text-align:center; cursor:pointer;" onclick="verDetalle('rojo')">
+            <h3 id="rojoCount">0</h3>
+            <p>🔴 Rojo</p>
+          </div>
+
+        </div>
+        </div>
+
+        <p id="semaforoInfo" style="margin:-6px 2px 14px;color:#5f6f8f;font-size:13px;">
+          Semáforo: criterio de puntualidad por aspirante en el rango seleccionado.
+        </p>
+        <div style="display:flex; gap:15px; margin:0 0 14px;">
+          <div class="card" style="flex:1; text-align:center;">
+            <h3 id="kpiRojoTardanza">0</h3>
+            <p>Rojo por tardanza</p>
+          </div>
+          <div class="card" style="flex:1; text-align:center;">
+            <h3 id="kpiRojoFueraDia">0</h3>
+            <p>Rojo por fuera de día</p>
+          </div>
+        </div>
+        <button class="btn-link" onclick="verCriterio('semaforo')" style="margin:-8px 0 16px;">Ver criterio</button>
+
+        <!-- TOP RIESGO UBO -->
+        <div class="card">
+          <h3>⚠ Riesgo por UBO</h3>
+          <div id="topUbo"></div>
+          <p id="riesgoInfo" style="margin-top:10px;color:#5f6f8f;font-size:13px;">
+            Riesgo UBO: cantidad de aspirantes en estado rojo por UBO.
+          </p>
+          <button class="btn-link" onclick="verCriterio('riesgo')">Ver criterio</button>
+        </div>
+
+      </div>
+
+      <div id="vistaReportes">
+
+        <h2>Reportes</h2>
+        <!-- CARD FILTROS -->
+        <div class="card" style="margin-bottom:20px;">
+
+          <h3 style="margin-bottom:10px;">Filtros</h3>
+
+          <div class="filtros">
+
+            <select id="filtroUbo" style="width:160px;"></select>
+
+            <div class="input-date">
+              <input type="date" id="fechaDesde">
+            </div>
+
+            <div class="input-date">
+              <input type="date" id="fechaHasta">
+            </div>
+
+            <button onclick="aplicarFiltros()">Aplicar</button>
+            <button class="secondary" onclick="limpiarFiltros()">Limpiar</button>
+            <button onclick="cargarDatos()">Todos</button>
+            <button onclick="exportarReportesExcel()">Exportar Excel</button>
+
+          </div>
+
+        </div>
+        
+          <!-- 🔥 TABLA RESULTADOS (AQUI VA) -->
+        <div id="tabla" class="card"></div>
+
+        <div id="tablaAlertas" class="card">
+          <h3 style="margin-bottom:10px;">Alertas de Marcación</h3>
+          <div id="tablaAlertasContenido" style="color:#607092;">Sin alertas registradas.</div>
+        </div>
+
+
+      </div>
+
+      <div id="vistaUsuarios" style="display:none;">
+        <h2>Usuarios</h2>
+
+        <div class="card config-card">
+          <h3>Perfiles de Acceso</h3>
+          <div class="config-grid">
+            <div>
+              <label for="userNombre">Nombre</label>
+              <input id="userNombre" placeholder="Nombre completo">
+            </div>
+            <div>
+              <label for="userLogin">Usuario</label>
+              <input id="userLogin" placeholder="usuario">
+            </div>
+            <div>
+              <label for="userPass">Clave</label>
+              <input id="userPass" type="password" placeholder="clave">
+            </div>
+            <div>
+              <label for="userRol">Rol</label>
+              <select id="userRol">
+                <option value="editor">Editor</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="administrador">Administrador</option>
+              </select>
+            </div>
+          </div>
+          <div class="config-actions">
+            <button onclick="guardarUsuarioAdmin()">Guardar Usuario</button>
+            <button class="secondary" onclick="limpiarUsuarioAdmin()">Limpiar</button>
+          </div>
+          <div class="table-wrap user-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Usuario</th>
+                  <th>Rol</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tablaUsuariosAdmin"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card config-card">
+          <h3>Carga de Aspirantes (Excel)</h3>
+          <div class="hint">Archivo requerido con columnas: <strong>apellidos, nombres, dni, ubo</strong>.</div>
+          <div class="config-row" style="margin-top:10px;">
+            <input type="file" id="archivoAspirantes" accept=".xlsx,.xls,.csv">
+            <button onclick="cargarExcelAspirantes()">Subir Archivo</button>
+            <button class="secondary" onclick="cargarAspirantesCargados()">Refrescar Listado</button>
+          </div>
+          <p id="msgCargaAspirantes" class="hint"></p>
+          <div class="table-wrap user-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Apellidos</th>
+                  <th>Nombres</th>
+                  <th>DNI</th>
+                  <th>UBO</th>
+                </tr>
+              </thead>
+              <tbody id="tablaAspirantesCargados"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="vistaConfig" style="display:none;">
+
+        <h2>Configuración</h2>
+
+        <!-- GPS -->
+        <div class="card config-card">
+          <h3>GPS</h3>
+          <label>
+            <input type="checkbox" id="toggleGPS">
+            Activar validación GPS (Proximamente)
+          </label>
+          <div class="hint" style="margin-top:12px;">Carga masiva de coordenadas UBO (columnas: <strong>UBO, LATITUD, LONGITUD</strong>. Opcional: <strong>NOMBRE</strong>).</div>
+          <div class="config-row" style="margin-top:10px;">
+            <input type="file" id="archivoUbosSedes" accept=".xlsx,.xls,.csv">
+            <button onclick="cargarExcelUbosSedes()">Subir Coordenadas</button>
+            <button class="secondary" onclick="cargarUbos()">Refrescar UBOs</button>
+          </div>
+          <p id="msgCargaUbosSedes" class="hint"></p>
+        </div>
+
+        <!-- RETIRAR ASPIRANTE -->
+        <div class="card config-card">
+
+          <h3>Retirar Aspirante</h3>
+
+          <div class="config-row">
+            <select id="filtroUboConfig"></select>
+            <button onclick="buscarAspirantes()">Buscar</button>
+            <button class="secondary" onclick="limpiarRetiro()">Limpiar</button>
+          </div>
+          
+          <div id="listaAspirantes"></div>
+
+        </div>
+
+        <!-- ASPIRANTE RETIRADOS -->
+        <div class="card config-card">
+
+          <h3>📌 Aspirantes Retirados</h3>
+
+          <div class="config-row"> 
+            <select id="filtroRetirados"></select>
+            <button onclick="cargarRetirados()">Buscar</button>
+            <button class="secondary" onclick="limpiarRetirados()">Limpiar</button>
+          </div>
+
+          <div id="listaRetirados"></div>
+
+        </div>
+        
+        <!-- CURSO -->
+        <div class="card config-card">
+
+          <h3>Configuración de Curso</h3>
+
+          <div class="course-module">
+            <h4>Nombre de Curso</h4>
+            <div class="config-grid">
+              <div>
+                <label for="cursoNombre">Nombre</label>
+                <input id="cursoNombre" placeholder="ESBAS 2026 - I" style="text-transform:uppercase;">
+              </div>
+            </div>
+          </div>
+
+          <div class="course-module">
+            <h4>Rango de Duración</h4>
+            <div class="config-grid">
+              <div>
+                <label for="cursoInicio">Fecha inicio</label>
+                <input type="date" id="cursoInicio">
+              </div>
+              <div>
+                <label for="cursoFin">Fecha término</label>
+                <input type="date" id="cursoFin">
+              </div>
+              <div>
+                <label for="cursoRadio">Radio GPS (metros)</label>
+                <input type="number" id="cursoRadio" min="10" max="500" step="5" placeholder="50">
+              </div>
+            </div>
+          </div>
+
+          <div class="course-module">
+            <h4>Crear Secciones</h4>
+            <div class="config-grid">
+              <div>
+                <label for="secCursoNombre">Sección</label>
+                <input id="secCursoNombre" placeholder="Ejemplo: A" maxlength="20">
+              </div>
+              <div>
+                <label for="secCursoModalidad">Modalidad</label>
+                <select id="secCursoModalidad">
+                  <option value="Presencial">Presencial</option>
+                  <option value="Virtual">Virtual</option>
+                </select>
+              </div>
+              <div>
+                <label for="secCursoHora">Hora inicio</label>
+                <input type="time" id="secCursoHora">
+              </div>
+              <div>
+                <label>Días</label>
+                <select id="secCursoDiasSelect" class="days-select" multiple size="1" title="Haz clic para ver más días">
+                  <option value="Lunes">Lunes</option>
+                  <option value="Martes">Martes</option>
+                  <option value="Miércoles">Miércoles</option>
+                  <option value="Jueves">Jueves</option>
+                  <option value="Viernes">Viernes</option>
+                  <option value="Sábado">Sábado</option>
+                  <option value="Domingo">Domingo</option>
+                </select>
+              </div>
+            </div>
+            <div class="course-actions">
+              <button onclick="guardarSeccionCurso()">CREAR SECCIÓN</button>
+              <button class="secondary" onclick="limpiarFormSeccionCurso()">Limpiar</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Sección</th>
+                    <th>Modalidad</th>
+                    <th>Hora Inicio</th>
+                    <th>Días</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tablaSeccionesCurso"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="course-module">
+            <h4>UBOs Sede Por Sección</h4>
+            <div class="config-grid">
+              <div>
+                <label for="uboSecNombre">Sección</label>
+                <select id="uboSecNombre"></select>
+              </div>
+              <div>
+                <label for="uboSecUbo">UBO</label>
+                <select id="uboSecUbo"></select>
+              </div>
+              <div>
+                <label for="uboSecHora">Hora inicio</label>
+                <input type="time" id="uboSecHora">
+              </div>
+              <div>
+                <label for="uboSecModalidad">Modalidad</label>
+                <select id="uboSecModalidad">
+                  <option value="Presencial">Presencial</option>
+                  <option value="Virtual">Virtual</option>
+                </select>
+              </div>
+              <div>
+                <label>Días</label>
+                <select id="uboSecDiasSelect" class="days-select" multiple size="1" title="Haz clic para ver más días">
+                  <option value="Lunes">Lunes</option>
+                  <option value="Martes">Martes</option>
+                  <option value="Miércoles">Miércoles</option>
+                  <option value="Jueves">Jueves</option>
+                  <option value="Viernes">Viernes</option>
+                  <option value="Sábado">Sábado</option>
+                  <option value="Domingo">Domingo</option>
+                </select>
+              </div>
+              <div>
+                <label>Días de sesión</label>
+                <div class="toggle-wrap">
+                  <input type="checkbox" id="uboSecTodosDias">
+                  <span>Todos</span>
+                </div>
+              </div>
+            </div>
+            <div class="course-actions">
+              <button onclick="guardarSedeUbo()">CREAR SEDE UBO</button>
+              <button class="secondary" onclick="limpiarFormSedeUbo()">Limpiar</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Sección</th>
+                    <th>UBO</th>
+                    <th>Modalidad</th>
+                    <th>Hora Inicio</th>
+                    <th>Días</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tablaSedesUbo"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="config-actions course-footer-actions">
+            <p class="hint">Acciones globales del curso</p>
+            <button onclick="guardarCurso()">Guardar Curso</button>
+            <button class="secondary" onclick="limpiarCurso()">Limpiar Todo</button>
+          </div>
+
+        </div>
+
+
+
+      </div>
+
+      
+
+    </div>
+
+  </div>
+
+  <div style="text-align:center;padding:10px;font-size:12px;color:#777;">
+    Desarrollado por Luiz-Labs @ 2026
+  </div>
+
+</div>
+
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <script>
 const supabaseUrl = 'https://kcapmyovaigjntaqeqwn.supabase.co'
 const supabaseKey = 'sb_publishable_oObf3s5mQ4sfmJ03JKQrnQ__8Rmb63F'
 
-const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey)
-
-// DEVICE ID
-function getDeviceId() {
-  let deviceId = localStorage.getItem("device_id")
-
-  if (!deviceId) {
-    deviceId = 'dev-' + Math.random().toString(36).substring(2, 10)
-    localStorage.setItem("device_id", deviceId)
+const supabaseClient = window.supabase?.createClient
+  ? window.supabase.createClient(supabaseUrl, supabaseKey)
+  : null
+let adminAutenticado = false
+let dniMovil = ""
+let resizeTimer
+let scanningActivo = false
+let cursoConfigCache = null
+let ubosSedeCache = []
+let cursoSecciones = []
+let cursoSedesUbo = []
+let editSeccionCursoIndex = -1
+let editSedeUboIndex = -1
+let editUsuarioIndex = -1
+let usuariosAdmin = []
+let cacheReportes = []
+let cacheDashboard = []
+let cacheRiesgoUbo = []
+const STAFF_FLOW_KEY = "asistia_staff_flow"
+const VISTA_MODO_KEY = "vistaModoManual"
+const MULTITENANT_MODE = false
+const TENANTS = [
+  {
+    id: "esbas-24",
+    nombre: "XXIV Comandancia Departamental Lima Sur",
+    linea: "Incorporación y ESBAS",
+    curso: "Instrucción ESBAS 2026",
+    logo: "logo.png",
+    habilitado: true,
+    usuariosSistema: ["llecaros", "admin"]
+  },
+  {
+    id: "bomberos-lurin-129",
+    nombre: "Bomberos Lurín 129",
+    linea: "Módulo institucional",
+    curso: "Próximamente",
+    logo: "B129logo.png",
+    habilitado: false,
+    usuariosSistema: []
   }
+]
+let tenantActivoId = ""
+let esModoStaff = true
+let accesoDirectoInstitucion = false
+let mostrarSelectorStaff = false
+const SYSTEM_USERS = [
+  { nombre: "Administrador Principal", usuario: "llecaros", rol: "administrador", system: true },
+  { nombre: "Super Usuario", usuario: "admin", rol: "administrador", system: true }
+]
 
-  return deviceId
+const SECTION_TO_UBO_FIELD = {
+  A: "seccion_a_ubo",
+  B: "seccion_b_ubo",
+  C: "seccion_c_ubo"
 }
 
-let streamGlobal = null
+function enlazarIdsGlobales(){
+  document.querySelectorAll("[id]").forEach(el=>{
+    if(!(el.id in window)){
+      window[el.id] = el
+    }
+  })
+}
 
-function iniciarEscaneo() {
+function haySupabase(){
+  return !!supabaseClient
+}
 
-  const dni = document.getElementById("dni").value
-  const nombre = document.getElementById("nombre").value
-  const ubo = document.getElementById("ubo").value
+enlazarIdsGlobales()
 
-  if (!dni || !nombre || !ubo) {
-    document.getElementById("mensaje").innerText = "⚠ Completa todos los campos"
+function normalizarPathname(pathname){
+  let path = String(pathname || "/").trim()
+  if(!path.startsWith("/")){
+    path = "/" + path
+  }
+  path = path.replace(/\/{2,}/g, "/")
+  if(path === "/index.html"){
+    return "/"
+  }
+  if(path !== "/" && !path.endsWith("/")){
+    path += "/"
+  }
+  return path
+}
+
+function obtenerRutaTenant(id){
+  if(id === "esbas-24") return "/esbas-24/"
+  if(id === "bomberos-lurin-129") return "/bomberos-lurin-129/"
+  return "/"
+}
+
+function resolverAccesoDesdeRuta(){
+  const path = normalizarPathname(window.location.pathname)
+  if(path === "/esbas-24/"){
+    return { staff: false, tenantId: "esbas-24" }
+  }
+  if(path === "/bomberos-lurin-129/"){
+    return { staff: false, tenantId: "bomberos-lurin-129" }
+  }
+  return { staff: true, tenantId: "" }
+}
+
+function aplicarAccesoDesdeRuta(){
+  const acceso = resolverAccesoDesdeRuta()
+  esModoStaff = acceso.staff
+  accesoDirectoInstitucion = !acceso.staff
+  mostrarSelectorStaff = false
+  asignarTenantActivo(acceso.tenantId)
+}
+
+function obtenerTenantActivo(){
+  return TENANTS.find(t=>t.id === tenantActivoId) || null
+}
+
+function asignarTenantActivo(id){
+  tenantActivoId = String(id || "")
+  aplicarTenantEnUI()
+}
+
+function aplicarTenantEnUI(){
+  const tenant = obtenerTenantActivo() || TENANTS[0]
+  const titulo = esModoStaff ? "AsistIA" : (tenant?.nombre || "Panel ESBAS")
+  const linea = esModoStaff ? "Control Inteligente de Asistencia" : (tenant?.linea || "Incorporación y ESBAS")
+  const curso = esModoStaff ? "Plataforma asistIA" : (tenant?.curso || "Instrucción ESBAS")
+
+  if(tenantTituloLogin){
+    tenantTituloLogin.innerText = titulo
+    tenantTituloLogin.classList.toggle("login-project-title", esModoStaff)
+  }
+  if(tenantSubtituloLogin) tenantSubtituloLogin.innerText = linea
+  if(tenantCursoLogin) tenantCursoLogin.innerText = curso
+
+  if(tenantTituloMovil) tenantTituloMovil.innerText = titulo
+  if(tenantSubtituloMovil) tenantSubtituloMovil.innerText = linea
+  if(tenantCursoMovil) tenantCursoMovil.innerText = curso
+
+  if(tenantPanelTitulo) tenantPanelTitulo.innerText = `asistIA Panel Administrativo - ${titulo}`
+}
+
+function renderTenantSelector(){
+  if(!tenantGrid) return
+  let html = ""
+  TENANTS.forEach(t=>{
+    const disabled = !t.habilitado
+    const btnClass = disabled ? "secondary" : ""
+    const btnText = disabled ? "Próximamente" : "Ingresar"
+    const logoHtml = t.logo
+      ? `<img src="${t.logo}" alt="${t.nombre}" class="tenant-logo">`
+      : `<div class="tenant-logo tenant-logo-fake">129</div>`
+
+    html += `
+      <div class="tenant-card">
+        <div class="tenant-brand">
+          ${logoHtml}
+          <div class="tenant-meta">
+            <strong>${t.nombre}</strong>
+            <small>${t.linea}</small>
+          </div>
+        </div>
+        <span class="tenant-tag ${disabled ? "disabled" : ""}">
+          ${disabled ? "No habilitado" : "Activo"}
+        </span>
+        <button class="${btnClass}" onclick="seleccionarCliente('${t.id}')">${btnText}</button>
+      </div>
+    `
+  })
+  tenantGrid.innerHTML = html
+}
+
+function seleccionarCliente(id){
+  const tenant = TENANTS.find(t=>t.id === id)
+  if(!tenant){
+    alert("Cliente no válido")
+    return
+  }
+  if(!tenant.habilitado){
+    alert("Esta institución aún no está habilitada para ingreso.")
+    return
+  }
+  if(esModoStaff){
+    localStorage.setItem(STAFF_FLOW_KEY, "1")
+  }
+  window.location.href = obtenerRutaTenant(id)
+}
+
+function volverSeleccionCliente(){
+  if(accesoDirectoInstitucion){
+    window.location.href = "/"
+    return
+  }
+  if(esModoStaff){
+    adminAutenticado = false
+    mostrarSelectorStaff = true
+    loginMsg.innerText = ""
+    loginUser.value = ""
+    loginPass.value = ""
+    aplicarLayout()
+    renderTenantSelector()
     return
   }
 
-  const video = document.getElementById("video")
-  const btnCancelar = document.getElementById("btnCancelar")
+  adminAutenticado = false
+  asignarTenantActivo("")
+  loginMsg.innerText = ""
+  loginUser.value = ""
+  loginPass.value = ""
+  aplicarLayout()
+}
 
-  video.style.display = "block"
-  btnCancelar.style.display = "block"
+function withTenantScope(query){
+  if(!MULTITENANT_MODE || !tenantActivoId) return query
+  return query.eq("tenant_id", tenantActivoId)
+}
 
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-    .then(stream => {
-      streamGlobal = stream
-      video.srcObject = stream
-      video.play()
-      requestAnimationFrame(scanQR)
+function withTenantPayload(payload){
+  if(!MULTITENANT_MODE || !tenantActivoId) return payload
+  return Object.assign({}, payload, { tenant_id: tenantActivoId })
+}
+
+function withTenantPayloadList(items){
+  return (items || []).map(withTenantPayload)
+}
+
+function esTablaNoExiste(error){
+  return /does not exist|42P01/i.test(String(error?.message || ""))
+}
+
+function esMovil(){
+  const ua = navigator.userAgent || ""
+  const touchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0
+  const isPhoneUA = /iPhone|iPod|Android.+Mobile|Windows Phone|IEMobile|BlackBerry|Opera Mini/i.test(ua)
+  const isTabletUA = /iPad|Tablet|Android(?!.*Mobile)/i.test(ua)
+  const isPortrait = window.matchMedia("(orientation: portrait)").matches
+  const width = window.innerWidth || document.documentElement.clientWidth || 1024
+
+  if(isPhoneUA) return true
+  if(isTabletUA && isPortrait) return true
+
+  const tabletLikeTouch = touchDevice && width <= 1024 && !isPhoneUA
+  if(tabletLikeTouch && isPortrait) return true
+
+  return false
+}
+
+function getVistaManual(){
+  const mode = localStorage.getItem(VISTA_MODO_KEY)
+  if(mode === "mobile" || mode === "desktop") return mode
+  return "auto"
+}
+
+function getVistaActiva(){
+  const manual = getVistaManual()
+  if(manual === "mobile") return "mobile"
+  if(manual === "desktop") return "desktop"
+  return esMovil() ? "mobile" : "desktop"
+}
+
+function actualizarBotonesVista(){
+  const mode = getVistaManual()
+  const btnAutoDesktop = document.getElementById("btnVistaAutoDesktop")
+  const btnAutoMovil = document.getElementById("btnVistaAutoMovil")
+  const setAutoLabel = (el)=>{
+    if(!el) return
+    el.innerText = mode === "auto" ? "Automático ✓" : "Automático"
+  }
+  setAutoLabel(btnAutoDesktop)
+  setAutoLabel(btnAutoMovil)
+}
+
+function setVistaManual(mode){
+  if(mode === "mobile" || mode === "desktop"){
+    localStorage.setItem(VISTA_MODO_KEY, mode)
+  }else{
+    localStorage.removeItem(VISTA_MODO_KEY)
+  }
+  aplicarLayout()
+}
+
+function irEscritorioAdmin(){
+  const elTenant = document.getElementById("tenantScreen")
+  const elLogin = document.getElementById("loginScreen")
+  const elDesktop = document.getElementById("vistaDesktop")
+  const elFormulario = document.getElementById("formulario")
+  const elMovilInicio = document.getElementById("vistaMovilInicio")
+  const elMovil = document.getElementById("vistaMovil")
+  setVistaManual("desktop")
+  if(!adminAutenticado){
+    if(elTenant) elTenant.style.display = "none"
+    if(elLogin) elLogin.style.display = "flex"
+    if(elDesktop) elDesktop.style.display = "none"
+    if(elFormulario) elFormulario.style.display = "none"
+    if(elMovilInicio) elMovilInicio.style.display = "none"
+    if(elMovil) elMovil.style.display = "none"
+    mostrarPasoMovil("ingreso")
+  }
+}
+
+function obtenerRangoMesActual(){
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth()
+  const from = new Date(year, month, 1)
+  const to = new Date(year, month + 1, 0)
+  const iso = (d)=>d.toISOString().slice(0,10)
+  return { from: iso(from), to: iso(to) }
+}
+
+function aplicarRangoMesActualEnFiltros(){
+  const { from, to } = obtenerRangoMesActual()
+  const elFechaDesde = document.getElementById("fechaDesde")
+  const elFechaHasta = document.getElementById("fechaHasta")
+  const elDashDesde = document.getElementById("dashDesde")
+  const elDashHasta = document.getElementById("dashHasta")
+  if(elFechaDesde) elFechaDesde.value = from
+  if(elFechaHasta) elFechaHasta.value = to
+  if(elDashDesde) elDashDesde.value = from
+  if(elDashHasta) elDashHasta.value = to
+}
+
+function mostrarPasoMovil(paso){
+  const elIngreso = document.getElementById("mobileStepIngreso")
+  const elScan = document.getElementById("mobileStepScan")
+  if(elIngreso) elIngreso.style.display = paso === "ingreso" ? "block" : "none"
+  if(elScan) elScan.style.display = paso === "scan" ? "block" : "none"
+}
+
+function seleccionarBotonSeccion(valor){
+  document.querySelectorAll(".mobile-section-btn").forEach(btn=>{
+    btn.classList.toggle("active", btn.dataset.seccion === valor)
+  })
+}
+
+function setMensaje(texto, tipo = ""){
+  mensaje.className = ""
+  mensaje.innerText = texto || ""
+  if(!texto) return
+  if(tipo) mensaje.classList.add(tipo)
+}
+
+function obtenerValoresMultiSelect(selectId){
+  const select = document.getElementById(selectId)
+  if(!select) return []
+  return Array.from(select.selectedOptions || []).map(opt=>opt.value)
+}
+
+function marcarValoresMultiSelect(selectId, valores = []){
+  const select = document.getElementById(selectId)
+  if(!select) return
+  const setVals = new Set((valores || []).map(String))
+  Array.from(select.options || []).forEach(opt=>{
+    opt.selected = setVals.has(opt.value)
+  })
+}
+
+function actualizarEstadoDiasSede(){
+  const elTodos = document.getElementById("uboSecTodosDias")
+  const elDias = document.getElementById("uboSecDiasSelect")
+  const todos = !!elTodos?.checked
+  if(elDias){
+    elDias.disabled = todos
+    if(todos){
+      marcarValoresMultiSelect("uboSecDiasSelect", [])
+      elDias.size = 1
+      elDias.style.height = "42px"
+    }
+  }
+}
+
+function activarSelectDiasCompacto(selectId, expandedSize = 7){
+  const select = document.getElementById(selectId)
+  if(!select) return
+  if(select.dataset.compactoInit === "1") return
+  select.dataset.compactoInit = "1"
+
+  const expandir = ()=>{
+    if(select.disabled) return
+    select.size = expandedSize
+    select.style.height = "auto"
+  }
+
+  const contraer = ()=>{
+    select.size = 1
+    select.style.height = "42px"
+  }
+
+  contraer()
+
+  select.addEventListener("focus", expandir)
+  select.addEventListener("mousedown", ()=> setTimeout(expandir, 0))
+  select.addEventListener("blur", ()=> setTimeout(contraer, 120))
+  select.addEventListener("keydown", (e)=>{
+    if(e.key === "Escape" || e.key === "Tab"){
+      contraer()
+    }
+  })
+}
+
+function diasTexto(dias){
+  const arr = (dias || []).filter(Boolean)
+  return arr.length ? arr.join(", ") : "-"
+}
+
+function normalizarTextoDia(txt){
+  return String(txt || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+}
+
+function obtenerDiaSemanaEs(fechaISO){
+  if(!fechaISO) return ""
+  const d = new Date(`${fechaISO}T00:00:00`)
+  if(Number.isNaN(d.getTime())) return ""
+  const dias = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"]
+  return dias[d.getDay()] || ""
+}
+
+function horaATotalMinutos(hora){
+  const h = String(hora || "").slice(0,5)
+  const [hh, mm] = h.split(":")
+  const H = Number(hh)
+  const M = Number(mm)
+  if(!Number.isFinite(H) || !Number.isFinite(M)) return null
+  return H * 60 + M
+}
+
+function obtenerReglaSeccion(seccion){
+  const sec = String(seccion || "").trim().toUpperCase()
+  if(!sec) return null
+  const regla = (cursoSecciones || []).find(x=>String(x.seccion || "").trim().toUpperCase() === sec)
+  if(!regla) return null
+  return {
+    seccion: sec,
+    horaInicioMin: horaATotalMinutos(regla.hora_inicio),
+    dias: (regla.dias || []).map(normalizarTextoDia).filter(Boolean)
+  }
+}
+
+function evaluarSemaforoPorRegla(registrosAlumno){
+  const registros = (registrosAlumno || []).slice().sort((a,b)=>{
+    const f = String(a.fecha || "").localeCompare(String(b.fecha || ""))
+    return f !== 0 ? f : String(a.hora || "").localeCompare(String(b.hora || ""))
+  })
+
+  if(!registros.length){
+    return { estado: "rojo", motivo: "sin_registro" }
+  }
+
+  const ultimo = registros[registros.length - 1]
+  const regla = obtenerReglaSeccion(ultimo.seccion)
+  const ultimaFecha = ultimo.fecha || ""
+  const primerMarcadoUltimoDia = registros
+    .filter(x => x.fecha === ultimaFecha)
+    .sort((a,b)=>(a.hora || "").localeCompare(b.hora || ""))[0]
+  const horaMarcadaMin = horaATotalMinutos(primerMarcadoUltimoDia?.hora || "")
+
+  if(!regla || regla.horaInicioMin == null){
+    return { estado: "verde", motivo: "sin_hora_configurada" }
+  }
+
+  if(regla.dias.length){
+    const dia = obtenerDiaSemanaEs(ultimaFecha)
+    if(!regla.dias.includes(dia)){
+      return { estado: "rojo", motivo: "fuera_de_dia_configurado" }
+    }
+  }
+
+  if(horaMarcadaMin == null){
+    return { estado: "rojo", motivo: "sin_hora_marcada" }
+  }
+
+  if(horaMarcadaMin <= regla.horaInicioMin + 10){
+    return { estado: "verde", motivo: "a_tiempo" }
+  }
+  if(horaMarcadaMin <= regla.horaInicioMin + 30){
+    return { estado: "amarillo", motivo: "tardanza_moderada" }
+  }
+  return { estado: "rojo", motivo: "tardanza_alta" }
+}
+
+function distanciaMetros(lat1, lon1, lat2, lon2){
+  const toRad = (deg)=>deg * Math.PI / 180
+  const R = 6371000
+  const dLat = toRad(lat2 - lat1)
+  const dLon = toRad(lon2 - lon1)
+  const a =
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon/2) * Math.sin(dLon/2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+  return R * c
+}
+
+function obtenerUbosUnicosDesdeAsistencias(data){
+  return Array.from(new Set((data || []).map(x => (x.ubo || "").trim()).filter(Boolean)))
+    .sort((a,b)=>parseInt(a)-parseInt(b))
+}
+
+function construirOptionsUbo(ubos, includeEmpty = true, emptyText = "Seleccionar UBO"){
+  let html = includeEmpty ? `<option value="">${emptyText}</option>` : ""
+  ubos.forEach(u=>{
+    html += `<option value="${u}">${u}</option>`
+  })
+  return html
+}
+
+function cargarFiltroSeccionDashboard(){
+  const el = document.getElementById("dashSeccion")
+  if(!el) return
+  const previo = el.value || ""
+  let secciones = (cursoSecciones || [])
+    .map(x=>String(x.seccion || "").trim().toUpperCase())
+    .filter(Boolean)
+
+  if(!secciones.length){
+    secciones = ["A","B","C"]
+  }
+
+  const unicas = Array.from(new Set(secciones)).sort()
+  let html = `<option value="">Todas las Secciones</option>`
+  unicas.forEach(s=>{
+    html += `<option value="${s}">Sección ${s}</option>`
+  })
+  el.innerHTML = html
+  if(previo && unicas.includes(previo)){
+    el.value = previo
+  }
+}
+
+function descargarExcelDesdeJSON(filename, rows){
+  if(!window.XLSX){
+    alert("Librería XLSX no disponible")
+    return
+  }
+  const ws = XLSX.utils.json_to_sheet(rows)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, "Datos")
+  XLSX.writeFile(wb, filename)
+}
+
+function exportarReportesExcel(){
+  if(!cacheReportes.length){
+    alert("No hay datos para exportar")
+    return
+  }
+
+  const rows = cacheReportes.map(r=>({
+    DNI: r.dni || "",
+    Nombre: r.nombre || "",
+    UBO: r.ubo || "",
+    Fecha: r.fecha || "",
+    Hora: r.hora || "",
+    Alerta: r.alerta || ""
+  }))
+
+  descargarExcelDesdeJSON("reportes_asistencia.xlsx", rows)
+}
+
+function exportarRiesgoUboExcel(){
+  if(!cacheRiesgoUbo.length){
+    alert("No hay datos de riesgo UBO para exportar")
+    return
+  }
+
+  const rows = cacheRiesgoUbo.map(([ubo, casos])=>({
+    UBO: ubo,
+    Casos: casos
+  }))
+
+  descargarExcelDesdeJSON("dashboard_riesgo_ubo.xlsx", rows)
+}
+
+function exportarDashboardPDF(){
+  if(!window.jspdf?.jsPDF || !window.html2canvas){
+    alert("Librerías para exportación no disponibles")
+    return
+  }
+
+  const objetivo = document.getElementById("dashboardKpiCapture")
+  if(!objetivo){
+    alert("No se encontró el bloque de KPIs para exportar")
+    return
+  }
+
+  html2canvas(objetivo, { scale: 2, backgroundColor: "#eff2f7" })
+    .then(canvas=>{
+      const imgData = canvas.toDataURL("image/png")
+      const { jsPDF } = window.jspdf
+      const doc = new jsPDF("p", "mm", "a4")
+      const pageW = doc.internal.pageSize.getWidth()
+      const margin = 10
+      const maxW = pageW - margin * 2
+      const imgW = canvas.width
+      const imgH = canvas.height
+      const pdfH = (imgH * maxW) / imgW
+
+      doc.setFontSize(13)
+      doc.text("Dashboard ESBAS - KPIs", margin, 10)
+      doc.addImage(imgData, "PNG", margin, 14, maxW, pdfH)
+      doc.save("dashboard_kpis_esbas.pdf")
+    })
+    .catch(err=>{
+      console.error(err)
+      alert("No se pudo exportar la imagen del dashboard")
     })
 }
 
-function scanQR() {
-  const video = document.getElementById("video")
-  const canvas = document.getElementById("canvas")
-  const ctx = canvas.getContext("2d")
+function cargarUsuariosAdminLocal(){
+  try{
+    usuariosAdmin = JSON.parse(localStorage.getItem("usuariosAdmin") || "[]")
+  }catch{
+    usuariosAdmin = []
+  }
+  renderUsuariosAdmin()
+}
 
-  if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    canvas.height = video.videoHeight
-    canvas.width = video.videoWidth
+function renderUsuariosAdmin(){
+  if(!tablaUsuariosAdmin) return
+  const data = SYSTEM_USERS.concat(usuariosAdmin.filter(u => !SYSTEM_USERS.some(s => s.usuario === u.usuario)))
 
-    ctx.drawImage(video, 0, 0)
+  if(!data.length){
+    tablaUsuariosAdmin.innerHTML = `<tr><td colspan="4">Sin usuarios creados.</td></tr>`
+    return
+  }
 
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-    const code = jsQR(imageData.data, imageData.width, imageData.height)
+  let html = ""
+  data.forEach((u, idx)=>{
+    const isSystem = !!u.system
+    html += `
+      <tr>
+        <td>${u.nombre || ""}${isSystem ? `<span class="tag-system">SISTEMA</span>` : ""}</td>
+        <td>${u.usuario || ""}</td>
+        <td>${u.rol || ""}</td>
+        <td>
+          <div class="table-actions">
+            ${isSystem
+              ? `<span class="hint">No editable</span>`
+              : `<button onclick="editarUsuarioAdmin(${idx - SYSTEM_USERS.length})">Modificar</button>
+                 <button class="secondary" onclick="eliminarUsuarioAdmin(${idx - SYSTEM_USERS.length})">Eliminar</button>`
+            }
+          </div>
+        </td>
+      </tr>
+    `
+  })
+  tablaUsuariosAdmin.innerHTML = html
+}
 
-    if (code) {
-      detenerCamara()
-      registrarAsistencia(code.data)
+function limpiarUsuarioAdmin(){
+  userNombre.value = ""
+  userLogin.value = ""
+  userPass.value = ""
+  userRol.value = "editor"
+  editUsuarioIndex = -1
+}
+
+function guardarUsuarioAdmin(){
+  const nombre = (userNombre.value || "").trim()
+  const usuario = (userLogin.value || "").trim().toLowerCase()
+  const clave = (userPass.value || "").trim()
+  const rol = userRol.value
+
+  if(!nombre || !usuario || !clave){
+    alert("Completa nombre, usuario y clave")
+    return
+  }
+
+  const item = { nombre, usuario, clave, rol }
+  if(editUsuarioIndex >= 0){
+    usuariosAdmin[editUsuarioIndex] = item
+  }else{
+    if(SYSTEM_USERS.some(s => s.usuario === usuario)){
+      alert("Ese usuario es del sistema y ya existe")
+      return
+    }
+    const exists = usuariosAdmin.find(x=>x.usuario === usuario)
+    if(exists){
+      alert("Ese usuario ya existe")
+      return
+    }
+    usuariosAdmin.push(item)
+  }
+
+  localStorage.setItem("usuariosAdmin", JSON.stringify(usuariosAdmin))
+  renderUsuariosAdmin()
+  limpiarUsuarioAdmin()
+}
+
+function editarUsuarioAdmin(idx){
+  const u = usuariosAdmin[idx]
+  if(!u) return
+  userNombre.value = u.nombre || ""
+  userLogin.value = u.usuario || ""
+  userPass.value = u.clave || ""
+  userRol.value = u.rol || "editor"
+  editUsuarioIndex = idx
+}
+
+function eliminarUsuarioAdmin(idx){
+  if(!confirm("¿Eliminar usuario?")) return
+  usuariosAdmin.splice(idx, 1)
+  localStorage.setItem("usuariosAdmin", JSON.stringify(usuariosAdmin))
+  renderUsuariosAdmin()
+}
+
+async function cargarExcelAspirantes(){
+  const file = archivoAspirantes.files?.[0]
+  if(!file){
+    msgCargaAspirantes.innerText = "Selecciona un archivo primero."
+    return
+  }
+  if(!window.XLSX){
+    msgCargaAspirantes.innerText = "No está disponible la librería XLSX."
+    return
+  }
+
+  const buffer = await file.arrayBuffer()
+  const wb = XLSX.read(buffer, { type: "array" })
+  const ws = wb.Sheets[wb.SheetNames[0]]
+  const rows = XLSX.utils.sheet_to_json(ws, { defval: "" })
+
+  if(!rows.length){
+    msgCargaAspirantes.innerText = "El archivo no tiene filas."
+    return
+  }
+
+  const keys = Object.keys(rows[0]).map(k=>k.toLowerCase().trim())
+  const required = ["apellidos", "nombres", "dni", "ubo"]
+  const faltantes = required.filter(k=>!keys.includes(k))
+  if(faltantes.length){
+    msgCargaAspirantes.innerText = `Faltan columnas requeridas: ${faltantes.join(", ")}.`
+    return
+  }
+
+  const parsed = rows
+    .map(r=>({
+      apellidos: String(r.apellidos ?? r.Apellidos ?? "").trim(),
+      nombres: String(r.nombres ?? r.Nombres ?? "").trim(),
+      dni: String(r.dni ?? r.DNI ?? "").replace(/\D/g, ""),
+      ubo: String(r.ubo ?? r.UBO ?? "").trim()
+    }))
+    .filter(r=>r.apellidos && r.nombres && r.dni && r.ubo)
+
+  if(!parsed.length){
+    msgCargaAspirantes.innerText = "No se encontraron filas válidas."
+    return
+  }
+
+  const payload = parsed.map(r=>({
+    dni: r.dni,
+    nombres: r.nombres,
+    apellidos: r.apellidos,
+    ubo: r.ubo
+  }))
+
+  const { error } = await supabaseClient
+    .from("aspirantes")
+    .upsert(payload, { onConflict: "dni" })
+
+  if(error){
+    msgCargaAspirantes.innerText = `No se pudo cargar en Supabase: ${error.message}`
+    return
+  }
+
+  msgCargaAspirantes.innerText = `Carga exitosa: ${payload.length} aspirantes procesados.`
+  await cargarAspirantesCargados()
+}
+
+async function cargarAspirantesCargados(){
+  if(!tablaAspirantesCargados) return
+
+  const { data, error } = await supabaseClient
+    .from("aspirantes")
+    .select("apellidos,nombres,dni,ubo")
+    .order("apellidos", { ascending: true })
+    .order("nombres", { ascending: true })
+    .limit(300)
+
+  if(error){
+    tablaAspirantesCargados.innerHTML = `<tr><td colspan="4">No se pudo cargar el listado.</td></tr>`
+    return
+  }
+
+  if(!data || !data.length){
+    tablaAspirantesCargados.innerHTML = `<tr><td colspan="4">Sin aspirantes cargados.</td></tr>`
+    return
+  }
+
+  let html = ""
+  data.forEach(r=>{
+    html += `
+      <tr>
+        <td>${r.apellidos || ""}</td>
+        <td>${r.nombres || ""}</td>
+        <td>${r.dni || ""}</td>
+        <td>${r.ubo || ""}</td>
+      </tr>
+    `
+  })
+  tablaAspirantesCargados.innerHTML = html
+}
+
+async function cargarExcelUbosSedes(){
+  const file = archivoUbosSedes.files?.[0]
+  if(!file){
+    msgCargaUbosSedes.innerText = "Selecciona un archivo primero."
+    return
+  }
+  if(!window.XLSX){
+    msgCargaUbosSedes.innerText = "No está disponible la librería XLSX."
+    return
+  }
+
+  const buffer = await file.arrayBuffer()
+  const wb = XLSX.read(buffer, { type: "array" })
+  const ws = wb.Sheets[wb.SheetNames[0]]
+  const rows = XLSX.utils.sheet_to_json(ws, { defval: "" })
+
+  if(!rows.length){
+    msgCargaUbosSedes.innerText = "El archivo no tiene filas."
+    return
+  }
+
+  const normalize = (s)=>String(s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+
+  const keyMap = {}
+  Object.keys(rows[0]).forEach(k=>{
+    keyMap[normalize(k)] = k
+  })
+
+  const kUbo = keyMap.ubo
+  const kLat = keyMap.latitud || keyMap.ltitud
+  const kLng = keyMap.longitud || keyMap.longtitud || keyMap.longitug
+  const kNombre = keyMap.nombre
+
+  if(!kUbo || !kLat || !kLng){
+    msgCargaUbosSedes.innerText = "Columnas requeridas: UBO, LATITUD y LONGITUD."
+    return
+  }
+
+  const parsed = rows
+    .map(r=>({
+      ubo: String(r[kUbo] || "").trim(),
+      lat: Number(String(r[kLat] || "").replace(",", ".")),
+      lng: Number(String(r[kLng] || "").replace(",", ".")),
+      nombre: kNombre ? String(r[kNombre] || "").trim() : ""
+    }))
+    .filter(r=>r.ubo && Number.isFinite(r.lat) && Number.isFinite(r.lng))
+
+  if(!parsed.length){
+    msgCargaUbosSedes.innerText = "No se encontraron filas válidas."
+    return
+  }
+
+  const payload = parsed.map(r=>({
+    ubo: r.ubo,
+    nombre: r.nombre || `UBO ${r.ubo}`,
+    lat: r.lat,
+    lng: r.lng,
+    activo: true
+  }))
+
+  const { error } = await supabaseClient
+    .from("ubos_sedes")
+    .upsert(payload, { onConflict: "ubo" })
+
+  if(error){
+    msgCargaUbosSedes.innerText = `No se pudo cargar en Supabase: ${error.message}`
+    return
+  }
+
+  msgCargaUbosSedes.innerText = `Carga exitosa: ${payload.length} UBO(s) procesadas.`
+  await cargarUbos()
+}
+
+async function cargarSedesUbo(){
+  const { data, error } = await supabaseClient
+    .from("ubos_sedes")
+    .select("ubo,nombre,lat,lng,activo")
+    .eq("activo", true)
+
+  if(error){
+    console.warn("No se pudo cargar ubos_sedes:", error.message)
+    ubosSedeCache = []
+    return
+  }
+
+  ubosSedeCache = data || []
+}
+
+async function cargarSeccionesCursoDesdeSupabase(){
+  const { data, error } = await supabaseClient
+    .from("curso_secciones")
+    .select("seccion,modalidad,hora_inicio")
+    .eq("curso_id", 1)
+    .order("seccion", { ascending: true })
+
+  if(error){
+    if(esTablaNoExiste(error)) return null
+    console.warn("No se pudo cargar curso_secciones:", error.message)
+    return null
+  }
+
+  return (data || []).map(x=>({
+    seccion: String(x.seccion || "").trim(),
+    modalidad: x.modalidad || "Presencial",
+    hora_inicio: x.hora_inicio || "",
+    dias: []
+  })).filter(x=>x.seccion)
+}
+
+async function cargarSedesCursoDesdeSupabase(){
+  const { data, error } = await supabaseClient
+    .from("curso_sedes_ubo")
+    .select("seccion,ubo,modalidad,hora_inicio")
+    .eq("curso_id", 1)
+    .order("seccion", { ascending: true })
+
+  if(error){
+    if(esTablaNoExiste(error)) return null
+    console.warn("No se pudo cargar curso_sedes_ubo:", error.message)
+    return null
+  }
+
+  return (data || []).map(x=>({
+    seccion: String(x.seccion || "").trim(),
+    ubo: String(x.ubo || "").trim(),
+    modalidad: x.modalidad || "Presencial",
+    hora_inicio: x.hora_inicio || "",
+    dias: []
+  })).filter(x=>x.seccion)
+}
+
+function guardarEstructuraCursoLocal(){
+  localStorage.setItem("cursoSecciones", JSON.stringify(cursoSecciones))
+  localStorage.setItem("cursoSedesUbo", JSON.stringify(cursoSedesUbo))
+}
+
+async function aplicarCursoEnUI(cfg){
+  const nombreLocal = localStorage.getItem("cursoNombre") || ""
+  const seccionesLocalesMap = {}
+  const sedesLocalesMap = {}
+
+  if(cfg){
+    cursoNombre.value = (cfg.nombre_curso || nombreLocal || "").toUpperCase()
+    cursoInicio.value = cfg.fecha_inicio || ""
+    cursoFin.value = cfg.fecha_fin || ""
+    cursoRadio.value = cfg.radio_m || 50
+    toggleGPS.checked = !!cfg.gps_activo
+  }else{
+    cursoNombre.value = nombreLocal.toUpperCase()
+    cursoRadio.value = "50"
+  }
+
+  try{
+    cursoSecciones = JSON.parse(localStorage.getItem("cursoSecciones") || "[]")
+  }catch{
+    cursoSecciones = []
+  }
+  cursoSecciones.forEach(s=>{
+    if(s?.seccion) seccionesLocalesMap[String(s.seccion)] = s
+  })
+
+  try{
+    cursoSedesUbo = JSON.parse(localStorage.getItem("cursoSedesUbo") || "[]")
+  }catch{
+    cursoSedesUbo = []
+  }
+  cursoSedesUbo.forEach(s=>{
+    if(s?.seccion) sedesLocalesMap[String(s.seccion)] = s
+  })
+
+  const seccionesDb = await cargarSeccionesCursoDesdeSupabase()
+  if(Array.isArray(seccionesDb)){
+    cursoSecciones = seccionesDb.map(item=>{
+      const local = seccionesLocalesMap[item.seccion]
+      return {
+        ...item,
+        dias: Array.isArray(local?.dias) ? local.dias : []
+      }
+    })
+  }
+
+  const sedesDb = await cargarSedesCursoDesdeSupabase()
+  if(Array.isArray(sedesDb)){
+    cursoSedesUbo = sedesDb.map(item=>{
+      const local = sedesLocalesMap[item.seccion]
+      return {
+        ...item,
+        dias: Array.isArray(local?.dias) ? local.dias : [],
+        todos_dias: !!local?.todos_dias
+      }
+    })
+  }
+
+  guardarEstructuraCursoLocal()
+
+  renderSeccionesCurso()
+  actualizarOpcionesSeccionSede()
+  cargarFiltroSeccionDashboard()
+  renderSedesUbo()
+}
+
+async function cargarConfigCurso(){
+  const { data, error } = await supabaseClient
+    .from("curso_configuracion")
+    .select("*")
+    .eq("id", 1)
+    .maybeSingle()
+
+  if(error){
+    console.warn("No se pudo cargar curso_configuracion:", error.message)
+    cursoConfigCache = null
+    await aplicarCursoEnUI(null)
+    return
+  }
+
+  cursoConfigCache = data || null
+  await aplicarCursoEnUI(cursoConfigCache)
+}
+
+function obtenerGeoActual(){
+  return new Promise((resolve, reject)=>{
+    if(!navigator.geolocation){
+      reject(new Error("Geolocalización no disponible en este navegador"))
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos)=> resolve(pos.coords),
+      (err)=> reject(err),
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    )
+  })
+}
+
+async function registrarAlerta(payload){
+  try{
+    await supabaseClient.from("asistencia_alertas").insert(withTenantPayloadList([payload]))
+  }catch(e){
+    console.warn("No se pudo registrar alerta:", e)
+  }
+}
+
+function obtenerClavesAlertaDispositivo(data){
+  const claves = new Set()
+  const historial = (data || []).slice().sort((a,b)=>{
+    const aKey = `${a.fecha || ""} ${a.hora || ""}`
+    const bKey = `${b.fecha || ""} ${b.hora || ""}`
+    return aKey.localeCompare(bKey)
+  })
+
+  const dniPorDispositivo = {}
+
+  historial.forEach(r=>{
+    const dev = r.device_id || ""
+    const dniVal = (r.dni || "").trim()
+    if(!dev || !dniVal) return
+
+    if(!dniPorDispositivo[dev]){
+      dniPorDispositivo[dev] = new Set()
+    }
+
+    if(dniPorDispositivo[dev].size > 0 && !dniPorDispositivo[dev].has(dniVal)){
+      claves.add(`${dev}|${dniVal}|${r.fecha || ""}|${r.hora || ""}`)
+    }
+
+    dniPorDispositivo[dev].add(dniVal)
+  })
+
+  return claves
+}
+
+function abrirScanner(){
+  if(scanningActivo) return
+  scanningActivo = true
+  scanOverlay.style.display = "flex"
+  video.style.display = "block"
+}
+
+function cerrarScanner(){
+  scanningActivo = false
+  detenerCamara()
+  scanOverlay.style.display = "none"
+  video.style.display = "none"
+}
+
+function aplicarLayout(){
+  const elTenant = document.getElementById("tenantScreen")
+  const elLogin = document.getElementById("loginScreen")
+  const elDesktop = document.getElementById("vistaDesktop")
+  const elMovilInicio = document.getElementById("vistaMovilInicio")
+  const elMovil = document.getElementById("vistaMovil")
+  const elFormulario = document.getElementById("formulario")
+  const elBtnInstitucion = document.getElementById("btnInstitucion")
+  const vista = getVistaActiva()
+
+  if(elBtnInstitucion){
+    elBtnInstitucion.style.display = accesoDirectoInstitucion ? "none" : "inline-flex"
+  }
+
+  if(vista === "mobile"){
+    if(elTenant) elTenant.style.display="none"
+    if(elLogin) elLogin.style.display="none"
+    if(elDesktop) elDesktop.style.display="none"
+    if(elMovilInicio) elMovilInicio.style.display = dniMovil ? "none" : "flex"
+    if(elMovil) elMovil.style.display = dniMovil ? "block" : "none"
+
+    if(elFormulario && elFormulario.style.display !== "block"){
+      mostrarPasoMovil(dniMovil ? "scan" : "ingreso")
+    }
+  }else{
+    cerrarScanner()
+    if(elMovilInicio) elMovilInicio.style.display="none"
+    if(elMovil) elMovil.style.display="none"
+    if(elFormulario) elFormulario.style.display="none"
+
+    if(adminAutenticado){
+      if(elTenant) elTenant.style.display="none"
+      if(elLogin) elLogin.style.display="none"
+      if(elDesktop) elDesktop.style.display="block"
+    }else{
+      const verSelector = esModoStaff && mostrarSelectorStaff
+      if(elTenant) elTenant.style.display = verSelector ? "flex" : "none"
+      if(elDesktop) elDesktop.style.display="none"
+      if(elLogin) elLogin.style.display = verSelector ? "none" : "flex"
+    }
+  }
+
+  actualizarBotonesVista()
+}
+
+function actualizarEstadoChecks(){
+  document.querySelectorAll(".dias label").forEach(label=>{
+    const input = label.querySelector("input")
+    label.classList.toggle("active-day", !!input?.checked)
+  })
+
+  document.querySelectorAll(".mode-options label").forEach(label=>{
+    const input = label.querySelector("input")
+    label.classList.toggle("active-option", !!input?.checked)
+  })
+}
+
+window.onload = async ()=>{
+  enlazarIdsGlobales()
+  renderTenantSelector()
+  aplicarAccesoDesdeRuta()
+
+  try{
+    aplicarLayout()
+  }catch(e){
+    console.error("Error aplicando layout inicial:", e)
+  }
+
+  try{
+    aplicarRangoMesActualEnFiltros()
+  }catch(e){
+    console.error("Error aplicando rango de fechas:", e)
+  }
+
+  if(haySupabase()){
+    try{
+      await cargarUbos()
+    }catch(e){
+      console.error("Error cargando UBOs:", e)
+    }
+    try{
+      await cargarConfigCurso()
+    }catch(e){
+      console.error("Error cargando config curso:", e)
+    }
+    try{
+      await cargarAspirantesCargados()
+    }catch(e){
+      console.error("Error cargando aspirantes:", e)
+    }
+  }else{
+    console.error("Supabase no cargó. Verifica conexión/CDN.")
+  }
+
+  try{
+    cargarUsuariosAdminLocal()
+  }catch(e){
+    console.error("Error cargando usuarios locales:", e)
+  }
+
+  try{
+    actualizarEstadoChecks()
+    actualizarEstadoDiasSede()
+    activarSelectDiasCompacto("secCursoDiasSelect")
+    activarSelectDiasCompacto("uboSecDiasSelect")
+    cargarFiltroSeccionDashboard()
+  }catch(e){
+    console.error("Error actualizando estado visual:", e)
+  }
+
+  try{
+    aplicarLayout()
+  }catch(e){
+    console.error("Error aplicando layout final:", e)
+  }
+
+}
+
+function login(){
+  const usuario = (loginUser.value || "").trim().toLowerCase()
+  const clave = (loginPass.value || "").trim()
+  let valido = false
+
+  if(esModoStaff){
+    const userSystem = SYSTEM_USERS.some(u=>u.usuario === usuario)
+    const userTenantSistema = TENANTS.some(t=>(t.usuariosSistema || []).includes(usuario))
+    const userLocal = (usuariosAdmin || []).find(u=>u.usuario === usuario)
+    valido =
+      ((userSystem || userTenantSistema) && clave === "1234") ||
+      (!!userLocal && String(userLocal.clave || "") === clave)
+  }else{
+    const tenant = obtenerTenantActivo()
+    if(!tenant){
+      loginMsg.innerText = "Institución no válida para esta ruta."
+      return
+    }
+    const userLocal = (usuariosAdmin || []).find(u=>u.usuario === usuario)
+    valido =
+      ((tenant.usuariosSistema || []).includes(usuario) && clave === "1234") ||
+      (!!userLocal && String(userLocal.clave || "") === clave)
+  }
+
+  if(valido){
+    if(esModoStaff){
+      // Staff primero elige institución; no entra directo al panel.
+      adminAutenticado = false
+      mostrarSelectorStaff = true
+      localStorage.setItem(STAFF_FLOW_KEY, "1")
+      loginMsg.innerText = ""
+      aplicarLayout()
+      renderTenantSelector()
+      return
+    }
+
+    adminAutenticado = true
+    loginScreen.style.display="none"
+    vistaDesktop.style.display="block"
+    mostrarVista("reportes")
+    cargarDatos()
+  } else {
+    loginMsg.innerText="Usuario o clave incorrecta"
+  }
+}
+
+function verCriterio(tipo){
+  let titulo = "Criterio"
+  let contenido = ""
+
+  if(tipo === "semaforo"){
+    titulo = "Criterio Semáforo"
+    contenido = `
+      <p><strong>Verde:</strong> primera marcación del último día <= 19:10.</p>
+      <p><strong>Amarillo:</strong> primera marcación del último día entre 19:11 y 19:30.</p>
+      <p><strong>Rojo:</strong> primera marcación del último día > 19:30.</p>
+      <p style="margin-top:10px;color:#5f6f8f;">El cálculo se hace por aspirante en el rango de fechas filtrado.</p>
+    `
+  }
+
+  if(tipo === "riesgo"){
+    titulo = "Criterio Riesgo UBO"
+    contenido = `
+      <p>Se cuenta cuántos aspirantes quedaron en <strong>Rojo</strong> y se agrupan por UBO.</p>
+      <p>El listado muestra las UBOs con más casos para priorizar seguimiento.</p>
+      <p style="margin-top:10px;color:#5f6f8f;">Usa el mismo criterio de semáforo y respeta el filtro de fechas.</p>
+    `
+  }
+
+  modalTitulo.innerText = titulo
+  modalContenido.innerHTML = contenido
+  modal.style.display = "flex"
+}
+
+function logout(){
+  adminAutenticado = false
+  const vieneDeStaff = localStorage.getItem(STAFF_FLOW_KEY) === "1"
+
+  if(accesoDirectoInstitucion && vieneDeStaff){
+    localStorage.removeItem(STAFF_FLOW_KEY)
+    window.location.href = "/"
+    return
+  }
+
+  if(esModoStaff){
+    mostrarSelectorStaff = false
+    loginMsg.innerText = ""
+    if(loginPass) loginPass.value = ""
+    localStorage.removeItem(STAFF_FLOW_KEY)
+    aplicarLayout()
+    return
+  }
+  location.reload()
+}
+
+/* QR */
+let stream,seccion=""
+
+function ingresarMovilInicio(){
+  const input = document.getElementById("mobileDniInicio")
+  const dniLimpio = (input?.value || "").replace(/\D/g, "").slice(0, 8)
+  if(input) input.value = dniLimpio
+
+  if(!dniLimpio){
+    alert("Ingresa tu DNI para continuar")
+    return
+  }
+
+  dniMovil = dniLimpio
+  if(mobileDni) mobileDni.value = dniLimpio
+
+  vistaMovilInicio.style.display = "none"
+  vistaMovil.style.display = "block"
+  mostrarPasoMovil("scan")
+}
+
+function ingresarMovil(){
+  const dniLimpio = (mobileDni.value || "").replace(/\D/g, "").slice(0, 8)
+  mobileDni.value = dniLimpio
+
+  if(!dniLimpio){
+    alert("Ingresa tu DNI para continuar")
+    return
+  }
+
+  dniMovil = dniLimpio
+  mostrarPasoMovil("scan")
+}
+
+function iniciarEscaneo(){
+  if(!dniMovil){
+    alert("Primero ingresa tu DNI")
+    mostrarPasoMovil("ingreso")
+    return
+  }
+
+  abrirScanner()
+
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "environment" }
+  })
+  .then(s=>{
+    stream=s
+    video.srcObject=s
+    video.play()
+    scanQR()
+  })
+  .catch(err=>{
+    cerrarScanner()
+    alert("Error cámara: "+err)
+    console.error(err)
+  })
+}
+
+function scanQR(){
+  if(!scanningActivo) return
+
+  const ctx=canvas.getContext("2d")
+
+  if(video.readyState===video.HAVE_ENOUGH_DATA){
+    canvas.width=video.videoWidth
+    canvas.height=video.videoHeight
+    ctx.drawImage(video,0,0)
+
+    const img=ctx.getImageData(0,0,canvas.width,canvas.height)
+    const code=jsQR(img.data,img.width,img.height)
+
+    if(code){
+      cerrarScanner()
+
+      vistaMovil.style.display="none"
+      formulario.style.display="block"
+
+      console.log("QR detectado:", code.data) // 🔥 debug
+
+      return
+    }
+  }
+  requestAnimationFrame(scanQR)
+}
+
+function detenerCamara(){
+  if(stream) stream.getTracks().forEach(t=>t.stop())
+}
+
+function volverInicio(){
+  cerrarScanner()
+  formulario.style.display="none"
+  vistaMovil.style.display="block"
+  mostrarPasoMovil(dniMovil ? "scan" : "ingreso")
+  setMensaje("")
+}
+
+function setSeccion(s){
+  seccion=s
+  seleccionarBotonSeccion(s)
+}
+
+function getDeviceId(){
+  let id=localStorage.getItem("dev")
+  if(!id){
+    id="dev-"+Math.random()
+    localStorage.setItem("dev",id)
+  }
+  return id
+}
+
+async function guardarAsistencia(){
+  const dniRegistro = (dniMovil || mobileDni.value || "").replace(/\D/g, "")
+  const nombresValor = (nombres.value || "").trim()
+  const apellidosValor = (apellidos.value || "").trim()
+  const uboValor = (ubo.value || "").replace(/\D/g, "")
+  const deviceId = getDeviceId()
+  const nombreCompleto = `${nombresValor} ${apellidosValor}`.replace(/\s+/g, " ").trim()
+  const now=new Date()
+  const fechaHoy = now.toISOString().slice(0,10)
+  const horaHoy = now.toTimeString().slice(0,8)
+
+  if(!dniRegistro){
+    setMensaje("⚠ DNI no válido", "error")
+    return
+  }
+
+    if(!nombresValor || !apellidosValor){
+    setMensaje("⚠ Completa nombres y apellidos", "error")
+    return
+  }
+
+  if(!uboValor){
+    setMensaje("⚠ UBO debe ser numérico", "error")
+    return
+  }
+
+  if(!seccion){
+    setMensaje("⚠ Selecciona una sección", "error")
+    return
+  }
+
+  let alertaDniDispositivo = false
+  let alertaDispositivoNoHabitual = false
+  let dispositivoHabitual = ""
+
+  try{
+    const { data: historialDevice } = await withTenantScope(
+      supabaseClient
+      .from("asistencias")
+      .select("dni,fecha,hora")
+      .eq("device_id", deviceId)
+      .order("fecha", { ascending: true })
+      .order("hora", { ascending: true })
+    )
+
+    const dniVistos = new Set((historialDevice || []).map(x => (x.dni || "").trim()).filter(Boolean))
+    alertaDniDispositivo = dniVistos.size > 0 && !dniVistos.has(dniRegistro)
+  }catch(e){
+    console.warn("No se pudo validar DNI por dispositivo:", e)
+  }
+
+  try{
+    const { data: historialDni } = await withTenantScope(
+      supabaseClient
+      .from("asistencias")
+      .select("device_id,fecha,hora")
+      .eq("dni", dniRegistro)
+      .order("fecha", { ascending: true })
+      .order("hora", { ascending: true })
+    )
+
+    const historial = (historialDni || []).filter(x => (x.device_id || "").trim())
+    if(historial.length){
+      dispositivoHabitual = String(historial[0].device_id)
+      alertaDispositivoNoHabitual = dispositivoHabitual !== deviceId
+    }
+  }catch(e){
+    console.warn("No se pudo validar dispositivo habitual por DNI:", e)
+  }
+
+  if(cursoConfigCache?.gps_activo){
+    if(cursoConfigCache.fecha_inicio && fechaHoy < cursoConfigCache.fecha_inicio){
+      setMensaje("⚠ El curso aún no inicia para marcar asistencia", "error")
+      return
+    }
+
+    if(cursoConfigCache.fecha_fin && fechaHoy > cursoConfigCache.fecha_fin){
+      setMensaje("⚠ El curso ya finalizó para marcar asistencia", "error")
+      return
+    }
+
+    const uboSede = cursoConfigCache[SECTION_TO_UBO_FIELD[seccion]]
+    const radio = Number(cursoConfigCache?.radio_m || 50)
+
+    if(!uboSede){
+      setMensaje(`⚠ No hay UBO sede configurada para Sección ${seccion}`, "error")
+      return
+    }
+
+    const sede = ubosSedeCache.find(x => String(x.ubo) === String(uboSede))
+    if(!sede || sede.lat == null || sede.lng == null){
+      setMensaje(`⚠ La UBO sede ${uboSede} no tiene coordenadas`, "error")
+      return
+    }
+
+    let coords
+    try{
+      coords = await obtenerGeoActual()
+    }catch(err){
+      setMensaje("⚠ No se pudo obtener GPS del dispositivo", "error")
+      return
+    }
+
+    const dist = distanciaMetros(
+      Number(coords.latitude), Number(coords.longitude),
+      Number(sede.lat), Number(sede.lng)
+    )
+
+    if(dist > radio){
+      await registrarAlerta({
+        fecha: fechaHoy,
+        hora: horaHoy,
+        dni: dniRegistro,
+        nombre: nombreCompleto,
+        ubo: uboValor,
+        seccion,
+        tipo: "fuera_rango_gps",
+        detalle: `Fuera de rango (${Math.round(dist)}m de UBO ${uboSede}, radio ${radio}m)`,
+        device_id: deviceId,
+        lat: Number(coords.latitude),
+        lng: Number(coords.longitude),
+        ubo_sede: String(uboSede),
+        distancia_m: Math.round(dist),
+        radio_m: radio
+      })
+
+      alert("⚠ Usted se encuentra fuera del rango de la UBO sede. No se permite marcar asistencia.")
+      setMensaje("⚠ Fuera de rango GPS. Registro bloqueado.", "error")
       return
     }
   }
 
-  requestAnimationFrame(scanQR)
-}
+  const payloadAsistencia = withTenantPayload({
+    dni:dniRegistro,
+    nombre:nombreCompleto,
+    ubo:uboValor,
+    seccion:seccion,
+    fecha:fechaHoy,
+    hora:horaHoy,
+    device_id:deviceId
+  })
+  const {error}=await supabaseClient.from("asistencias").insert([payloadAsistencia])
 
-function detenerCamara() {
-  if (streamGlobal) {
-    streamGlobal.getTracks().forEach(track => track.stop())
-  }
-
-  document.getElementById("video").style.display = "none"
-  document.getElementById("btnCancelar").style.display = "none"
-}
-
-// REGISTRAR
-async function registrarAsistencia(qrData) {
-
-  const QR_VALIDO = "ESBAS-2026"
-
-  if (qrData !== QR_VALIDO) {
-    document.getElementById("mensaje").innerText = "❌ QR inválido"
+  if(error){
+    setMensaje("⚠ Ya registraste hoy", "error")
     return
   }
 
-  const dni = document.getElementById("dni").value
-  const nombre = document.getElementById("nombre").value
-  const ubo = document.getElementById("ubo").value
-  const deviceId = getDeviceId()
+  if(alertaDniDispositivo){
+    await registrarAlerta({
+      fecha: fechaHoy,
+      hora: horaHoy,
+      dni: dniRegistro,
+      nombre: nombreCompleto,
+      ubo: uboValor,
+      seccion,
+      tipo: "dni_distinto_dispositivo",
+      detalle: "DNI no visto previamente en este dispositivo",
+      device_id: deviceId
+    })
 
-  navigator.geolocation.getCurrentPosition(async function(position) {
+    alert("⚠ Este DNI no estaba previamente registrado en este dispositivo móvil.")
+    setMensaje("✅ Registrado con alerta: DNI nuevo para este dispositivo", "warning")
+  }else{
+    setMensaje("✅ Registrado", "ok")
+  }
 
-    const lat = position.coords.latitude
-    const lng = position.coords.longitude
+  if(alertaDispositivoNoHabitual){
+    await registrarAlerta({
+      fecha: fechaHoy,
+      hora: horaHoy,
+      dni: dniRegistro,
+      nombre: nombreCompleto,
+      ubo: uboValor,
+      seccion,
+      tipo: "dni_en_otro_dispositivo",
+      detalle: `Dispositivo no habitual. Habitual: ${dispositivoHabitual}`,
+      device_id: deviceId
+    })
 
-    const { error } = await supabaseClient
-      .from('asistencias')
-      .insert([
-        { dni, nombre, ubo, latitud: lat, longitud: lng, device_id: deviceId }
-      ])
+    alert("⚠ Está registrando su asistencia en otro dispositivo no habitual.")
+    setMensaje("✅ Registrado con alerta: dispositivo no habitual", "warning")
+  }
 
-    if (error) {
-      document.getElementById("mensaje").innerText = "⚠ Ya registraste hoy o error"
-    } else {
-      document.getElementById("mensaje").innerText = "✅ Asistencia registrada"
+  nombres.value = ""
+  apellidos.value = ""
+  ubo.value = ""
+  seccion = ""
+  seleccionarBotonSeccion("")
+}
+
+/* ADMIN */
+async function cargarDatos(){
+  let q = withTenantScope(supabaseClient.from("asistencias").select("*"))
+
+  if(fechaDesde.value){
+    q = q.gte("fecha", fechaDesde.value)
+  }
+  if(fechaHasta.value){
+    q = q.lte("fecha", fechaHasta.value)
+  }
+  if(filtroUbo.value){
+    q = q.ilike("ubo", "%" + filtroUbo.value + "%")
+  }
+
+  const {data} = await q
+  renderTabla((data || []).filter(d => d.estado !== "retirado"))
+  await cargarAlertasReporte()
+}
+
+function renderTabla(data){
+  const activos = (data || []).filter(r => r.estado !== "retirado")
+  const clavesAlerta = obtenerClavesAlertaDispositivo(activos)
+  cacheReportes = []
+
+  let html = `
+  <table>
+    <thead>
+      <tr>
+        <th>DNI</th>
+        <th>Nombre</th>
+        <th>UBO</th>
+        <th>Fecha</th>
+        <th>Hora</th>
+        <th>Alerta</th>
+      </tr>
+    </thead>
+    <tbody>
+  `
+
+  activos.forEach(r=>{
+    const clave = `${r.device_id || ""}|${(r.dni || "").trim()}|${r.fecha || ""}|${r.hora || ""}`
+    const hayAlerta = clavesAlerta.has(clave)
+    cacheReportes.push({
+      dni: r.dni || "",
+      nombre: r.nombre || "",
+      ubo: r.ubo || "",
+      fecha: r.fecha || "",
+      hora: r.hora || "",
+      alerta: hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta"
+    })
+
+    html+=`
+      <tr>
+        <td>${r.dni}</td>
+        <td>${r.nombre}</td>
+        <td>${r.ubo}</td>
+        <td>${r.fecha}</td>
+        <td>${r.hora}</td>
+        <td>
+          <span class="badge-alerta ${hayAlerta ? "warn" : "ok"}">
+            ${hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta"}
+          </span>
+        </td>
+      </tr>
+    `
+  })
+
+  html += `
+    </tbody>
+  </table>
+
+  <div style="margin-top:10px;font-weight:bold;">
+    Total registros: ${activos.length}
+  </div>
+  `
+
+  tabla.innerHTML = html
+}
+
+async function cargarAlertasReporte(){
+  let q = withTenantScope(supabaseClient
+    .from("asistencia_alertas")
+    .select("*")
+    .order("fecha", { ascending: false })
+    .order("hora", { ascending: false })
+    .limit(120))
+
+  if(filtroUbo.value){
+    q = q.eq("ubo", filtroUbo.value)
+  }
+
+  if(fechaDesde.value){
+    q = q.gte("fecha", fechaDesde.value)
+  }
+
+  if(fechaHasta.value){
+    q = q.lte("fecha", fechaHasta.value)
+  }
+
+  const { data, error } = await q
+
+  if(error){
+    console.warn("No se pudo cargar asistencia_alertas:", error.message)
+    tablaAlertasContenido.innerHTML = "No se pudieron cargar alertas."
+    return
+  }
+
+  if(!data || data.length===0){
+    tablaAlertasContenido.innerHTML = "Sin alertas registradas."
+    return
+  }
+
+  let html = `
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Hora</th>
+        <th>DNI</th>
+        <th>Nombre</th>
+        <th>UBO</th>
+        <th>Sección</th>
+        <th>Tipo</th>
+        <th>Detalle</th>
+      </tr>
+    </thead>
+    <tbody>
+  `
+
+  data.forEach(r=>{
+    html += `
+      <tr>
+        <td>${r.fecha || ""}</td>
+        <td>${r.hora || ""}</td>
+        <td>${r.dni || ""}</td>
+        <td>${r.nombre || ""}</td>
+        <td>${r.ubo || ""}</td>
+        <td>${r.seccion || ""}</td>
+        <td>${r.tipo || ""}</td>
+        <td>${r.detalle || ""}</td>
+      </tr>
+    `
+  })
+
+  html += "</tbody></table>"
+  tablaAlertasContenido.innerHTML = html
+}
+
+async function aplicarFiltros(){
+
+  let q = withTenantScope(supabaseClient.from("asistencias").select("*"))
+
+  if(filtroUbo.value){
+    q = q.ilike("ubo","%"+filtroUbo.value+"%")
+  }
+
+  if(fechaDesde.value){
+    q = q.gte("fecha",fechaDesde.value)
+  }
+
+  if(fechaHasta.value){
+    q = q.lte("fecha",fechaHasta.value)
+  }
+
+  const { data, error } = await q
+
+  if(error){
+    console.error(error)
+    alert("Error al filtrar")
+    return
+  }
+
+  renderTabla(data.filter(d => d.estado !== "retirado"))
+  await cargarAlertasReporte()
+
+}
+
+function limpiarFiltros(){
+  const { from, to } = obtenerRangoMesActual()
+  filtroUbo.value = ""
+  fechaDesde.value = from
+  fechaHasta.value = to
+
+  tabla.innerHTML = ""
+  tablaAlertasContenido.innerHTML = "Sin alertas registradas."
+
+}
+
+async function cargarDashboard(){
+
+  let q = withTenantScope(supabaseClient.from("asistencias").select("*"))
+
+  if(dashDesde.value){
+    q = q.gte("fecha", dashDesde.value)
+  }
+
+  if(dashHasta.value){
+    q = q.lte("fecha", dashHasta.value)
+  }
+
+  if(dashUbo.value){
+    q = q.eq("ubo", dashUbo.value)
+  }
+  if(dashSeccion.value){
+    q = q.eq("seccion", dashSeccion.value)
+  }
+
+  const { data } = await q
+  const dataActivos = (data || []).filter(r => r.estado !== "retirado")
+  cacheDashboard = dataActivos
+
+  let padronTotal = 0
+  try{
+    let padronQ = withTenantScope(supabaseClient
+      .from("aspirantes")
+      .select("dni", { count: "exact", head: true }))
+    if(dashUbo.value){
+      padronQ = padronQ.eq("ubo", dashUbo.value)
+    }
+    const { count } = await padronQ
+    padronTotal = Number(count || 0)
+  }catch(e){
+    console.warn("No se pudo calcular padrón total:", e)
+  }
+
+  let alertasQ = withTenantScope(supabaseClient
+    .from("asistencia_alertas")
+    .select("id", { count: "exact", head: true })
+    .eq("tipo", "dni_en_otro_dispositivo"))
+
+  if(dashDesde.value){
+    alertasQ = alertasQ.gte("fecha", dashDesde.value)
+  }
+  if(dashHasta.value){
+    alertasQ = alertasQ.lte("fecha", dashHasta.value)
+  }
+  if(dashUbo.value){
+    alertasQ = alertasQ.eq("ubo", dashUbo.value)
+  }
+  if(dashSeccion.value){
+    alertasQ = alertasQ.eq("seccion", dashSeccion.value)
+  }
+
+  const { count: alertasDispNoHabitual } = await alertasQ
+
+  let alertasDetalleQ = withTenantScope(supabaseClient
+    .from("asistencia_alertas")
+    .select("fecha,hora,dni,nombre,ubo,seccion,detalle,device_id")
+    .eq("tipo", "dni_en_otro_dispositivo")
+    .order("fecha", { ascending: false })
+    .order("hora", { ascending: false })
+    .limit(120))
+
+  if(dashDesde.value){
+    alertasDetalleQ = alertasDetalleQ.gte("fecha", dashDesde.value)
+  }
+  if(dashHasta.value){
+    alertasDetalleQ = alertasDetalleQ.lte("fecha", dashHasta.value)
+  }
+  if(dashUbo.value){
+    alertasDetalleQ = alertasDetalleQ.eq("ubo", dashUbo.value)
+  }
+  if(dashSeccion.value){
+    alertasDetalleQ = alertasDetalleQ.eq("seccion", dashSeccion.value)
+  }
+
+  const { data: alertasDetalle } = await alertasDetalleQ
+  window.detalleAlertasDispositivo = alertasDetalle || []
+
+  let alumnos = {}
+
+  dataActivos.forEach(r=>{
+    if(!alumnos[r.dni]){
+      alumnos[r.dni]={ nombre:r.nombre, ubo:r.ubo, total:0 }
+    }
+    alumnos[r.dni].total++
+  })
+
+  let total = Object.keys(alumnos).length
+
+  let verde=0, amarillo=0, rojo=0
+  let rojoTardanza = 0
+  let rojoFueraDia = 0
+
+  // 🔥 GUARDAMOS DETALLE GLOBAL
+  window.detalleSemaforo = {
+    verde:[],
+    amarillo:[],
+    rojo:[]
+  }
+
+  let uboMap={}
+
+  for(let dni in alumnos){
+
+    let a = alumnos[dni]
+    let estado="rojo"
+
+    const registros = dataActivos.filter(x=>x.dni==dni)
+    const evaluacion = evaluarSemaforoPorRegla(registros)
+    estado = evaluacion.estado
+
+    if(estado==="verde") verde++
+    if(estado==="amarillo") amarillo++
+    if(estado==="rojo") rojo++
+
+    window.detalleSemaforo[estado].push({
+      dni,
+      nombre:a.nombre,
+      ubo:a.ubo,
+      total:a.total,
+      criterio: evaluacion.motivo || ""
+    })
+
+    if(estado==="rojo"){
+      if(evaluacion.motivo === "tardanza_alta") rojoTardanza++
+      if(evaluacion.motivo === "fuera_de_dia_configurado") rojoFueraDia++
+
+      if(!uboMap[a.ubo]){
+        uboMap[a.ubo] = { total:0, tardanza:0, fueraDia:0, otros:0 }
+      }
+      uboMap[a.ubo].total++
+      if(evaluacion.motivo === "tardanza_alta"){
+        uboMap[a.ubo].tardanza++
+      }else if(evaluacion.motivo === "fuera_de_dia_configurado"){
+        uboMap[a.ubo].fueraDia++
+      }else{
+        uboMap[a.ubo].otros++
+      }
+    }
+  }
+
+  kpiTotal.innerText = total
+  kpiAsistencia.innerText = total 
+    ? Math.round((verde/total)*100)+"%" 
+    : "0%"
+  const inasistencias = Math.max(0, padronTotal - total)
+  kpiInasistencia.innerText = inasistencias
+  kpiCobertura.innerText = padronTotal ? Math.round((total / padronTotal) * 100) + "%" : "0%"
+
+  verdeCount.innerText = verde
+  amarilloCount.innerText = amarillo
+  rojoCount.innerText = rojo
+  kpiRojoTardanza.innerText = rojoTardanza
+  kpiRojoFueraDia.innerText = rojoFueraDia
+  kpiDispNoHabitual.innerText = alertasDispNoHabitual || 0
+  kpiDispCard.style.opacity = (alertasDispNoHabitual || 0) > 0 ? "1" : "0.75"
+
+  cacheRiesgoUbo = Object.entries(uboMap)
+    .sort((a,b)=>b[1].total-a[1].total)
+
+  let html=""
+  cacheRiesgoUbo
+    .slice(0,5)
+    .forEach(([ubo,val])=>{
+      html += `<p onclick="verUbo('${ubo}')" style="cursor:pointer;">
+      ⚠ ${ubo} - ${val.total} casos (tardanza: ${val.tardanza}, fuera día: ${val.fueraDia})
+      </p>`
+    })
+
+  topUbo.innerHTML = html
+  semaforoInfo.innerText = "Semáforo: usa la primera marcación del último día del aspirante contra la hora de su sección (Verde: hasta +10m, Amarillo: +11 a +30m, Rojo: >+30m o fuera de día configurado). Si la sección no tiene hora, no penaliza."
+  riesgoInfo.innerText = "Riesgo por UBO: cantidad de aspirantes en Rojo según la configuración de horario/días y el rango filtrado."
+}
+
+function verAlertasDispositivo(){
+  const data = window.detalleAlertasDispositivo || []
+
+  if(!data.length){
+    modalTitulo.innerText = "Alertas de Dispositivo"
+    modalContenido.innerHTML = "<p>No hay alertas en el rango seleccionado.</p>"
+    modal.style.display="flex"
+    return
+  }
+
+  let html = `
+  <table>
+    <tr>
+      <th>Fecha</th>
+      <th>Hora</th>
+      <th>DNI</th>
+      <th>Nombre</th>
+      <th>UBO</th>
+      <th>Sección</th>
+      <th>Detalle</th>
+    </tr>
+  `
+
+  data.forEach(r=>{
+    html += `
+      <tr>
+        <td>${r.fecha || ""}</td>
+        <td>${r.hora || ""}</td>
+        <td>${r.dni || ""}</td>
+        <td>${r.nombre || ""}</td>
+        <td>${r.ubo || ""}</td>
+        <td>${r.seccion || ""}</td>
+        <td>${r.detalle || ""}</td>
+      </tr>
+    `
+  })
+  html += "</table>"
+
+  modalTitulo.innerText = "Alertas: Dispositivo No Habitual"
+  modalContenido.innerHTML = html
+  modal.style.display="flex"
+}
+
+function verUbo(ubo){
+
+  let data = window.detalleSemaforo["rojo"]
+    .filter(x=>x.ubo == ubo)
+
+  let html = `
+  <table>
+    <tr>
+      <th>DNI</th>
+      <th>Nombre</th>
+      <th>UBO</th>
+      <th>Asistencias</th>
+      <th>Criterio</th>
+    </tr>
+  `
+
+  data.forEach(r=>{
+    html += `
+      <tr>
+        <td>${r.dni}</td>
+        <td>${r.nombre}</td>
+        <td>${r.ubo}</td>
+        <td>${r.total}</td>
+        <td>${r.criterio || "-"}</td>
+      </tr>
+    `
+  })
+
+  html += "</table>"
+
+  modalTitulo.innerText = "UBO " + ubo
+  modalContenido.innerHTML = html
+
+  modal.style.display="flex"
+}
+
+async function buscarAspirantes(){
+
+  const ubo = filtroUboConfig.value
+
+  const { data } = await supabaseClient
+    .from("asistencias")
+    .select("dni,nombre,ubo")
+    .ilike("ubo","%"+ubo+"%")
+
+  let html=""
+
+  data.forEach(a=>{
+    html+=`
+      <p onclick="seleccionarAspirante('${a.dni}','${a.nombre}')">
+        ${a.nombre} (${a.dni})
+      </p>
+    `
+  })
+
+  listaAspirantes.innerHTML = html
+}
+
+async function retirarAspirante(dni){
+
+  const { error } = await supabaseClient
+    .from("asistencias")
+    .update({ estado: "retirado" })
+    .eq("dni", dni)
+
+  if(error){
+    alert("Error al retirar")
+    console.error(error)
+  }else{
+    alert("Aspirante retirado correctamente")
+    buscarAspirantes() // 🔥 refresca lista
+  }
+
+}
+
+function mostrarVista(vista){
+
+  vistaReportes.style.display="none"
+  document.getElementById("vistaDashboard").style.display="none"
+  document.getElementById("vistaConfig").style.display="none"
+  document.getElementById("vistaUsuarios").style.display="none"
+  document.querySelectorAll(".nav-item")
+    .forEach(el => el.classList.remove("active"))
+
+  if(vista==="dashboard"){
+    document.querySelector(".nav-item:nth-child(2)")?.classList.add("active")
+  }
+
+  if(vista==="dashboard"){
+    document.getElementById("vistaDashboard").style.display="block"
+    cargarDashboard()
+  }
+
+  if(vista==="reportes"){
+    document.querySelector(".nav-item:nth-child(1)")?.classList.add("active")
+    vistaReportes.style.display="block"
+    if(!tabla.innerHTML.trim()) cargarDatos()
+  }
+
+  if(vista==="config"){
+    document.querySelector(".nav-item:nth-child(3)")?.classList.add("active")
+    document.getElementById("vistaConfig").style.display="block"
+    cargarConfigCurso()
+  }
+
+  if(vista==="usuarios"){
+    document.querySelector(".nav-item:nth-child(4)")?.classList.add("active")
+    document.getElementById("vistaUsuarios").style.display="block"
+    renderUsuariosAdmin()
+    cargarAspirantesCargados()
+  }
+
+}
+
+function seleccionarAspirante(dni,nombre){
+
+  const confirmar = confirm("Retirar a "+nombre+" ?")
+
+  if(confirmar){
+    retirarAspirante(dni)
+  }
+
+}
+
+function verDetalle(color){
+
+  let data = window.detalleSemaforo[color] || []
+
+  let html = `
+  <table>
+    <tr>
+      <th>DNI</th>
+      <th>Nombre</th>
+      <th>UBO</th>
+      <th>Asistencias</th>
+      <th>Criterio</th>
+    </tr>
+  `
+
+  data.forEach(x=>{
+    html += `
+      <tr>
+        <td>${x.dni}</td>
+        <td>${x.nombre}</td>
+        <td>${x.ubo}</td>
+        <td>${x.total}</td>
+        <td>${x.criterio || "-"}</td>
+      </tr>
+    `
+  })
+
+  html += "</table>"
+
+  modalTitulo.innerText = "Semáforo " + color.toUpperCase()
+  modalContenido.innerHTML = html
+
+  modal.style.display="flex"
+}
+
+async function cargarUbos(){
+  const dashUboPrevio = dashUbo?.value || ""
+  const { data } = await supabaseClient
+    .from("asistencias")
+    .select("ubo")
+  const ubosAsistencia = obtenerUbosUnicosDesdeAsistencias(data)
+
+  await cargarSedesUbo()
+  const ubosSedes = obtenerUbosUnicosDesdeAsistencias(ubosSedeCache)
+  const ubos = Array.from(new Set(ubosAsistencia.concat(ubosSedes)))
+    .sort((a,b)=>parseInt(a)-parseInt(b))
+
+  let html = construirOptionsUbo(ubos, true, "Seleccionar UBO")
+
+  filtroUboConfig.innerHTML = html
+  filtroUbo.innerHTML = html
+  filtroRetirados.innerHTML = html
+  dashUbo.innerHTML = construirOptionsUbo(ubos, true, "Todas las UBO")
+  if(dashUboPrevio && ubos.includes(dashUboPrevio)){
+    dashUbo.value = dashUboPrevio
+  }
+
+  const htmlSede = construirOptionsUbo(ubos, true, "Seleccionar UBO sede")
+  uboSecUbo.innerHTML = htmlSede
+}
+
+function cerrarModal(){
+  modal.style.display="none"
+}
+
+// cerrar con ESC
+document.addEventListener("keydown", e=>{
+  if(e.key==="Escape"){
+    cerrarModal()
+  }
+})
+
+async function guardarCurso(){
+  const mapSedes = {}
+  cursoSedesUbo.forEach(x=>{
+    mapSedes[x.seccion] = x.ubo
+  })
+
+  localStorage.setItem("cursoNombre", (cursoNombre.value || "").toUpperCase())
+  localStorage.setItem("cursoSecciones", JSON.stringify(cursoSecciones))
+  localStorage.setItem("cursoSedesUbo", JSON.stringify(cursoSedesUbo))
+
+  const payload = {
+    id: 1,
+    fecha_inicio: cursoInicio.value || null,
+    fecha_fin: cursoFin.value || null,
+    seccion_a_ubo: mapSedes["A"] || null,
+    seccion_b_ubo: mapSedes["B"] || null,
+    seccion_c_ubo: mapSedes["C"] || null,
+    radio_m: Number(cursoRadio.value || 50),
+    gps_activo: !!toggleGPS.checked
+  }
+
+  const { error, data } = await supabaseClient
+    .from("curso_configuracion")
+    .upsert(payload)
+    .select()
+    .single()
+
+  if(error){
+    alert("Error al guardar configuración de curso")
+    console.error(error)
+    return
+  }
+
+  cursoConfigCache = {
+    ...(data || {}),
+    nombre_curso: (cursoNombre.value || "").toUpperCase()
+  }
+  alert("Curso guardado")
+}
+
+function actualizarOpcionesSeccionSede(){
+  const base = Array.from(new Set((cursoSecciones || []).map(x=>String(x.seccion || "").trim()).filter(Boolean)))
+
+  let html = `<option value="">Seleccionar sección</option>`
+  base.forEach(code=>{
+    html += `<option value="${code}">Sección ${code}</option>`
+  })
+  uboSecNombre.innerHTML = html
+}
+
+function limpiarFormSeccionCurso(){
+  secCursoNombre.value = ""
+  secCursoModalidad.value = "Presencial"
+  secCursoHora.value = ""
+  marcarValoresMultiSelect("secCursoDiasSelect", [])
+  editSeccionCursoIndex = -1
+}
+
+function limpiarFormSedeUbo(){
+  uboSecNombre.value = ""
+  uboSecUbo.value = ""
+  uboSecHora.value = ""
+  uboSecModalidad.value = "Presencial"
+  uboSecTodosDias.checked = false
+  marcarValoresMultiSelect("uboSecDiasSelect", [])
+  actualizarEstadoDiasSede()
+  editSedeUboIndex = -1
+}
+
+async function guardarSeccionCurso(){
+  const seccionValor = String(secCursoNombre.value || "").trim().toUpperCase()
+  const dias = obtenerValoresMultiSelect("secCursoDiasSelect")
+
+  if(!seccionValor){
+    alert("Define el nombre/código de la sección")
+    return
+  }
+
+  if(!secCursoHora.value){
+    alert("Define una hora de inicio para la sección")
+    return
+  }
+
+  if(!dias.length){
+    alert("Selecciona al menos un día para la sección")
+    return
+  }
+
+  const item = {
+    seccion: seccionValor,
+    modalidad: secCursoModalidad.value,
+    hora_inicio: secCursoHora.value,
+    dias
+  }
+  const oldSeccion = editSeccionCursoIndex >= 0 ? cursoSecciones[editSeccionCursoIndex]?.seccion : null
+
+  if(editSeccionCursoIndex >= 0){
+    cursoSecciones[editSeccionCursoIndex] = item
+  }else{
+    const existing = cursoSecciones.findIndex(x=>x.seccion === item.seccion)
+    if(existing >= 0){
+      if(!confirm(`La Sección ${item.seccion} ya existe. ¿Deseas reemplazarla?`)) return
+      cursoSecciones[existing] = item
+    }else{
+      cursoSecciones.push(item)
+    }
+  }
+
+  let persistioEnDb = false
+  try{
+    if(oldSeccion && oldSeccion !== item.seccion){
+      await supabaseClient
+        .from("curso_secciones")
+        .delete()
+        .eq("curso_id", 1)
+        .eq("seccion", oldSeccion)
     }
 
-  }, function() {
-    document.getElementById("mensaje").innerText = "⚠ Activa GPS"
-  })
+    await supabaseClient
+      .from("curso_secciones")
+      .delete()
+      .eq("curso_id", 1)
+      .eq("seccion", item.seccion)
+
+    const { error } = await supabaseClient
+      .from("curso_secciones")
+      .insert([{
+        curso_id: 1,
+        seccion: item.seccion,
+        modalidad: item.modalidad,
+        hora_inicio: item.hora_inicio
+      }])
+
+    if(error){
+      if(!esTablaNoExiste(error)){
+        console.warn("No se pudo guardar curso_secciones:", error.message)
+      }
+    }else{
+      persistioEnDb = true
+    }
+  }catch(e){
+    console.warn("No se pudo persistir sección en Supabase:", e)
+  }
+
+  if(persistioEnDb){
+    const mapDias = {}
+    cursoSecciones.forEach(s=>{
+      if(s?.seccion) mapDias[s.seccion] = s.dias || []
+    })
+    const seccionesDb = await cargarSeccionesCursoDesdeSupabase()
+    if(Array.isArray(seccionesDb)){
+      cursoSecciones = seccionesDb.map(s=>({
+        ...s,
+        dias: mapDias[s.seccion] || []
+      }))
+    }
+  }
+
+  guardarEstructuraCursoLocal()
+  renderSeccionesCurso()
+  actualizarOpcionesSeccionSede()
+  limpiarFormSeccionCurso()
 }
+
+function editarSeccionCurso(idx){
+  const item = cursoSecciones[idx]
+  if(!item) return
+  secCursoNombre.value = item.seccion
+  secCursoModalidad.value = item.modalidad
+  secCursoHora.value = item.hora_inicio
+  marcarValoresMultiSelect("secCursoDiasSelect", item.dias || [])
+  editSeccionCursoIndex = idx
+}
+
+async function eliminarSeccionCurso(idx){
+  if(!confirm("¿Eliminar esta sección?")) return
+  const seccion = cursoSecciones[idx]?.seccion
+  cursoSecciones.splice(idx, 1)
+
+  try{
+    if(seccion){
+      const { error } = await supabaseClient
+        .from("curso_secciones")
+        .delete()
+        .eq("curso_id", 1)
+        .eq("seccion", seccion)
+
+      if(error && !esTablaNoExiste(error)){
+        console.warn("No se pudo eliminar sección de Supabase:", error.message)
+      }
+    }
+  }catch(e){
+    console.warn("No se pudo eliminar sección en Supabase:", e)
+  }
+
+  guardarEstructuraCursoLocal()
+  renderSeccionesCurso()
+  actualizarOpcionesSeccionSede()
+}
+
+function renderSeccionesCurso(){
+  if(!cursoSecciones.length){
+    tablaSeccionesCurso.innerHTML = `<tr><td colspan="5">Sin secciones creadas.</td></tr>`
+    return
+  }
+
+  let html = ""
+
+  cursoSecciones.forEach((s, idx)=>{
+    html += `
+      <tr>
+        <td>Sección ${s.seccion}</td>
+        <td>${s.modalidad}</td>
+        <td>${s.hora_inicio || "-"}</td>
+        <td>${diasTexto(s.dias)}</td>
+        <td>
+          <div class="table-actions">
+            <button onclick="editarSeccionCurso(${idx})">Modificar</button>
+            <button class="secondary" onclick="eliminarSeccionCurso(${idx})">Eliminar</button>
+          </div>
+        </td>
+      </tr>
+    `
+  })
+
+  tablaSeccionesCurso.innerHTML = html
+}
+
+async function guardarSedeUbo(){
+  const seccionValor = String(uboSecNombre.value || "").trim().toUpperCase()
+  const todosDias = !!uboSecTodosDias.checked
+  const dias = todosDias ? [] : obtenerValoresMultiSelect("uboSecDiasSelect")
+
+  if(!seccionValor){
+    alert("Selecciona una sección existente")
+    return
+  }
+
+  if(!cursoSecciones.some(x=>String(x.seccion) === seccionValor)){
+    alert("La sección seleccionada no existe. Créala primero.")
+    return
+  }
+
+  if(!uboSecUbo.value){
+    alert("Selecciona una UBO sede")
+    return
+  }
+
+  if(!uboSecHora.value){
+    alert("Define una hora de inicio para la sede UBO")
+    return
+  }
+
+  if(!todosDias && !dias.length){
+    alert("Selecciona al menos un día o activa la opción 'Todos'")
+    return
+  }
+
+  const item = {
+    seccion: seccionValor,
+    ubo: uboSecUbo.value,
+    modalidad: uboSecModalidad.value,
+    hora_inicio: uboSecHora.value,
+    dias,
+    todos_dias: todosDias
+  }
+  const oldSeccion = editSedeUboIndex >= 0 ? cursoSedesUbo[editSedeUboIndex]?.seccion : null
+
+  if(editSedeUboIndex >= 0){
+    cursoSedesUbo[editSedeUboIndex] = item
+  }else{
+    const existing = cursoSedesUbo.findIndex(x=>x.seccion === item.seccion)
+    if(existing >= 0){
+      if(!confirm(`La Sección ${item.seccion} ya tiene UBO sede. ¿Deseas reemplazarla?`)) return
+      cursoSedesUbo[existing] = item
+    }else{
+      cursoSedesUbo.push(item)
+    }
+  }
+
+  let persistioEnDb = false
+  try{
+    if(oldSeccion && oldSeccion !== item.seccion){
+      await supabaseClient
+        .from("curso_sedes_ubo")
+        .delete()
+        .eq("curso_id", 1)
+        .eq("seccion", oldSeccion)
+    }
+
+    await supabaseClient
+      .from("curso_sedes_ubo")
+      .delete()
+      .eq("curso_id", 1)
+      .eq("seccion", item.seccion)
+
+    const { error } = await supabaseClient
+      .from("curso_sedes_ubo")
+      .insert([{
+        curso_id: 1,
+        seccion: item.seccion,
+        ubo: item.ubo,
+        modalidad: item.modalidad,
+        hora_inicio: item.hora_inicio
+      }])
+
+    if(error){
+      if(!esTablaNoExiste(error)){
+        console.warn("No se pudo guardar curso_sedes_ubo:", error.message)
+      }
+    }else{
+      persistioEnDb = true
+    }
+  }catch(e){
+    console.warn("No se pudo persistir sede UBO en Supabase:", e)
+  }
+
+  if(persistioEnDb){
+    const mapDias = {}
+    const mapTodos = {}
+    cursoSedesUbo.forEach(s=>{
+      if(s?.seccion){
+        mapDias[s.seccion] = s.dias || []
+        mapTodos[s.seccion] = !!s.todos_dias
+      }
+    })
+    const sedesDb = await cargarSedesCursoDesdeSupabase()
+    if(Array.isArray(sedesDb)){
+      cursoSedesUbo = sedesDb.map(s=>({
+        ...s,
+        dias: mapDias[s.seccion] || [],
+        todos_dias: !!mapTodos[s.seccion]
+      }))
+    }
+  }
+
+  guardarEstructuraCursoLocal()
+  renderSedesUbo()
+  limpiarFormSedeUbo()
+}
+
+function editarSedeUbo(idx){
+  const item = cursoSedesUbo[idx]
+  if(!item) return
+  uboSecNombre.value = item.seccion
+  uboSecUbo.value = item.ubo
+  uboSecModalidad.value = item.modalidad
+  uboSecHora.value = item.hora_inicio
+  uboSecTodosDias.checked = !!item.todos_dias
+  marcarValoresMultiSelect("uboSecDiasSelect", item.dias || [])
+  actualizarEstadoDiasSede()
+  editSedeUboIndex = idx
+}
+
+async function eliminarSedeUbo(idx){
+  if(!confirm("¿Eliminar esta sede UBO?")) return
+  const seccion = cursoSedesUbo[idx]?.seccion
+  cursoSedesUbo.splice(idx, 1)
+
+  try{
+    if(seccion){
+      const { error } = await supabaseClient
+        .from("curso_sedes_ubo")
+        .delete()
+        .eq("curso_id", 1)
+        .eq("seccion", seccion)
+
+      if(error && !esTablaNoExiste(error)){
+        console.warn("No se pudo eliminar sede UBO de Supabase:", error.message)
+      }
+    }
+  }catch(e){
+    console.warn("No se pudo eliminar sede UBO en Supabase:", e)
+  }
+
+  guardarEstructuraCursoLocal()
+  renderSedesUbo()
+}
+
+function renderSedesUbo(){
+  if(!cursoSedesUbo.length){
+    tablaSedesUbo.innerHTML = `<tr><td colspan="6">Sin UBOs sede creadas.</td></tr>`
+    return
+  }
+
+  let html = ""
+  cursoSedesUbo.forEach((s, idx)=>{
+    html += `
+      <tr>
+        <td>Sección ${s.seccion}</td>
+        <td>${s.ubo}</td>
+        <td>${s.modalidad}</td>
+        <td>${s.hora_inicio || "-"}</td>
+        <td>${s.todos_dias ? "Todos" : diasTexto(s.dias)}</td>
+        <td>
+          <div class="table-actions">
+            <button onclick="editarSedeUbo(${idx})">Modificar</button>
+            <button class="secondary" onclick="eliminarSedeUbo(${idx})">Eliminar</button>
+          </div>
+        </td>
+      </tr>
+    `
+  })
+
+  tablaSedesUbo.innerHTML = html
+}
+
+function limpiarDashboard(){
+  const { from, to } = obtenerRangoMesActual()
+  dashDesde.value = from
+  dashHasta.value = to
+  dashUbo.value = ""
+  if(dashSeccion) dashSeccion.value = ""
+
+  // 🔥 reset KPIs
+  kpiTotal.innerText = "0"
+  kpiAsistencia.innerText = "0%"
+  kpiInasistencia.innerText = "0"
+  kpiCobertura.innerText = "0%"
+
+  verdeCount.innerText = "0"
+  amarilloCount.innerText = "0"
+  rojoCount.innerText = "0"
+  kpiRojoTardanza.innerText = "0"
+  kpiRojoFueraDia.innerText = "0"
+  kpiDispNoHabitual.innerText = "0"
+  kpiDispCard.style.opacity = "0.75"
+
+  topUbo.innerHTML = ""
+  semaforoInfo.innerText = "Semáforo: compara cada aspirante contra hora/días configurados de su sección."
+  riesgoInfo.innerText = "Riesgo UBO: cantidad de aspirantes en rojo por UBO según horario/días."
+
+  // limpiar memoria
+  window.detalleSemaforo = {
+    verde:[],
+    amarillo:[],
+    rojo:[]
+  }
+  window.detalleAlertasDispositivo = []
+
+}
+
+function limpiarRetiro(){
+  filtroUboConfig.value=""
+  listaAspirantes.innerHTML=""
+}
+
+async function limpiarCurso(){
+  cursoNombre.value=""
+  cursoInicio.value=""
+  cursoFin.value=""
+  cursoRadio.value="50"
+  toggleGPS.checked=false
+  cursoSecciones = []
+  cursoSedesUbo = []
+
+  try{
+    const { error } = await supabaseClient.from("curso_secciones").delete().eq("curso_id", 1)
+    if(error && !esTablaNoExiste(error)){
+      console.warn("No se pudo limpiar curso_secciones:", error.message)
+    }
+  }catch(e){
+    console.warn("No se pudo limpiar curso_secciones:", e)
+  }
+
+  try{
+    const { error } = await supabaseClient.from("curso_sedes_ubo").delete().eq("curso_id", 1)
+    if(error && !esTablaNoExiste(error)){
+      console.warn("No se pudo limpiar curso_sedes_ubo:", error.message)
+    }
+  }catch(e){
+    console.warn("No se pudo limpiar curso_sedes_ubo:", e)
+  }
+
+  localStorage.removeItem("cursoNombre")
+  localStorage.removeItem("cursoSecciones")
+  localStorage.removeItem("cursoSedesUbo")
+  renderSeccionesCurso()
+  renderSedesUbo()
+  actualizarOpcionesSeccionSede()
+  limpiarFormSeccionCurso()
+  limpiarFormSedeUbo()
+}
+
+async function cargarRetirados(){
+
+  const ubo = filtroRetirados.value
+
+  let q = supabaseClient
+    .from("asistencias")
+    .select("dni,nombre,ubo")
+    .eq("estado","retirado")
+
+  if(ubo){
+    q = q.eq("ubo", ubo)
+  }
+
+  const { data } = await q
+
+  let html=""
+
+  data.forEach(a=>{
+    html += `
+      <p style="display:flex; justify-content:space-between; align-items:center;">
+        <span>${a.nombre} (${a.dni}) - UBO ${a.ubo}</span>
+        <button onclick="reactivar('${a.dni}')" style="height:30px;">Reactivar</button>
+      </p>
+    `
+  })
+
+  listaRetirados.innerHTML = html
+}
+
+function limpiarRetirados(){
+  filtroRetirados.value=""
+  listaRetirados.innerHTML=""
+}
+
+async function reactivar(dni){
+
+  await supabaseClient
+    .from("asistencias")
+    .update({ estado: null })
+    .eq("dni", dni)
+
+  cargarRetirados()
+}
+
+loginPass?.addEventListener("keydown", (e)=>{
+  if(e.key === "Enter"){
+    login()
+  }
+})
+
+mobileDni?.addEventListener("input", ()=>{
+  mobileDni.value = mobileDni.value.replace(/\D/g, "").slice(0, 8)
+})
+
+mobileDniInicio?.addEventListener("input", ()=>{
+  mobileDniInicio.value = mobileDniInicio.value.replace(/\D/g, "").slice(0, 8)
+})
+
+mobileDni?.addEventListener("keydown", (e)=>{
+  if(e.key === "Enter"){
+    ingresarMovil()
+  }
+})
+
+mobileDniInicio?.addEventListener("keydown", (e)=>{
+  if(e.key === "Enter"){
+    ingresarMovilInicio()
+  }
+})
+
+ubo?.addEventListener("input", ()=>{
+  ubo.value = ubo.value.replace(/\D/g, "")
+})
+
+cursoNombre?.addEventListener("input", ()=>{
+  cursoNombre.value = cursoNombre.value.toUpperCase()
+})
+
+secCursoNombre?.addEventListener("input", ()=>{
+  secCursoNombre.value = secCursoNombre.value.toUpperCase().replace(/\s+/g, "")
+})
+
+window.addEventListener("resize", ()=>{
+  clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(aplicarLayout, 160)
+})
+
+window.addEventListener("orientationchange", ()=>{
+  clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(aplicarLayout, 120)
+})
+
+window.detalleSemaforo = {
+  verde:[],
+  amarillo:[],
+  rojo:[]
+}
+
+window.detalleAlertasDispositivo = []
+
+document.addEventListener("change", (e)=>{
+  if(e.target.matches(".mode-options input")){
+    actualizarEstadoChecks()
+  }
+  if(e.target.id === "uboSecTodosDias"){
+    actualizarEstadoDiasSede()
+  }
+})
+
 </script>
+
+<div id="modal" style="
+  display:none;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.3);
+  justify-content:center;
+  align-items:center;
+  z-index:999;
+">
+
+  <div style="
+    background:white;
+    width:70%;
+    max-height:80%;
+    border-radius:16px;
+    padding:20px;
+    overflow:auto;
+    box-shadow:
+      0 30px 60px rgba(0,0,0,0.25),
+      0 10px 20px rgba(0,0,0,0.15);
+  ">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h3 id="modalTitulo">Detalle</h3>
+      <button class="modal-close" onclick="cerrarModal()" aria-label="Cerrar modal" title="Cerrar">×</button>
+    </div>
+
+    <div id="modalContenido"></div>
+
+  </div>
+
+</div>
 
 </body>
 </html>
