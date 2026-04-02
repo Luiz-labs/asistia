@@ -1,55 +1,89 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
 <meta charset="UTF-8">
 <title>ESBAS Panel de Asistencia - XXIV CD</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
-body{
-  margin:0;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    Arial,
-    sans-serif;
-  background:#e9ecf1; /* gris marcado estilo mac */
-  color:#1c1c1e;
+:root{
+  --bg:#eff2f7;
+  --surface:#ffffff;
+  --surface-soft:#f8f9fc;
+  --line:#dce2ee;
+  --text:#172033;
+  --muted:#5f6f8f;
+  --brand:#0f6bfd;
+  --brand-dark:#0c5ad4;
+  --shadow:0 24px 50px rgba(20, 42, 80, 0.12), 0 10px 24px rgba(20, 42, 80, 0.08);
 }
 
-/* HEADER */
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  font-family:"Sora", "Avenir Next", "Nunito Sans", sans-serif;
+  background:radial-gradient(circle at top right, #f7fbff 0%, var(--bg) 52%);
+  color:var(--text);
+}
+
+h2{
+  margin-bottom:12px;
+  letter-spacing:0.2px;
+}
+
 .header{
-  height:60px;
-  background:white;
+  min-height:64px;
+  background:rgba(255,255,255,0.88);
+  backdrop-filter:blur(8px);
   display:flex;
   justify-content:space-between;
   align-items:center;
   padding:0 20px;
-  border-bottom:1px solid #e5e5e5;
+  border-bottom:1px solid var(--line);
 }
 
-/* SIDEBAR */
 .sidebar{
-  width:200px;
-  background:#ffffff;
-  padding:20px;
-  border-right:1px solid #e5e5e5;
+  width:228px;
+  padding:20px 14px;
+  background:var(--surface);
+  border-right:1px solid var(--line);
 }
 
-/* TARJETAS */
+.nav-item{
+  margin:0 0 8px;
+  padding:11px 12px;
+  border-radius:12px;
+  color:#233252;
+  cursor:pointer;
+  font-weight:500;
+  transition:background .2s, transform .2s;
+}
+
+.nav-item:hover{
+  background:#eef4ff;
+}
+
+.nav-item.active{
+  background:linear-gradient(90deg, #e9f1ff, #eef7ff);
+  color:#0c57c9;
+  transform:translateX(2px);
+}
+
 .card{
-  background:white;
+  background:var(--surface);
   border-radius:16px;
   padding:16px;
-  box-shadow:
-    0 30px 60px rgba(0, 0, 0, 0.18),
-    0 10px 20px rgba(0, 0, 0, 0.10),
-    0 2px 6px rgba(0, 0, 0, 0.06);
+  border:1px solid rgba(164, 179, 211, 0.25);
+  box-shadow:var(--shadow);
 }
-
-/* INPUTS */
 
 select{
   appearance:none;
@@ -57,70 +91,66 @@ select{
   -moz-appearance:none;
 }
 
-/* FILTROS GRID */
 .filtros{
   display:flex;
-  gap:14px;
+  gap:12px;
   align-items:center;
   flex-wrap:wrap;
 }
 
-/* BOTONES */
 button{
-  background:#0a84ff;
+  background:linear-gradient(180deg, #2783ff 0%, var(--brand) 100%);
   color:white;
   border:none;
-  padding:10px 18px;
+  padding:0 18px;
   border-radius:10px;
   font-size:14px;
   cursor:pointer;
-  box-shadow:0 2px 6px rgba(0,0,0,0.15);
-  min-width:100px;
-  height:40px;
+  min-width:110px;
+  height:42px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  transition:transform .15s, filter .15s;
 }
 
 button:hover{
-  opacity:0.9;
+  filter:brightness(0.97);
+  transform:translateY(-1px);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible{
+  outline:3px solid #a9caff;
+  outline-offset:1px;
 }
 
 button.secondary{
-  background:#e5e5ea;
-  color:#000;
+  background:#edf1f8;
+  color:#172033;
   min-width:100px;
 }
 
-/* TABLA */
 table{
   width:100%;
   border-collapse:collapse;
 }
 
 td,th{
-  padding:10px;
-  border-bottom:1px solid #d1d1d6; /* más visible */
+  padding:11px 10px;
+  border-bottom:1px solid var(--line);
   font-size:14px;
-  text-align:left; /* alineado a la izquierda */
+  text-align:left;
 }
 
 th{
-  background:#f2f2f7; /* gris estilo mac */
+  background:var(--surface-soft);
   font-weight:600;
 }
 
-/* BOTONES SOLO ADMIN */
 #vistaDesktop button{
-  box-shadow:
-    0 10px 20px rgba(0,0,0,0.15),
-    0 4px 8px rgba(0,0,0,0.10);
-  transition:0.2s;
-}
-
-/* EFECTO HOVER */
-#vistaDesktop button:hover{
-  transform:translateY(-1px);
-  box-shadow:
-    0 14px 24px rgba(0,0,0,0.18),
-    0 6px 12px rgba(0,0,0,0.12);
+  box-shadow:0 8px 20px rgba(15, 88, 216, 0.15);
 }
 
 .input-date{
@@ -130,10 +160,9 @@ th{
 }
 
 .input-date input{
-  padding-right:35px; /* espacio para icono */
+  padding-right:35px;
 }
 
-/* icono calendario */
 .input-date::after{
   content:"";
   width:16px;
@@ -153,42 +182,329 @@ th{
 }
 
 .dias label{
-  background:#f2f2f7;
-  padding:6px 12px;
-  border-radius:10px;
-  cursor:pointer;
-  font-size:13px;
-}
-
-.dias label{
-  background:#f2f2f7;
+  background:#f4f7fd;
   padding:8px 14px;
   border-radius:12px;
   cursor:pointer;
   font-size:13px;
-  border:1px solid #e0e0e0;
+  border:1px solid #dbe4f5;
 }
 
-
-input, select, button{
+input, select{
   height:42px;
   padding:0 12px;
   border-radius:10px;
-  border:1px solid #ddd;
+  border:1px solid #ced7e8;
   font-size:14px;
-  box-sizing:border-box;
+  background:#fff;
+  color:var(--text);
 }
 
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
+#loginScreen input{
+  width:100%;
+  min-width:0;
 }
 
-button{
+#tabla{
+  overflow:auto;
+}
+
+#topUbo p{
+  margin-top:8px;
+  color:#26375a;
+  font-weight:500;
+}
+
+#topUbo p:hover{
+  color:#0c58c9;
+}
+
+#modalContenido{
+  margin-top:12px;
+}
+
+.config-card{
+  padding:22px;
+}
+
+#vistaConfig .config-card + .config-card{
+  margin-top:20px;
+}
+
+#vistaConfig > h2{
+  margin-bottom:18px;
+}
+
+#vistaConfig .card h3{
+  margin-bottom:14px;
+  font-size:24px;
+  letter-spacing:0.2px;
+}
+
+.config-row{
   display:flex;
+  gap:10px;
+  margin-bottom:12px;
+  flex-wrap:wrap;
   align-items:center;
-  justify-content:center;
+}
+
+.config-row select,
+.config-row input{
+  min-width:170px;
+}
+
+#filtroUboConfig,
+#filtroRetirados{
+  min-width:230px;
+}
+
+.config-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:14px;
+}
+
+.config-subtitle{
+  display:block;
+  margin-bottom:10px;
+  font-size:18px;
+}
+
+.section-top{
+  display:grid;
+  grid-template-columns:minmax(190px, 260px) minmax(190px, 260px);
+  gap:12px;
+}
+
+.section-mode{
+  margin-top:18px;
+}
+
+.mode-options{
+  display:flex;
+  gap:12px;
+  margin-top:8px;
+  flex-wrap:wrap;
+}
+
+.mode-options label{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  background:#f4f7fd;
+  padding:10px 12px;
+  border:1px solid #dbe4f5;
+  border-radius:12px;
+  font-size:16px;
+  cursor:pointer;
+}
+
+.mode-options input{
+  width:18px;
+  height:18px;
+  margin:0;
+}
+
+.dias{
+  margin-top:12px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+}
+
+.dias label{
+  background:#f4f7fd;
+  min-height:52px;
+  min-width:150px;
+  padding:10px 14px;
+  border-radius:12px;
+  cursor:pointer;
+  font-size:16px;
+  border:1px solid #dbe4f5;
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+}
+
+.dias label input{
+  width:20px;
+  height:20px;
+  margin:0;
+}
+
+.dias label:has(input:checked),
+.dias label.active-day{
+  background:linear-gradient(180deg, #eaf2ff 0%, #dce9ff 100%);
+  border-color:#9fbef8;
+  color:#0f3f92;
+  box-shadow:0 6px 14px rgba(39, 103, 222, 0.12);
+}
+
+.mode-options label:has(input:checked),
+.mode-options label.active-option{
+  background:linear-gradient(180deg, #eaf2ff 0%, #dce9ff 100%);
+  border-color:#9fbef8;
+  color:#0f3f92;
+  box-shadow:0 6px 14px rgba(39, 103, 222, 0.12);
+}
+
+#listaAspirantes p{
+  margin-bottom:8px;
+  padding:10px 12px;
+  border:1px solid #dbe4f5;
+  border-radius:10px;
+  background:#f8fbff;
+  cursor:pointer;
+}
+
+#listaAspirantes p:hover{
+  background:#edf4ff;
+}
+
+#listaRetirados p{
+  margin-bottom:8px;
+  padding:10px 12px;
+  border:1px solid #dbe4f5;
+  border-radius:10px;
+  background:#f8fbff;
+}
+
+#listaSecciones{
+  margin-top:15px;
+  display:grid;
+  gap:8px;
+}
+
+.section-item{
+  padding:10px 12px;
+  border:1px solid #dbe4f5;
+  border-radius:10px;
+  background:#f8fbff;
+  line-height:1.5;
+}
+
+#vistaMovil{
+  max-width:420px;
+  margin:0 auto;
+}
+
+#vistaMovil h2{
+  margin-bottom:8px;
+}
+
+#vistaMovil .mobile-step{
+  background:var(--surface);
+  border:1px solid rgba(164, 179, 211, 0.25);
+  box-shadow:var(--shadow);
+  border-radius:16px;
+  padding:18px;
+  margin-top:16px;
+}
+
+#vistaMovil .mobile-step p{
+  margin-bottom:10px;
+  color:var(--muted);
+}
+
+#vistaMovil input{
+  width:100%;
+  margin-bottom:10px;
+}
+
+#vistaMovil button{
+  width:min(100%, 320px);
+  min-height:50px;
+  border-radius:14px;
+  font-size:16px;
+  font-weight:600;
+}
+
+#formulario{
+  max-width:420px;
+  margin:0 auto;
+}
+
+#formulario input{
+  width:100%;
+  margin-bottom:10px;
+}
+
+#formulario button{
+  width:100%;
+  margin-bottom:10px;
+}
+
+.modal-close{
+  min-width:auto !important;
+  width:36px;
+  height:36px;
+  padding:0;
+  border-radius:50%;
+  background:#eef3ff;
+  color:#21457f;
+  border:1px solid #cfdbf3;
+  box-shadow:none !important;
+  font-size:18px;
+  font-weight:700;
+  line-height:1;
+}
+
+.modal-close:hover{
+  background:#dfeaff;
+  transform:none;
+  filter:none;
+}
+
+@media (max-width: 1024px){
+  .sidebar{
+    width:190px;
+    padding:16px 10px;
+  }
+
+  #vistaDesktop > div:nth-child(2) > div:last-child{
+    padding:14px;
+  }
+}
+
+@media (max-width: 900px){
+  #vistaDesktop > div:nth-child(2){
+    flex-direction:column;
+  }
+
+  .sidebar{
+    width:100%;
+    border-right:none;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+
+  .nav-item{
+    margin:0;
+  }
+
+  #modal > div{
+    width:94% !important;
+    max-height:86% !important;
+  }
+
+  .section-top{
+    grid-template-columns:1fr;
+  }
+
+  .dias label{
+    min-width:135px;
+  }
+}
+
+@media (max-width: 640px){
+  #loginScreen > div:nth-child(2){
+    width:94% !important;
+    padding:20px !important;
+  }
 }
 
 </style>
@@ -201,7 +517,7 @@ button{
   position:fixed;
   width:100%;
   height:100%;
-  display:flex;
+  display:none;
   flex-direction:column;
   justify-content:center;
   align-items:center;
@@ -235,7 +551,13 @@ button{
     <h2 style="margin-bottom:20px;">ESBAS 2026</h2>
 
     <!-- INPUTS EN LINEA -->
-    <div style="display:flex;gap:10px;margin-bottom:15px;align-items:stretch;">
+    <div style="
+      display:flex;
+      gap:10px;
+      margin-bottom:15px;
+      align-items:stretch;
+      width:100%;
+    ">
       <input id="loginUser" placeholder="Usuario" style="flex:1;">
       <input id="loginPass" type="password" placeholder="Clave" style="flex:1;">
     </div>
@@ -266,9 +588,18 @@ button{
   <h2>Incorporación y ESBAS</h2>
   <p>Instrucción ESBAS 2026</p>
 
-  <img src="logo.png" style="width:140px;margin:20px auto;">
+  <img src="logo.png" style="width:120px;margin:14px auto;">
 
-  <button onclick="iniciarEscaneo()">📷 Escanear QR</button>
+  <div id="mobileStepIngreso" class="mobile-step">
+    <p>Ingresa tu DNI para iniciar</p>
+    <input id="mobileDni" placeholder="Ingrese DNI" inputmode="numeric" pattern="[0-9]*" maxlength="8">
+    <button onclick="ingresarMovil()">INGRESAR</button>
+  </div>
+
+  <div id="mobileStepScan" class="mobile-step" style="display:none;">
+    <p>DNI validado. Continúa con el escaneo.</p>
+    <button onclick="iniciarEscaneo()">📷 Escanear QR</button>
+  </div>
 
   <footer style="margin-top:40px;font-size:12px;color:#aaa;">
     Desarrollado por Luiz-Labs @ 2026
@@ -279,9 +610,9 @@ button{
 <!-- FORMULARIO -->
 <div id="formulario" style="display:none;padding:20px;text-align:center;">
 
-  <input id="dni" placeholder="DNI">
-  <input id="nombre" placeholder="Nombre completo">
-  <input id="ubo" placeholder="UBO">
+  <input id="nombres" placeholder="Nombres">
+  <input id="apellidos" placeholder="Apellidos">
+  <input id="ubo" placeholder="UBO" inputmode="numeric" pattern="[0-9]*" maxlength="4">
 
   <p>Selecciona tu sección</p>
 
@@ -289,7 +620,7 @@ button{
   <button onclick="setSeccion('B')">Sección B (Sábados Presencial)</button>
   <button onclick="setSeccion('C')">Sección C (Sábados Virtual)</button>
 
-  <button onclick="guardarAsistencia()">Registrar</button>
+  <button onclick="guardarAsistencia()">REGISTRAR ASISTENCIA</button>
   <button onclick="volverInicio()">Salir</button>
 
   <p id="mensaje"></p>
@@ -313,13 +644,9 @@ button{
   <div style="display:flex;min-height:calc(100vh - 60px);">
 
     <div class="sidebar">
-
-        <p onclick="mostrarVista('reportes')">📄 Reportes</p>
-
-        <p onclick="mostrarVista('dashboard')">📊 Dashboard</p>
-
-        <p onclick="mostrarVista('config')">⚙️ Configuración</p>
-
+      <p class="nav-item active" onclick="mostrarVista('reportes')">📄 Reportes</p>
+      <p class="nav-item" onclick="mostrarVista('dashboard')">📊 Dashboard</p>
+      <p class="nav-item" onclick="mostrarVista('config')">⚙️ Configuración</p>
     </div>
 
     <div style="flex:1;padding:20px;">
@@ -431,7 +758,7 @@ button{
         <h2>Configuración</h2>
 
         <!-- GPS -->
-        <div class="card" style="margin-bottom:20px;">
+        <div class="card config-card">
           <h3>GPS</h3>
           <label>
             <input type="checkbox" id="toggleGPS">
@@ -440,11 +767,11 @@ button{
         </div>
 
         <!-- RETIRAR ASPIRANTE -->
-        <div class="card">
+        <div class="card config-card">
 
           <h3>Retirar Aspirante</h3>
 
-          <div style="display:flex; gap:10px; margin-bottom:10px;">
+          <div class="config-row">
             <select id="filtroUboConfig"></select>
             <button onclick="buscarAspirantes()">Buscar</button>
             <button class="secondary" onclick="limpiarRetiro()">Limpiar</button>
@@ -455,11 +782,11 @@ button{
         </div>
 
         <!-- ASPIRANTE RETIRADOS -->
-        <div class="card" style="margin-top:20px;">
+        <div class="card config-card">
 
           <h3>📌 Aspirantes Retirados</h3>
 
-          <div style="display:flex; gap:10px; margin-bottom:10px;">
+          <div class="config-row"> 
             <select id="filtroRetirados"></select>
             <button onclick="cargarRetirados()">Buscar</button>
             <button class="secondary" onclick="limpiarRetirados()">Limpiar</button>
@@ -470,27 +797,29 @@ button{
         </div>
         
         <!-- CURSO -->
-        <div class="card" style="margin-top:20px;">
+        <div class="card config-card">
 
           <h3>Configuración de Curso</h3>
 
-          <div class="filtros" style="margin-bottom:10px;">
+          <div class="config-row">
             <input type="date" id="cursoInicio">
             <input type="date" id="cursoFin">
           </div>
 
-          <button onclick="guardarCurso()">Guardar Curso</button>
-          <button class="secondary" onclick="limpiarCurso()">Limpiar</button>
+          <div class="config-actions">
+            <button onclick="guardarCurso()">Guardar Curso</button>
+            <button class="secondary" onclick="limpiarCurso()">Limpiar</button>
+          </div>
 
         </div>
 
         <!-- SECCIONES -->
-        <div class="card" style="margin-top:20px;">
+        <div class="card config-card">
 
           <h3>Secciones</h3>
 
           <!-- FILA 1 -->
-          <div class="filtros">
+          <div class="section-top">
             <select id="secNombre">
               <option>Sección A</option>
               <option>Sección B</option>
@@ -502,7 +831,7 @@ button{
           </div>
 
           <!-- FILA 2 -->
-          <div class="dias" style="margin-top:10px;">
+          <div class="dias">
             <label><input type="checkbox"> Lunes</label>
             <label><input type="checkbox"> Martes</label>
             <label><input type="checkbox"> Miércoles</label>
@@ -513,23 +842,23 @@ button{
           </div>
 
           <!-- MODALIDAD -->
-          <div style="margin-top:15px;">
-            <strong>Modalidad</strong>
+          <div class="section-mode">
+            <strong class="config-subtitle">Modalidad</strong>
 
-            <div style="display:flex; gap:20px; margin-top:8px;">
+            <div class="mode-options">
               <label><input type="checkbox" id="secPresencial"> Presencial</label>
               <label><input type="checkbox" id="secVirtual"> Virtual</label>
             </div>
           </div>
 
           <!-- BOTONES -->
-          <div style="margin-top:15px; display:flex; gap:10px;">
+          <div class="config-actions">
             <button onclick="agregarSeccion()">Agregar</button>
             <button class="secondary" onclick="limpiarSecciones()">Limpiar</button>
           </div>
 
           <!-- LISTADO -->
-          <div id="listaSecciones" style="margin-top:15px;"></div>
+          <div id="listaSecciones"></div>
 
         </div>
 
@@ -557,41 +886,104 @@ const supabaseUrl = 'https://kcapmyovaigjntaqeqwn.supabase.co'
 const supabaseKey = 'sb_publishable_oObf3s5mQ4sfmJ03JKQrnQ__8Rmb63F'
 
 const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey)
+let adminAutenticado = false
+let dniMovil = ""
+let resizeTimer
 
 function esMovil(){
-  return /Android|iPhone/i.test(navigator.userAgent)
+  const touchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0
+  return window.matchMedia("(max-width: 900px)").matches && touchDevice
+}
+
+function mostrarPasoMovil(paso){
+  mobileStepIngreso.style.display = paso === "ingreso" ? "block" : "none"
+  mobileStepScan.style.display = paso === "scan" ? "block" : "none"
+}
+
+function aplicarLayout(){
+  if(esMovil()){
+    loginScreen.style.display="none"
+    vistaDesktop.style.display="none"
+    vistaMovil.style.display="block"
+
+    if(formulario.style.display !== "block"){
+      mostrarPasoMovil(dniMovil ? "scan" : "ingreso")
+    }
+  }else{
+    detenerCamara()
+    video.style.display="none"
+    vistaMovil.style.display="none"
+    formulario.style.display="none"
+
+    if(adminAutenticado){
+      loginScreen.style.display="none"
+      vistaDesktop.style.display="block"
+    }else{
+      vistaDesktop.style.display="none"
+      loginScreen.style.display="flex"
+    }
+  }
+}
+
+function actualizarEstadoChecks(){
+  document.querySelectorAll(".dias label").forEach(label=>{
+    const input = label.querySelector("input")
+    label.classList.toggle("active-day", !!input?.checked)
+  })
+
+  document.querySelectorAll(".mode-options label").forEach(label=>{
+    const input = label.querySelector("input")
+    label.classList.toggle("active-option", !!input?.checked)
+  })
 }
 
 window.onload = ()=>{
-  if(esMovil()){
-    vistaMovil.style.display="block"
-    loginScreen.style.display="none"
-  } else {
-    vistaDesktop.style.display="none"
-    loginScreen.style.display="flex"
-  }
-    // 🔥 NUEVO
   cargarUbos()
+  actualizarEstadoChecks()
+  aplicarLayout()
 
 }
 
 function login(){
   if(loginUser.value==="12345678" && loginPass.value==="1234"){
+    adminAutenticado = true
     loginScreen.style.display="none"
     vistaDesktop.style.display="block"
+    mostrarVista("reportes")
+    cargarDatos()
   } else {
-    loginMsg.innerText="Error"
+    loginMsg.innerText="Usuario o clave incorrecta"
   }
 }
 
 function logout(){
+  adminAutenticado = false
   location.reload()
 }
 
 /* QR */
 let stream,seccion=""
 
+function ingresarMovil(){
+  const dniLimpio = (mobileDni.value || "").replace(/\D/g, "").slice(0, 8)
+  mobileDni.value = dniLimpio
+
+  if(!dniLimpio){
+    alert("Ingresa tu DNI para continuar")
+    return
+  }
+
+  dniMovil = dniLimpio
+  mostrarPasoMovil("scan")
+}
+
 function iniciarEscaneo(){
+  if(!dniMovil){
+    alert("Primero ingresa tu DNI")
+    mostrarPasoMovil("ingreso")
+    return
+  }
+
   video.style.display = "block" // 🔥 MOSTRAR VIDEO
 
   navigator.mediaDevices.getUserMedia({
@@ -640,8 +1032,11 @@ function detenerCamara(){
 }
 
 function volverInicio(){
+  detenerCamara()
+  video.style.display = "none"
   formulario.style.display="none"
   vistaMovil.style.display="block"
+  mostrarPasoMovil(dniMovil ? "scan" : "ingreso")
 }
 
 function setSeccion(s){seccion=s}
@@ -656,19 +1051,54 @@ function getDeviceId(){
 }
 
 async function guardarAsistencia(){
+  const dniRegistro = (dniMovil || mobileDni.value || "").replace(/\D/g, "")
+  const nombresValor = (nombres.value || "").trim()
+  const apellidosValor = (apellidos.value || "").trim()
+  const uboValor = (ubo.value || "").replace(/\D/g, "")
+
+  if(!dniRegistro){
+    mensaje.innerText = "⚠ DNI no válido"
+    return
+  }
+
+  if(!nombresValor || !apellidosValor){
+    mensaje.innerText = "⚠ Completa nombres y apellidos"
+    return
+  }
+
+  if(!uboValor){
+    mensaje.innerText = "⚠ UBO debe ser numérico"
+    return
+  }
+
+  if(!seccion){
+    mensaje.innerText = "⚠ Selecciona una sección"
+    return
+  }
+
   const now=new Date()
+  const nombreCompleto = `${nombresValor} ${apellidosValor}`.replace(/\s+/g, " ").trim()
 
   const {error}=await supabaseClient.from("asistencias").insert([{
-    dni:dni.value,
-    nombre:nombre.value,
-    ubo:ubo.value,
+    dni:dniRegistro,
+    nombre:nombreCompleto,
+    ubo:uboValor,
     seccion:seccion,
     fecha:now.toISOString().slice(0,10),
     hora:now.toTimeString().slice(0,8),
     device_id:getDeviceId()
   }])
 
-  mensaje.innerText = error ? "⚠ Ya registraste hoy" : "✅ Registrado"
+  if(error){
+    mensaje.innerText = "⚠ Ya registraste hoy"
+    return
+  }
+
+  mensaje.innerText = "✅ Registrado"
+  nombres.value = ""
+  apellidos.value = ""
+  ubo.value = ""
+  seccion = ""
 }
 
 /* ADMIN */
@@ -678,6 +1108,7 @@ async function cargarDatos(){
 }
 
 function renderTabla(data){
+  const activos = (data || []).filter(r => r.estado !== "retirado")
 
   let html = `
   <table>
@@ -693,9 +1124,7 @@ function renderTabla(data){
     <tbody>
   `
 
-  data
-  .filter(r => r.estado !== "retirado")
-  .forEach(r=>{
+  activos.forEach(r=>{
     html+=`
       <tr>
         <td>${r.dni}</td>
@@ -712,7 +1141,7 @@ function renderTabla(data){
   </table>
 
   <div style="margin-top:10px;font-weight:bold;">
-    Total registros: ${data.length}
+    Total registros: ${activos.length}
   </div>
   `
 
@@ -937,6 +1366,12 @@ function mostrarVista(vista){
   vistaReportes.style.display="none"
   document.getElementById("vistaDashboard").style.display="none"
   document.getElementById("vistaConfig").style.display="none"
+  document.querySelectorAll(".nav-item")
+    .forEach(el => el.classList.remove("active"))
+
+  if(vista==="dashboard"){
+    document.querySelector(".nav-item:nth-child(2)")?.classList.add("active")
+  }
 
   if(vista==="dashboard"){
     document.getElementById("vistaDashboard").style.display="block"
@@ -944,10 +1379,13 @@ function mostrarVista(vista){
   }
 
   if(vista==="reportes"){
+    document.querySelector(".nav-item:nth-child(1)")?.classList.add("active")
     vistaReportes.style.display="block"
+    if(!tabla.innerHTML.trim()) cargarDatos()
   }
 
   if(vista==="config"){
+    document.querySelector(".nav-item:nth-child(3)")?.classList.add("active")
     document.getElementById("vistaConfig").style.display="block"
   }
 
@@ -1063,6 +1501,8 @@ function limpiarSecciones(){
 
   document.querySelectorAll(".dias input")
     .forEach(d => d.checked = false)
+
+  actualizarEstadoChecks()
 }
 
 function renderSecciones(){
@@ -1070,11 +1510,13 @@ function renderSecciones(){
   let html = ""
 
   secciones.forEach(s=>{
+    const modalidades = [s.presencial ? "Presencial" : "", s.virtual ? "Virtual" : ""]
+      .filter(Boolean)
+      .join(" / ") || "Sin modalidad"
+
     html += `
-      <div style="padding:6px;border-bottom:1px solid #ccc;">
-        ${s.nombre} | ${s.dias} | ${s.hora} | 
-        ${s.presencial ? "Presencial" : ""} 
-        ${s.virtual ? "Virtual" : ""}
+      <div class="section-item">
+        <strong>${s.nombre}</strong> | ${s.dias || "Sin días"} | ${s.hora || "Sin hora"} | ${modalidades}
       </div>
     `
   })
@@ -1160,6 +1602,43 @@ async function reactivar(dni){
   cargarRetirados()
 }
 
+loginPass?.addEventListener("keydown", (e)=>{
+  if(e.key === "Enter"){
+    login()
+  }
+})
+
+mobileDni?.addEventListener("input", ()=>{
+  mobileDni.value = mobileDni.value.replace(/\D/g, "").slice(0, 8)
+})
+
+mobileDni?.addEventListener("keydown", (e)=>{
+  if(e.key === "Enter"){
+    ingresarMovil()
+  }
+})
+
+ubo?.addEventListener("input", ()=>{
+  ubo.value = ubo.value.replace(/\D/g, "")
+})
+
+window.addEventListener("resize", ()=>{
+  clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(aplicarLayout, 160)
+})
+
+window.detalleSemaforo = {
+  verde:[],
+  amarillo:[],
+  rojo:[]
+}
+
+document.addEventListener("change", (e)=>{
+  if(e.target.matches(".dias input, .mode-options input")){
+    actualizarEstadoChecks()
+  }
+})
+
 </script>
 
 <div id="modal" style="
@@ -1189,7 +1668,7 @@ async function reactivar(dni){
 
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <h3 id="modalTitulo">Detalle</h3>
-      <button onclick="cerrarModal()">✖</button>
+      <button class="modal-close" onclick="cerrarModal()" aria-label="Cerrar modal" title="Cerrar">×</button>
     </div>
 
     <div id="modalContenido"></div>
