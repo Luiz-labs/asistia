@@ -330,6 +330,22 @@ input, select{
   min-width:680px;
 }
 
+#vistaUsuarios .config-card + .config-card{
+  margin-top:26px;
+}
+
+#vistaUsuarios .config-card{
+  padding:24px 22px;
+}
+
+.user-table-wrap{
+  max-height:clamp(220px, 38vh, 460px);
+  overflow:auto;
+  border:1px solid #e3e9f5;
+  border-radius:12px;
+  background:#fff;
+}
+
 .table-actions{
   display:flex;
   gap:8px;
@@ -1132,7 +1148,7 @@ input, select{
             <button onclick="guardarUsuarioAdmin()">Guardar Usuario</button>
             <button class="secondary" onclick="limpiarUsuarioAdmin()">Limpiar</button>
           </div>
-          <div class="table-wrap">
+          <div class="table-wrap user-table-wrap">
             <table>
               <thead>
                 <tr>
@@ -1156,7 +1172,7 @@ input, select{
             <button class="secondary" onclick="cargarAspirantesCargados()">Refrescar Listado</button>
           </div>
           <p id="msgCargaAspirantes" class="hint"></p>
-          <div class="table-wrap">
+          <div class="table-wrap user-table-wrap">
             <table>
               <thead>
                 <tr>
