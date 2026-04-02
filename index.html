@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
 :root{
@@ -857,7 +857,8 @@ input, select{
 
 .tenant-title{
   text-align:center;
-  margin-bottom:20px;
+  margin-bottom:24px;
+  transform:translateY(-34px);
 }
 
 .tenant-title h1{
@@ -869,6 +870,42 @@ input, select{
 .tenant-title p{
   margin-top:8px;
   color:#5b6c8a;
+}
+
+.brand-main{
+  margin:0 0 14px;
+  font-family:"Outfit","Sora","Avenir Next","Nunito Sans",sans-serif;
+  font-size:clamp(3.45rem, 6.9vw, 5.15rem);
+  font-weight:800;
+  line-height:0.96;
+  letter-spacing:-0.8px;
+  background:linear-gradient(98deg, #0b4fd6 8%, #1575ff 42%, #58a0ff 66%, #112a56 100%);
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+  text-shadow:0 10px 28px rgba(15, 88, 216, 0.2);
+}
+
+.tenant-subtitle{
+  margin:0;
+  font-size:clamp(1.35rem, 2.2vw, 1.95rem);
+  font-weight:600;
+  letter-spacing:0.4px;
+  color:#3d5b8f;
+}
+
+.tenant-caption{
+  margin:0 0 8px;
+  font-size:1.08rem;
+  font-weight:600;
+  color:#5a6f95 !important;
+  text-align:center;
+}
+
+.brand-mobile{
+  margin:0 0 6px;
+  font-size:1.55rem;
+  letter-spacing:0.2px;
 }
 
 .tenant-grid{
@@ -998,8 +1035,8 @@ input, select{
     grid-template-columns:1fr;
   }
 
-  .tenant-title h1{
-    font-size:1.45rem;
+  .brand-main{
+    font-size:3rem;
   }
 
   #loginScreen > div:nth-child(2){
@@ -1020,9 +1057,10 @@ input, select{
 <!-- SELECCIÓN INSTITUCIONAL -->
 <div id="tenantScreen" class="tenant-screen">
   <div class="tenant-title">
-    <h1>Panel ESBAS</h1>
-    <p>Selecciona la institución para continuar</p>
+    <h1 class="brand-main">AsistIA</h1>
+    <p class="tenant-subtitle">Control Inteligente de Asistencia</p>
   </div>
+  <p class="tenant-caption">Selecciona la institución para continuar</p>
   <div id="tenantGrid" class="tenant-grid"></div>
   <p class="tenant-note">Puedes cambiar de institución más adelante desde esta misma pantalla.</p>
   <div style="position:absolute;bottom:15px;font-size:12px;color:#777;">
@@ -1101,6 +1139,7 @@ input, select{
 
 <!-- 📱 VISTA MOVIL -->
 <div id="vistaMovilInicio" style="display:none;">
+  <h1 class="brand-mobile">AsistIA</h1>
   <h2>Asistencia Aspirantes</h2>
   <p>Escaneo QR</p>
   <div class="mobile-step">
@@ -1114,6 +1153,7 @@ input, select{
 </div>
 
 <div id="vistaMovil" style="display:none;text-align:center;padding:20px;">
+  <h1 class="brand-mobile">AsistIA</h1>
 
   <h2 id="tenantTituloMovil">XXIV Comandancia Departamental Lima Sur</h2>
   <h2 id="tenantSubtituloMovil">Incorporación y ESBAS</h2>
