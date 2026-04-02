@@ -50,6 +50,13 @@ h2{
   border-bottom:1px solid var(--line);
 }
 
+.header-actions{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
 .sidebar{
   width:228px;
   padding:20px 14px;
@@ -304,6 +311,16 @@ input, select{
   margin-top:10px;
 }
 
+.course-footer-actions{
+  margin-top:16px;
+  padding-top:14px;
+  border-top:1px dashed #cfd9ec;
+}
+
+.course-footer-actions .hint{
+  margin-bottom:8px;
+}
+
 .table-wrap{
   overflow:auto;
   margin-top:10px;
@@ -329,6 +346,16 @@ input, select{
   font-size:12px;
   color:var(--muted);
   margin-top:6px;
+}
+
+.tag-system{
+  display:inline-block;
+  font-size:11px;
+  padding:2px 8px;
+  border-radius:999px;
+  background:#eaf1ff;
+  color:#2d55a5;
+  margin-left:6px;
 }
 
 .btn-link{
@@ -713,6 +740,26 @@ input, select{
   filter:none;
 }
 
+.view-switch{
+  min-width:auto !important;
+  padding:0 12px;
+}
+
+#vistaMovil .view-switch-wrap{
+  display:flex;
+  gap:8px;
+  justify-content:center;
+  margin:8px 0 4px;
+  flex-wrap:wrap;
+}
+
+#vistaMovil .view-switch-wrap button{
+  width:auto;
+  min-width:130px;
+  min-height:40px;
+  font-size:13px;
+}
+
 @media (max-width: 1024px){
   .sidebar{
     width:190px;
@@ -848,6 +895,11 @@ input, select{
   <h2>Incorporación y ESBAS</h2>
   <p>Instrucción ESBAS 2026</p>
 
+  <div class="view-switch-wrap">
+    <button id="btnForzarDesktop" class="secondary view-switch" onclick="setVistaManual('desktop')">Ver escritorio</button>
+    <button id="btnVistaAutoMovil" class="secondary view-switch" onclick="setVistaManual('auto')">Automático</button>
+  </div>
+
   <img src="logo.png" style="width:108px;margin:10px auto;">
 
   <div id="mobileStepIngreso" class="mobile-step">
@@ -907,7 +959,11 @@ input, select{
       <img src="logo.png" style="width:28px;">
       <strong>ESBAS Panel Administrativo</strong>
     </div>
-    <button onclick="logout()" class="secondary">Salir</button>
+    <div class="header-actions">
+      <button id="btnForzarMovil" onclick="setVistaManual('mobile')" class="secondary view-switch">Ver móvil</button>
+      <button id="btnVistaAutoDesktop" onclick="setVistaManual('auto')" class="secondary view-switch">Automático</button>
+      <button onclick="logout()" class="secondary">Salir</button>
+    </div>
   </div>
 
   <div style="display:flex;min-height:calc(100vh - 60px);">
@@ -1097,8 +1153,22 @@ input, select{
           <div class="config-row" style="margin-top:10px;">
             <input type="file" id="archivoAspirantes" accept=".xlsx,.xls,.csv">
             <button onclick="cargarExcelAspirantes()">Subir Archivo</button>
+            <button class="secondary" onclick="cargarAspirantesCargados()">Refrescar Listado</button>
           </div>
           <p id="msgCargaAspirantes" class="hint"></p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Apellidos</th>
+                  <th>Nombres</th>
+                  <th>DNI</th>
+                  <th>UBO</th>
+                </tr>
+              </thead>
+              <tbody id="tablaAspirantesCargados"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -1267,7 +1337,8 @@ input, select{
             </div>
           </div>
 
-          <div class="config-actions">
+          <div class="config-actions course-footer-actions">
+            <p class="hint">Acciones globales del curso</p>
             <button onclick="guardarCurso()">Guardar Curso</button>
             <button class="secondary" onclick="limpiarCurso()">Limpiar Todo</button>
           </div>
@@ -1315,6 +1386,11 @@ let usuariosAdmin = []
 let cacheReportes = []
 let cacheDashboard = []
 let cacheRiesgoUbo = []
+const VISTA_MODO_KEY = "vistaModoManual"
+const SYSTEM_USERS = [
+  { nombre: "Administrador Principal", usuario: "12345678", rol: "administrador", system: true },
+  { nombre: "Super Usuario", usuario: "admin", rol: "administrador", system: true }
+]
 
 const SECTION_TO_UBO_FIELD = {
   A: "seccion_a_ubo",
@@ -1322,9 +1398,75 @@ const SECTION_TO_UBO_FIELD = {
   C: "seccion_c_ubo"
 }
 
+function esTablaNoExiste(error){
+  return /does not exist|42P01/i.test(String(error?.message || ""))
+}
+
 function esMovil(){
+  const ua = navigator.userAgent || ""
   const touchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0
-  return window.matchMedia("(max-width: 900px)").matches && touchDevice
+  const isPhoneUA = /iPhone|iPod|Android.+Mobile|Windows Phone|IEMobile|BlackBerry|Opera Mini/i.test(ua)
+  const isTabletUA = /iPad|Tablet|Android(?!.*Mobile)/i.test(ua)
+  const isPortrait = window.matchMedia("(orientation: portrait)").matches
+  const width = window.innerWidth || document.documentElement.clientWidth || 1024
+
+  if(isPhoneUA) return true
+  if(isTabletUA && isPortrait) return true
+
+  const tabletLikeTouch = touchDevice && width <= 1024 && !isPhoneUA
+  if(tabletLikeTouch && isPortrait) return true
+
+  return false
+}
+
+function getVistaManual(){
+  const mode = localStorage.getItem(VISTA_MODO_KEY)
+  if(mode === "mobile" || mode === "desktop") return mode
+  return "auto"
+}
+
+function getVistaActiva(){
+  const manual = getVistaManual()
+  if(manual === "mobile") return "mobile"
+  if(manual === "desktop") return "desktop"
+  return esMovil() ? "mobile" : "desktop"
+}
+
+function actualizarBotonesVista(){
+  const mode = getVistaManual()
+  const setAutoLabel = (el)=>{
+    if(!el) return
+    el.innerText = mode === "auto" ? "Automático ✓" : "Automático"
+  }
+  setAutoLabel(btnVistaAutoDesktop)
+  setAutoLabel(btnVistaAutoMovil)
+}
+
+function setVistaManual(mode){
+  if(mode === "mobile" || mode === "desktop"){
+    localStorage.setItem(VISTA_MODO_KEY, mode)
+  }else{
+    localStorage.removeItem(VISTA_MODO_KEY)
+  }
+  aplicarLayout()
+}
+
+function obtenerRangoMesActual(){
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth()
+  const from = new Date(year, month, 1)
+  const to = new Date(year, month + 1, 0)
+  const iso = (d)=>d.toISOString().slice(0,10)
+  return { from: iso(from), to: iso(to) }
+}
+
+function aplicarRangoMesActualEnFiltros(){
+  const { from, to } = obtenerRangoMesActual()
+  fechaDesde.value = from
+  fechaHasta.value = to
+  dashDesde.value = from
+  dashHasta.value = to
 }
 
 function mostrarPasoMovil(paso){
@@ -1469,22 +1611,28 @@ function cargarUsuariosAdminLocal(){
 
 function renderUsuariosAdmin(){
   if(!tablaUsuariosAdmin) return
-  if(!usuariosAdmin.length){
+  const data = [...SYSTEM_USERS, ...usuariosAdmin.filter(u => !SYSTEM_USERS.some(s => s.usuario === u.usuario))]
+
+  if(!data.length){
     tablaUsuariosAdmin.innerHTML = `<tr><td colspan="4">Sin usuarios creados.</td></tr>`
     return
   }
 
   let html = ""
-  usuariosAdmin.forEach((u, idx)=>{
+  data.forEach((u, idx)=>{
+    const isSystem = !!u.system
     html += `
       <tr>
-        <td>${u.nombre || ""}</td>
+        <td>${u.nombre || ""}${isSystem ? `<span class="tag-system">SISTEMA</span>` : ""}</td>
         <td>${u.usuario || ""}</td>
         <td>${u.rol || ""}</td>
         <td>
           <div class="table-actions">
-            <button onclick="editarUsuarioAdmin(${idx})">Modificar</button>
-            <button class="secondary" onclick="eliminarUsuarioAdmin(${idx})">Eliminar</button>
+            ${isSystem
+              ? `<span class="hint">No editable</span>`
+              : `<button onclick="editarUsuarioAdmin(${idx - SYSTEM_USERS.length})">Modificar</button>
+                 <button class="secondary" onclick="eliminarUsuarioAdmin(${idx - SYSTEM_USERS.length})">Eliminar</button>`
+            }
           </div>
         </td>
       </tr>
@@ -1516,6 +1664,10 @@ function guardarUsuarioAdmin(){
   if(editUsuarioIndex >= 0){
     usuariosAdmin[editUsuarioIndex] = item
   }else{
+    if(SYSTEM_USERS.some(s => s.usuario === usuario)){
+      alert("Ese usuario es del sistema y ya existe")
+      return
+    }
     const exists = usuariosAdmin.find(x=>x.usuario === usuario)
     if(exists){
       alert("Ese usuario ya existe")
@@ -1606,6 +1758,41 @@ async function cargarExcelAspirantes(){
   }
 
   msgCargaAspirantes.innerText = `Carga exitosa: ${payload.length} aspirantes procesados.`
+  await cargarAspirantesCargados()
+}
+
+async function cargarAspirantesCargados(){
+  if(!tablaAspirantesCargados) return
+
+  const { data, error } = await supabaseClient
+    .from("aspirantes")
+    .select("apellidos,nombres,dni,ubo")
+    .order("apellidos", { ascending: true })
+    .order("nombres", { ascending: true })
+    .limit(300)
+
+  if(error){
+    tablaAspirantesCargados.innerHTML = `<tr><td colspan="4">No se pudo cargar el listado.</td></tr>`
+    return
+  }
+
+  if(!data || !data.length){
+    tablaAspirantesCargados.innerHTML = `<tr><td colspan="4">Sin aspirantes cargados.</td></tr>`
+    return
+  }
+
+  let html = ""
+  data.forEach(r=>{
+    html += `
+      <tr>
+        <td>${r.apellidos || ""}</td>
+        <td>${r.nombres || ""}</td>
+        <td>${r.dni || ""}</td>
+        <td>${r.ubo || ""}</td>
+      </tr>
+    `
+  })
+  tablaAspirantesCargados.innerHTML = html
 }
 
 async function cargarSedesUbo(){
@@ -1623,7 +1810,53 @@ async function cargarSedesUbo(){
   ubosSedeCache = data || []
 }
 
-function aplicarCursoEnUI(cfg){
+async function cargarSeccionesCursoDesdeSupabase(){
+  const { data, error } = await supabaseClient
+    .from("curso_secciones")
+    .select("seccion,modalidad,hora_inicio")
+    .eq("curso_id", 1)
+    .order("seccion", { ascending: true })
+
+  if(error){
+    if(esTablaNoExiste(error)) return null
+    console.warn("No se pudo cargar curso_secciones:", error.message)
+    return null
+  }
+
+  return (data || []).map(x=>({
+    seccion: String(x.seccion || "").trim(),
+    modalidad: x.modalidad || "Presencial",
+    hora_inicio: x.hora_inicio || ""
+  })).filter(x=>x.seccion)
+}
+
+async function cargarSedesCursoDesdeSupabase(){
+  const { data, error } = await supabaseClient
+    .from("curso_sedes_ubo")
+    .select("seccion,ubo,modalidad,hora_inicio")
+    .eq("curso_id", 1)
+    .order("seccion", { ascending: true })
+
+  if(error){
+    if(esTablaNoExiste(error)) return null
+    console.warn("No se pudo cargar curso_sedes_ubo:", error.message)
+    return null
+  }
+
+  return (data || []).map(x=>({
+    seccion: String(x.seccion || "").trim(),
+    ubo: String(x.ubo || "").trim(),
+    modalidad: x.modalidad || "Presencial",
+    hora_inicio: x.hora_inicio || ""
+  })).filter(x=>x.seccion)
+}
+
+function guardarEstructuraCursoLocal(){
+  localStorage.setItem("cursoSecciones", JSON.stringify(cursoSecciones))
+  localStorage.setItem("cursoSedesUbo", JSON.stringify(cursoSedesUbo))
+}
+
+async function aplicarCursoEnUI(cfg){
   const nombreLocal = localStorage.getItem("cursoNombre") || ""
 
   if(cfg){
@@ -1649,6 +1882,18 @@ function aplicarCursoEnUI(cfg){
     cursoSedesUbo = []
   }
 
+  const seccionesDb = await cargarSeccionesCursoDesdeSupabase()
+  if(Array.isArray(seccionesDb)){
+    cursoSecciones = seccionesDb
+  }
+
+  const sedesDb = await cargarSedesCursoDesdeSupabase()
+  if(Array.isArray(sedesDb)){
+    cursoSedesUbo = sedesDb
+  }
+
+  guardarEstructuraCursoLocal()
+
   renderSeccionesCurso()
   actualizarOpcionesSeccionSede()
   renderSedesUbo()
@@ -1664,12 +1909,12 @@ async function cargarConfigCurso(){
   if(error){
     console.warn("No se pudo cargar curso_configuracion:", error.message)
     cursoConfigCache = null
-    aplicarCursoEnUI(null)
+    await aplicarCursoEnUI(null)
     return
   }
 
   cursoConfigCache = data || null
-  aplicarCursoEnUI(cursoConfigCache)
+  await aplicarCursoEnUI(cursoConfigCache)
 }
 
 function obtenerGeoActual(){
@@ -1739,7 +1984,9 @@ function cerrarScanner(){
 }
 
 function aplicarLayout(){
-  if(esMovil()){
+  const vista = getVistaActiva()
+
+  if(vista === "mobile"){
     loginScreen.style.display="none"
     vistaDesktop.style.display="none"
     vistaMovil.style.display="block"
@@ -1760,6 +2007,8 @@ function aplicarLayout(){
       loginScreen.style.display="flex"
     }
   }
+
+  actualizarBotonesVista()
 }
 
 function actualizarEstadoChecks(){
@@ -1775,9 +2024,11 @@ function actualizarEstadoChecks(){
 }
 
 window.onload = async ()=>{
+  aplicarRangoMesActualEnFiltros()
   await cargarUbos()
   await cargarConfigCurso()
   cargarUsuariosAdminLocal()
+  await cargarAspirantesCargados()
   actualizarEstadoChecks()
   aplicarLayout()
 
@@ -2116,8 +2367,20 @@ async function guardarAsistencia(){
 
 /* ADMIN */
 async function cargarDatos(){
-  const {data}=await supabaseClient.from("asistencias").select("*")
-  renderTabla(data)
+  let q = supabaseClient.from("asistencias").select("*")
+
+  if(fechaDesde.value){
+    q = q.gte("fecha", fechaDesde.value)
+  }
+  if(fechaHasta.value){
+    q = q.lte("fecha", fechaHasta.value)
+  }
+  if(filtroUbo.value){
+    q = q.ilike("ubo", "%" + filtroUbo.value + "%")
+  }
+
+  const {data} = await q
+  renderTabla((data || []).filter(d => d.estado !== "retirado"))
   await cargarAlertasReporte()
 }
 
@@ -2280,10 +2543,10 @@ async function aplicarFiltros(){
 }
 
 function limpiarFiltros(){
-
+  const { from, to } = obtenerRangoMesActual()
   filtroUbo.value = ""
-  fechaDesde.value = ""
-  fechaHasta.value = ""
+  fechaDesde.value = from
+  fechaHasta.value = to
 
   tabla.innerHTML = ""
   tablaAlertasContenido.innerHTML = "Sin alertas registradas."
@@ -2584,6 +2847,7 @@ function mostrarVista(vista){
     document.querySelector(".nav-item:nth-child(4)")?.classList.add("active")
     document.getElementById("vistaUsuarios").style.display="block"
     renderUsuariosAdmin()
+    cargarAspirantesCargados()
   }
 
 }
@@ -2730,7 +2994,7 @@ function limpiarFormSedeUbo(){
   editSedeUboIndex = -1
 }
 
-function guardarSeccionCurso(){
+async function guardarSeccionCurso(){
   if(!secCursoHora.value){
     alert("Define una hora de inicio para la sección")
     return
@@ -2741,6 +3005,7 @@ function guardarSeccionCurso(){
     modalidad: secCursoModalidad.value,
     hora_inicio: secCursoHora.value
   }
+  const oldSeccion = editSeccionCursoIndex >= 0 ? cursoSecciones[editSeccionCursoIndex]?.seccion : null
 
   if(editSeccionCursoIndex >= 0){
     cursoSecciones[editSeccionCursoIndex] = item
@@ -2754,7 +3019,48 @@ function guardarSeccionCurso(){
     }
   }
 
-  localStorage.setItem("cursoSecciones", JSON.stringify(cursoSecciones))
+  let persistioEnDb = false
+  try{
+    if(oldSeccion && oldSeccion !== item.seccion){
+      await supabaseClient
+        .from("curso_secciones")
+        .delete()
+        .eq("curso_id", 1)
+        .eq("seccion", oldSeccion)
+    }
+
+    await supabaseClient
+      .from("curso_secciones")
+      .delete()
+      .eq("curso_id", 1)
+      .eq("seccion", item.seccion)
+
+    const { error } = await supabaseClient
+      .from("curso_secciones")
+      .insert([{
+        curso_id: 1,
+        seccion: item.seccion,
+        modalidad: item.modalidad,
+        hora_inicio: item.hora_inicio
+      }])
+
+    if(error){
+      if(!esTablaNoExiste(error)){
+        console.warn("No se pudo guardar curso_secciones:", error.message)
+      }
+    }else{
+      persistioEnDb = true
+    }
+  }catch(e){
+    console.warn("No se pudo persistir sección en Supabase:", e)
+  }
+
+  if(persistioEnDb){
+    const seccionesDb = await cargarSeccionesCursoDesdeSupabase()
+    if(Array.isArray(seccionesDb)) cursoSecciones = seccionesDb
+  }
+
+  guardarEstructuraCursoLocal()
   renderSeccionesCurso()
   actualizarOpcionesSeccionSede()
   limpiarFormSeccionCurso()
@@ -2769,10 +3075,28 @@ function editarSeccionCurso(idx){
   editSeccionCursoIndex = idx
 }
 
-function eliminarSeccionCurso(idx){
+async function eliminarSeccionCurso(idx){
   if(!confirm("¿Eliminar esta sección?")) return
+  const seccion = cursoSecciones[idx]?.seccion
   cursoSecciones.splice(idx, 1)
-  localStorage.setItem("cursoSecciones", JSON.stringify(cursoSecciones))
+
+  try{
+    if(seccion){
+      const { error } = await supabaseClient
+        .from("curso_secciones")
+        .delete()
+        .eq("curso_id", 1)
+        .eq("seccion", seccion)
+
+      if(error && !esTablaNoExiste(error)){
+        console.warn("No se pudo eliminar sección de Supabase:", error.message)
+      }
+    }
+  }catch(e){
+    console.warn("No se pudo eliminar sección en Supabase:", e)
+  }
+
+  guardarEstructuraCursoLocal()
   renderSeccionesCurso()
   actualizarOpcionesSeccionSede()
 }
@@ -2804,7 +3128,7 @@ function renderSeccionesCurso(){
   tablaSeccionesCurso.innerHTML = html
 }
 
-function guardarSedeUbo(){
+async function guardarSedeUbo(){
   if(!uboSecUbo.value){
     alert("Selecciona una UBO sede")
     return
@@ -2821,6 +3145,7 @@ function guardarSedeUbo(){
     modalidad: uboSecModalidad.value,
     hora_inicio: uboSecHora.value
   }
+  const oldSeccion = editSedeUboIndex >= 0 ? cursoSedesUbo[editSedeUboIndex]?.seccion : null
 
   if(editSedeUboIndex >= 0){
     cursoSedesUbo[editSedeUboIndex] = item
@@ -2834,7 +3159,49 @@ function guardarSedeUbo(){
     }
   }
 
-  localStorage.setItem("cursoSedesUbo", JSON.stringify(cursoSedesUbo))
+  let persistioEnDb = false
+  try{
+    if(oldSeccion && oldSeccion !== item.seccion){
+      await supabaseClient
+        .from("curso_sedes_ubo")
+        .delete()
+        .eq("curso_id", 1)
+        .eq("seccion", oldSeccion)
+    }
+
+    await supabaseClient
+      .from("curso_sedes_ubo")
+      .delete()
+      .eq("curso_id", 1)
+      .eq("seccion", item.seccion)
+
+    const { error } = await supabaseClient
+      .from("curso_sedes_ubo")
+      .insert([{
+        curso_id: 1,
+        seccion: item.seccion,
+        ubo: item.ubo,
+        modalidad: item.modalidad,
+        hora_inicio: item.hora_inicio
+      }])
+
+    if(error){
+      if(!esTablaNoExiste(error)){
+        console.warn("No se pudo guardar curso_sedes_ubo:", error.message)
+      }
+    }else{
+      persistioEnDb = true
+    }
+  }catch(e){
+    console.warn("No se pudo persistir sede UBO en Supabase:", e)
+  }
+
+  if(persistioEnDb){
+    const sedesDb = await cargarSedesCursoDesdeSupabase()
+    if(Array.isArray(sedesDb)) cursoSedesUbo = sedesDb
+  }
+
+  guardarEstructuraCursoLocal()
   renderSedesUbo()
   limpiarFormSedeUbo()
 }
@@ -2849,10 +3216,28 @@ function editarSedeUbo(idx){
   editSedeUboIndex = idx
 }
 
-function eliminarSedeUbo(idx){
+async function eliminarSedeUbo(idx){
   if(!confirm("¿Eliminar esta sede UBO?")) return
+  const seccion = cursoSedesUbo[idx]?.seccion
   cursoSedesUbo.splice(idx, 1)
-  localStorage.setItem("cursoSedesUbo", JSON.stringify(cursoSedesUbo))
+
+  try{
+    if(seccion){
+      const { error } = await supabaseClient
+        .from("curso_sedes_ubo")
+        .delete()
+        .eq("curso_id", 1)
+        .eq("seccion", seccion)
+
+      if(error && !esTablaNoExiste(error)){
+        console.warn("No se pudo eliminar sede UBO de Supabase:", error.message)
+      }
+    }
+  }catch(e){
+    console.warn("No se pudo eliminar sede UBO en Supabase:", e)
+  }
+
+  guardarEstructuraCursoLocal()
   renderSedesUbo()
 }
 
@@ -2884,9 +3269,9 @@ function renderSedesUbo(){
 }
 
 function limpiarDashboard(){
-
-  dashDesde.value=""
-  dashHasta.value=""
+  const { from, to } = obtenerRangoMesActual()
+  dashDesde.value = from
+  dashHasta.value = to
 
   // 🔥 reset KPIs
   kpiTotal.innerText = "0"
@@ -2917,7 +3302,7 @@ function limpiarRetiro(){
   listaAspirantes.innerHTML=""
 }
 
-function limpiarCurso(){
+async function limpiarCurso(){
   cursoNombre.value=""
   cursoInicio.value=""
   cursoFin.value=""
@@ -2925,6 +3310,25 @@ function limpiarCurso(){
   toggleGPS.checked=false
   cursoSecciones = []
   cursoSedesUbo = []
+
+  try{
+    const { error } = await supabaseClient.from("curso_secciones").delete().eq("curso_id", 1)
+    if(error && !esTablaNoExiste(error)){
+      console.warn("No se pudo limpiar curso_secciones:", error.message)
+    }
+  }catch(e){
+    console.warn("No se pudo limpiar curso_secciones:", e)
+  }
+
+  try{
+    const { error } = await supabaseClient.from("curso_sedes_ubo").delete().eq("curso_id", 1)
+    if(error && !esTablaNoExiste(error)){
+      console.warn("No se pudo limpiar curso_sedes_ubo:", error.message)
+    }
+  }catch(e){
+    console.warn("No se pudo limpiar curso_sedes_ubo:", e)
+  }
+
   localStorage.removeItem("cursoNombre")
   localStorage.removeItem("cursoSecciones")
   localStorage.removeItem("cursoSedesUbo")
@@ -3006,6 +3410,11 @@ cursoNombre?.addEventListener("input", ()=>{
 window.addEventListener("resize", ()=>{
   clearTimeout(resizeTimer)
   resizeTimer = setTimeout(aplicarLayout, 160)
+})
+
+window.addEventListener("orientationchange", ()=>{
+  clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(aplicarLayout, 120)
 })
 
 window.detalleSemaforo = {
