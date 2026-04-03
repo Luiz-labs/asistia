@@ -1111,7 +1111,7 @@ input, select{
   <!-- TITULO FUERA -->
   <div style="text-align:center;margin-bottom:30px;">
     <div class="login-tenant-head">
-      <img src="asistIA_logo.png" class="login-brand-logo" alt="asistIA">
+      <img src="/asistIA_logo.png" class="login-brand-logo" alt="asistIA">
       <h1 id="tenantTituloLogin" style="margin:0;">XXIV Comandancia Departamental Lima Sur</h1>
     </div>
     <h2 id="tenantSubtituloLogin" style="margin:5px 0;">Incorporación y ESBAS</h2>
@@ -1133,7 +1133,7 @@ input, select{
     transform: translateY(-2px);
   ">
 
-    <img src="logo.png" style="width:80px;margin-bottom:10px;">
+    <img src="/logo.png" style="width:80px;margin-bottom:10px;">
 
     <h2 style="margin-bottom:20px;">ESBAS 2026</h2>
 
@@ -1195,7 +1195,7 @@ input, select{
     <button id="btnVistaAutoMovil" class="secondary view-switch" onclick="setVistaManual('auto')" title="Automático: usa detección de dispositivo para decidir vista móvil o escritorio.">Automático</button>
   </div>
 
-  <img src="logo.png" style="width:108px;margin:10px auto;">
+  <img src="/logo.png" style="width:108px;margin:10px auto;">
 
   <div id="mobileStepIngreso" class="mobile-step">
     <p>Ingresa tu DNI para iniciar</p>
@@ -1251,7 +1251,7 @@ input, select{
 
   <div class="header">
     <div style="display:flex;align-items:center;gap:10px;">
-      <img src="logo.png" style="width:28px;">
+      <img src="/logo.png" style="width:28px;">
       <strong id="tenantPanelTitulo">ESBAS Panel Administrativo</strong>
     </div>
     <div class="header-actions">
@@ -1756,7 +1756,7 @@ const TENANTS = [
     nombre: "XXIV Comandancia Departamental Lima Sur",
     linea: "Incorporación y ESBAS",
     curso: "Instrucción ESBAS 2026",
-    logo: "logo.png",
+    logo: "/logo.png",
     habilitado: true,
     usuariosSistema: ["llecaros", "admin"]
   },
@@ -1765,7 +1765,7 @@ const TENANTS = [
     nombre: "Bomberos Lurín 129",
     linea: "Módulo institucional",
     curso: "Próximamente",
-    logo: "B129logo.png",
+    logo: "/B129logo.png",
     habilitado: false,
     usuariosSistema: []
   }
@@ -1836,6 +1836,8 @@ function aplicarAccesoDesdeRuta(){
   esModoStaff = acceso.staff
   accesoDirectoInstitucion = !acceso.staff
   mostrarSelectorStaff = false
+  const vieneDeStaff = sessionStorage.getItem(STAFF_FLOW_KEY) === "1"
+  adminAutenticado = !acceso.staff && vieneDeStaff
   asignarTenantActivo(acceso.tenantId)
 }
 
@@ -1909,7 +1911,7 @@ function seleccionarCliente(id){
     return
   }
   if(esModoStaff){
-    localStorage.setItem(STAFF_FLOW_KEY, "1")
+    sessionStorage.setItem(STAFF_FLOW_KEY, "1")
   }
   window.location.href = obtenerRutaTenant(id)
 }
@@ -2968,7 +2970,7 @@ function login(){
       // Staff primero elige institución; no entra directo al panel.
       adminAutenticado = false
       mostrarSelectorStaff = true
-      localStorage.setItem(STAFF_FLOW_KEY, "1")
+      sessionStorage.setItem(STAFF_FLOW_KEY, "1")
       loginMsg.innerText = ""
       aplicarLayout()
       renderTenantSelector()
@@ -3015,10 +3017,10 @@ function verCriterio(tipo){
 
 function logout(){
   adminAutenticado = false
-  const vieneDeStaff = localStorage.getItem(STAFF_FLOW_KEY) === "1"
+  const vieneDeStaff = sessionStorage.getItem(STAFF_FLOW_KEY) === "1"
 
   if(accesoDirectoInstitucion && vieneDeStaff){
-    localStorage.removeItem(STAFF_FLOW_KEY)
+    sessionStorage.removeItem(STAFF_FLOW_KEY)
     window.location.href = "/"
     return
   }
@@ -3027,7 +3029,7 @@ function logout(){
     mostrarSelectorStaff = false
     loginMsg.innerText = ""
     if(loginPass) loginPass.value = ""
-    localStorage.removeItem(STAFF_FLOW_KEY)
+    sessionStorage.removeItem(STAFF_FLOW_KEY)
     aplicarLayout()
     return
   }
