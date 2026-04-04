@@ -4093,6 +4093,9 @@ function actualizarOpcionesSeccionSede(){
   const base = Array.from(new Set((cursoSecciones || []).map(x=>String(x.seccion || "").trim()).filter(Boolean)))
 
   let html = `<option value="">Seleccionar sección</option>`
+  if(base.length > 1){
+    html += `<option value="__ALL__">Todas las secciones</option>`
+  }
   base.forEach(code=>{
     html += `<option value="${code}">Sección ${code}</option>`
   })
@@ -4287,6 +4290,10 @@ function renderSeccionesCurso(){
 
 async function guardarSedeUbo(){
   const seccionValor = String(uboSecNombre.value || "").trim().toUpperCase()
+  const esTodasSecciones = seccionValor === "__ALL__"
+  const seccionesDisponibles = Array.from(new Set((cursoSecciones || [])
+    .map(x=>String(x.seccion || "").trim().toUpperCase())
+    .filter(Boolean)))
   const todosDias = !!uboSecTodosDias.checked
   const dias = todosDias ? [] : obtenerValoresMultiSelect("uboSecDiasSelect")
 
@@ -4295,7 +4302,17 @@ async function guardarSedeUbo(){
     return
   }
 
-  if(!cursoSecciones.some(x=>String(x.seccion) === seccionValor)){
+  if(editSedeUboIndex >= 0 && esTodasSecciones){
+    alert("Para aplicar a todas las secciones, guarda como nuevo registro (sin editar uno existente).")
+    return
+  }
+
+  if(esTodasSecciones && !seccionesDisponibles.length){
+    alert("No hay secciones creadas para aplicar esta configuración.")
+    return
+  }
+
+  if(!esTodasSecciones && !seccionesDisponibles.includes(seccionValor)){
     alert("La sección seleccionada no existe. Créala primero.")
     return
   }
@@ -4315,31 +4332,50 @@ async function guardarSedeUbo(){
     return
   }
 
-  const item = {
-    seccion: seccionValor,
-    ubo: uboSecUbo.value,
-    modalidad: uboSecModalidad.value,
-    hora_inicio: uboSecHora.value,
+  const seccionesObjetivo = esTodasSecciones ? seccionesDisponibles : [seccionValor]
+  const uboValor = uboSecUbo.value
+  const modalidadValor = uboSecModalidad.value
+  const horaValor = uboSecHora.value
+
+  const itemBase = {
+    ubo: uboValor,
+    modalidad: modalidadValor,
+    hora_inicio: horaValor,
     dias,
     todos_dias: todosDias
   }
-  const oldSeccion = editSedeUboIndex >= 0 ? cursoSedesUbo[editSedeUboIndex]?.seccion : null
+  const oldSeccion = editSedeUboIndex >= 0
+    ? String(cursoSedesUbo[editSedeUboIndex]?.seccion || "").trim().toUpperCase()
+    : null
 
-  if(editSedeUboIndex >= 0){
-    cursoSedesUbo[editSedeUboIndex] = item
-  }else{
-    const existing = cursoSedesUbo.findIndex(x=>x.seccion === item.seccion)
+  if(editSedeUboIndex < 0){
+    const repetidas = seccionesObjetivo.filter(sec=>cursoSedesUbo.some(x=>String(x.seccion || "").toUpperCase() === sec))
+    if(repetidas.length){
+      const msg = esTodasSecciones
+        ? `Ya existen ${repetidas.length} sección(es) con sede UBO. ¿Deseas reemplazarlas?`
+        : `La Sección ${seccionValor} ya tiene UBO sede. ¿Deseas reemplazarla?`
+      if(!confirm(msg)) return
+    }
+  }
+
+  if(editSedeUboIndex >= 0 && oldSeccion){
+    cursoSedesUbo = cursoSedesUbo.filter((_, idx)=>idx !== editSedeUboIndex)
+  }
+
+  seccionesObjetivo.forEach(sec=>{
+    const item = { seccion: sec, ...itemBase }
+    const existing = cursoSedesUbo.findIndex(x=>String(x.seccion || "").toUpperCase() === sec)
     if(existing >= 0){
-      if(!confirm(`La Sección ${item.seccion} ya tiene UBO sede. ¿Deseas reemplazarla?`)) return
       cursoSedesUbo[existing] = item
     }else{
       cursoSedesUbo.push(item)
     }
-  }
+  })
 
   let persistioEnDb = false
+  let erroresGuardado = 0
   try{
-    if(oldSeccion && oldSeccion !== item.seccion){
+    if(oldSeccion && !seccionesObjetivo.includes(oldSeccion)){
       await supabaseClient
         .from("curso_sedes_ubo")
         .delete()
@@ -4347,47 +4383,50 @@ async function guardarSedeUbo(){
         .eq("seccion", oldSeccion)
     }
 
-    const { error: errorDeleteActual } = await supabaseClient
-      .from("curso_sedes_ubo")
-      .delete()
-      .eq("curso_id", 1)
-      .eq("seccion", item.seccion)
-    if(errorDeleteActual && !esTablaNoExiste(errorDeleteActual)){
-      throw errorDeleteActual
-    }
-
-    const payloadSede = {
-      curso_id: 1,
-      seccion: item.seccion,
-      ubo: item.ubo,
-      modalidad: item.modalidad,
-      hora_inicio: item.hora_inicio,
-      dias: item.dias,
-      todos_dias: item.todos_dias
-    }
-
-    let { error } = await supabaseClient
-      .from("curso_sedes_ubo")
-      .insert([payloadSede])
-
-    if(error && /(dias|todos_dias)/i.test(String(error.message || ""))){
-      ({ error } = await supabaseClient
+    for(const sec of seccionesObjetivo){
+      const { error: errorDeleteActual } = await supabaseClient
         .from("curso_sedes_ubo")
-        .insert([{
-          curso_id: 1,
-          seccion: item.seccion,
-          ubo: item.ubo,
-          modalidad: item.modalidad,
-          hora_inicio: item.hora_inicio
-        }]))
-    }
-
-    if(error){
-      if(!esTablaNoExiste(error)){
-        console.warn("No se pudo guardar curso_sedes_ubo:", error.message)
+        .delete()
+        .eq("curso_id", 1)
+        .eq("seccion", sec)
+      if(errorDeleteActual && !esTablaNoExiste(errorDeleteActual)){
+        throw errorDeleteActual
       }
-    }else{
-      persistioEnDb = true
+
+      const payloadSede = {
+        curso_id: 1,
+        seccion: sec,
+        ubo: uboValor,
+        modalidad: modalidadValor,
+        hora_inicio: horaValor,
+        dias,
+        todos_dias: todosDias
+      }
+
+      let { error } = await supabaseClient
+        .from("curso_sedes_ubo")
+        .insert([payloadSede])
+
+      if(error && /(dias|todos_dias)/i.test(String(error.message || ""))){
+        ({ error } = await supabaseClient
+          .from("curso_sedes_ubo")
+          .insert([{
+            curso_id: 1,
+            seccion: sec,
+            ubo: uboValor,
+            modalidad: modalidadValor,
+            hora_inicio: horaValor
+          }]))
+      }
+
+      if(error){
+        erroresGuardado += 1
+        if(!esTablaNoExiste(error)){
+          console.warn("No se pudo guardar curso_sedes_ubo:", error.message)
+        }
+      }else{
+        persistioEnDb = true
+      }
     }
   }catch(e){
     console.warn("No se pudo persistir sede UBO en Supabase:", e)
@@ -4401,6 +4440,9 @@ async function guardarSedeUbo(){
   guardarEstructuraCursoLocal()
   renderSedesUbo()
   limpiarFormSedeUbo()
+  if(erroresGuardado > 0){
+    alert(`Se aplicó parcialmente. ${erroresGuardado} sección(es) no pudieron guardarse.`)
+  }
 }
 
 function editarSedeUbo(idx){
