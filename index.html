@@ -3780,18 +3780,16 @@ function esTablaNoExiste(error){
 function esMovil(){
   const ua = navigator.userAgent || ""
   const touchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0
-  const isPhoneUA = /iPhone|iPod|Android.+Mobile|Windows Phone|IEMobile|BlackBerry|Opera Mini/i.test(ua)
+  const isPhoneUA = /iPhone|iPod|Android.+Mobile|Windows Phone|IEMobile|BlackBerry|Opera Mini|Mobile/i.test(ua)
   const isTabletUA = /iPad|Tablet|Android(?!.*Mobile)/i.test(ua)
-  const isPortrait = window.matchMedia("(orientation: portrait)").matches
   const width = window.innerWidth || document.documentElement.clientWidth || 1024
 
+  // Tablet y laptop deben verse como escritorio para administrar el panel.
+  if(isTabletUA) return false
   if(isPhoneUA) return true
-  if(isTabletUA && isPortrait) return true
 
-  const tabletLikeTouch = touchDevice && width <= 1024 && !isPhoneUA
-  if(tabletLikeTouch && isPortrait) return true
-
-  return false
+  // Fallback: si no hay UA clara, solo tratamos como móvil pantallas muy pequeñas táctiles.
+  return touchDevice && width <= 760
 }
 
 function getVistaManual(){
