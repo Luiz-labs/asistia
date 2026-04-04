@@ -1388,7 +1388,7 @@ input, select{
     transform: translateY(-2px);
   ">
 
-    <img src="/logo.png" style="width:80px;margin-bottom:10px;">
+    <img id="tenantLogoLoginCard" src="/logo.png" style="width:80px;margin-bottom:10px;">
 
     <h2 style="margin-bottom:20px;">ESBAS 2026</h2>
 
@@ -1450,7 +1450,7 @@ input, select{
     <button id="btnVistaAutoMovil" class="secondary view-switch" onclick="setVistaManual('auto')" title="Automático: usa detección de dispositivo para decidir vista móvil o escritorio.">Automático</button>
   </div>
 
-  <img src="/logo.png" style="width:108px;margin:10px auto;">
+  <img id="tenantLogoMovil" src="/logo.png" style="width:108px;margin:10px auto;">
 
   <div id="mobileStepIngreso" class="mobile-step">
     <p>Ingresa tu DNI para iniciar</p>
@@ -1472,7 +1472,7 @@ input, select{
 <!-- FORMULARIO -->
 <div id="formulario" style="display:none;padding:20px;text-align:center;">
   <div class="form-header">
-    <img src="/logo.png" alt="Logo de la comandancia">
+    <img id="tenantLogoFormulario" src="/logo.png" alt="Logo de la comandancia">
     <h3>Registro de Asistencia de Aspirantes</h3>
   </div>
 
@@ -1528,7 +1528,7 @@ input, select{
 
   <div class="header">
     <div style="display:flex;align-items:center;gap:10px;">
-      <img src="/logo.png" style="width:28px;">
+      <img id="tenantLogoPanel" src="/logo.png" style="width:28px;">
       <strong id="tenantPanelTitulo">ESBAS Panel Administrativo</strong>
     </div>
     <div class="header-actions">
@@ -2129,6 +2129,7 @@ let vistaAdminActual = "reportes"
 const VISTA_MODO_KEY = "vistaModoManual"
 const ADMIN_SESSION_KEY = "asistia_admin_session_v1"
 const LUIZLABS_STORE_KEY = "asistia_luizlabs_v1"
+const DEFAULT_INSTITUTION_LOGO = "/asistIA_logo.png"
 const MULTITENANT_MODE = false
 const ROLES_ADMIN = Object.freeze({
   SUPERUSUARIO: "superusuario",
@@ -2341,6 +2342,15 @@ function generarIdInstitucion(){
   return `inst_${Date.now()}_${Math.random().toString(36).slice(2,8)}`
 }
 
+function normalizarLogoInstitucion(logo){
+  return String(logo || "").trim()
+}
+
+function obtenerLogoInstitucion(entidad){
+  const logo = normalizarLogoInstitucion(entidad?.logo || entidad?.logoUrl || "")
+  return logo || DEFAULT_INSTITUTION_LOGO
+}
+
 function guardarLuizLabsEnStorage(){
   try{
     const payload = {
@@ -2358,6 +2368,7 @@ function mapearInstitucionesBaseDesdeTenants(){
     id: t.id,
     nombre: t.nombre,
     slug: t.id,
+    logo: normalizarLogoInstitucion(t.logo),
     estado: t.habilitado ? "activo" : "inactivo",
     fecha_creacion: new Date().toISOString()
   }))
@@ -2422,6 +2433,15 @@ function cargarLuizLabsDesdeStorage(){
     fecha_creacion: u.fecha_creacion || new Date().toISOString()
   }))
 
+  institucionesLuiz = institucionesLuiz.map(inst=>({
+    id: String(inst.id || generarIdInstitucion()),
+    nombre: String(inst.nombre || "").trim(),
+    slug: String(inst.slug || "").trim(),
+    logo: normalizarLogoInstitucion(inst.logo || inst.logoUrl || ""),
+    estado: String(inst.estado || "activo") === "inactivo" ? "inactivo" : "activo",
+    fecha_creacion: inst.fecha_creacion || new Date().toISOString()
+  })).filter(inst=>inst.slug && inst.nombre)
+
   sincronizarTenantsDesdeInstituciones()
   guardarLuizLabsEnStorage()
 }
@@ -2436,6 +2456,7 @@ function sincronizarTenantsDesdeInstituciones(){
     const inst = bySlug[t.id]
     if(inst){
       t.nombre = inst.nombre
+      t.logo = obtenerLogoInstitucion(inst)
       t.habilitado = inst.estado === "activo"
     }
   })
@@ -2448,7 +2469,7 @@ function sincronizarTenantsDesdeInstituciones(){
       nombre: inst.nombre,
       linea: "Módulo institucional",
       curso: "Instrucción asistIA",
-      logo: "/logo.png",
+      logo: obtenerLogoInstitucion(inst),
       habilitado: inst.estado === "activo",
       usuariosSistema: []
     })
@@ -2629,6 +2650,7 @@ function crearInstitucionLuizLabs(){
     id: generarIdInstitucion(),
     nombre,
     slug,
+    logo: "",
     estado: "activo",
     fecha_creacion: new Date().toISOString()
   }
@@ -3072,6 +3094,7 @@ function aplicarTenantEnUI(){
   const titulo = esModoStaff ? "asistIA" : (tenant?.nombre || "Panel ESBAS")
   const linea = esModoStaff ? "Control Inteligente de Asistencia" : (tenant?.linea || "Incorporación y ESBAS")
   const curso = esModoStaff ? "Plataforma asistIA" : (tenant?.curso || "Instrucción ESBAS")
+  const logoRuta = esModoStaff ? DEFAULT_INSTITUTION_LOGO : obtenerLogoInstitucion(tenant)
 
   if(tenantTituloLogin){
     tenantTituloLogin.innerText = titulo
@@ -3085,6 +3108,10 @@ function aplicarTenantEnUI(){
   if(tenantCursoMovil) tenantCursoMovil.innerText = curso
 
   if(tenantPanelTitulo) tenantPanelTitulo.innerText = `asistIA Panel Administrativo - ${titulo}`
+  if(tenantLogoLoginCard) tenantLogoLoginCard.src = logoRuta
+  if(tenantLogoMovil) tenantLogoMovil.src = logoRuta
+  if(tenantLogoFormulario) tenantLogoFormulario.src = logoRuta
+  if(tenantLogoPanel) tenantLogoPanel.src = logoRuta
 }
 
 function renderTenantSelector(){
@@ -3094,9 +3121,7 @@ function renderTenantSelector(){
     const disabled = !t.habilitado
     const btnClass = disabled ? "secondary" : ""
     const btnText = disabled ? "Próximamente" : "Ingresar"
-    const logoHtml = t.logo
-      ? `<img src="${t.logo}" alt="${t.nombre}" class="tenant-logo">`
-      : `<div class="tenant-logo tenant-logo-fake">129</div>`
+    const logoHtml = `<img src="${obtenerLogoInstitucion(t)}" alt="${t.nombre}" class="tenant-logo">`
 
     html += `
       <div class="tenant-card">
