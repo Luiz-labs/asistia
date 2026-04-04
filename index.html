@@ -1308,13 +1308,17 @@ input, select{
   <div style="display:flex;min-height:calc(100vh - 60px);">
 
     <div class="sidebar">
-      <p class="nav-item active" onclick="mostrarVista('reportes')">📄 Reportes</p>
-      <p class="nav-item" onclick="mostrarVista('dashboard')">📊 Dashboard</p>
-      <p class="nav-item" onclick="mostrarVista('config')">⚙️ Configuración</p>
-      <p class="nav-item" onclick="mostrarVista('usuarios')">👥 Usuarios</p>
+      <p id="navReportes" class="nav-item active" data-view="reportes" onclick="mostrarVista('reportes')">📄 Reportes</p>
+      <p id="navDashboard" class="nav-item" data-view="dashboard" onclick="mostrarVista('dashboard')">📊 Dashboard</p>
+      <p id="navConfig" class="nav-item" data-view="config" onclick="mostrarVista('config')">⚙️ Configuración</p>
+      <p id="navUsuarios" class="nav-item" data-view="usuarios" onclick="mostrarVista('usuarios')">👥 Usuarios</p>
     </div>
 
     <div style="flex:1;padding:20px;">
+      <div id="adminMobileNotice" class="card" style="display:none;margin-bottom:14px;background:#fff8e8;border-color:#f2ddad;color:#8a5a00;">
+        Tienes permisos admin, sí.<br>
+        Pero el panel completo solo se muestra en una interfaz preparada para eso.
+      </div>
 
       <div id="vistaDashboard" style="display:none;">
 
@@ -1789,6 +1793,7 @@ let usuariosAdmin = []
 let cacheReportes = []
 let cacheDashboard = []
 let cacheRiesgoUbo = []
+let vistaAdminActual = "reportes"
 const VISTA_MODO_KEY = "vistaModoManual"
 const ADMIN_SESSION_KEY = "asistia_admin_session_v1"
 const MULTITENANT_MODE = false
@@ -1961,6 +1966,46 @@ function puedeEntrarPanelAdmin(tenantId = tenantActivoId){
   if(esModoStaff) return false
   if(esSuperusuarioActivo()) return true
   return tenantSesionActiva() === String(tenantId || "")
+}
+
+function esModoAdminMovilLimitado(){
+  if(!haySesionAdminActiva()) return false
+  if(!puedeEntrarPanelAdmin()) return false
+  return esMovil()
+}
+
+function esVistaPermitidaEnAdminMovil(vista){
+  return vista === "dashboard" || vista === "reportes"
+}
+
+function marcarNavActiva(vista){
+  document.querySelectorAll(".nav-item[data-view]").forEach(el=>{
+    el.classList.toggle("active", el.dataset.view === vista)
+  })
+}
+
+function aplicarRestriccionesPanelPorContexto(){
+  const limitado = esModoAdminMovilLimitado()
+  const navConfig = document.getElementById("navConfig")
+  const navUsuarios = document.getElementById("navUsuarios")
+  const adminMobileNotice = document.getElementById("adminMobileNotice")
+  const btnInstitucion = document.getElementById("btnInstitucion")
+
+  if(navConfig) navConfig.style.display = limitado ? "none" : ""
+  if(navUsuarios) navUsuarios.style.display = limitado ? "none" : ""
+  if(adminMobileNotice) adminMobileNotice.style.display = limitado ? "block" : "none"
+
+  if(btnInstitucion){
+    if(limitado){
+      btnInstitucion.style.display = "none"
+    }else{
+      btnInstitucion.style.display = accesoDirectoInstitucion ? "none" : "inline-flex"
+    }
+  }
+
+  if(limitado && !esVistaPermitidaEnAdminMovil(vistaAdminActual)){
+    mostrarVista("dashboard")
+  }
 }
 
 enlazarIdsGlobales()
@@ -3062,14 +3107,28 @@ function aplicarLayout(){
   }
 
   if(vista === "mobile"){
-    if(elTenant) elTenant.style.display="none"
-    if(elLogin) elLogin.style.display="none"
-    if(elDesktop) elDesktop.style.display="none"
-    if(elMovilInicio) elMovilInicio.style.display = dniMovil ? "none" : "flex"
-    if(elMovil) elMovil.style.display = dniMovil ? "block" : "none"
+    if(puedeEntrarPanelAdmin()){
+      cerrarScanner()
+      if(elTenant) elTenant.style.display="none"
+      if(elLogin) elLogin.style.display="none"
+      if(elMovilInicio) elMovilInicio.style.display="none"
+      if(elMovil) elMovil.style.display="none"
+      if(elFormulario) elFormulario.style.display="none"
+      if(elDesktop) elDesktop.style.display="block"
+      aplicarRestriccionesPanelPorContexto()
+      if(!vistaAdminActual){
+        mostrarVista("reportes")
+      }
+    }else{
+      if(elTenant) elTenant.style.display="none"
+      if(elLogin) elLogin.style.display="none"
+      if(elDesktop) elDesktop.style.display="none"
+      if(elMovilInicio) elMovilInicio.style.display = dniMovil ? "none" : "flex"
+      if(elMovil) elMovil.style.display = dniMovil ? "block" : "none"
 
-    if(elFormulario && elFormulario.style.display !== "block"){
-      mostrarPasoMovil(dniMovil ? "scan" : "ingreso")
+      if(elFormulario && elFormulario.style.display !== "block"){
+        mostrarPasoMovil(dniMovil ? "scan" : "ingreso")
+      }
     }
   }else{
     cerrarScanner()
@@ -3081,6 +3140,7 @@ function aplicarLayout(){
       if(elTenant) elTenant.style.display="none"
       if(elLogin) elLogin.style.display="none"
       if(elDesktop) elDesktop.style.display="block"
+      aplicarRestriccionesPanelPorContexto()
     }else{
       const verSelector = esModoStaff && mostrarSelectorStaff
       if(elTenant) elTenant.style.display = verSelector ? "flex" : "none"
@@ -4080,6 +4140,9 @@ async function retirarAspirante(dni){
 }
 
 function mostrarVista(vista){
+  if(esModoAdminMovilLimitado() && !esVistaPermitidaEnAdminMovil(vista)){
+    vista = "dashboard"
+  }
 
   vistaReportes.style.display="none"
   document.getElementById("vistaDashboard").style.display="none"
@@ -4087,10 +4150,7 @@ function mostrarVista(vista){
   document.getElementById("vistaUsuarios").style.display="none"
   document.querySelectorAll(".nav-item")
     .forEach(el => el.classList.remove("active"))
-
-  if(vista==="dashboard"){
-    document.querySelector(".nav-item:nth-child(2)")?.classList.add("active")
-  }
+  marcarNavActiva(vista)
 
   if(vista==="dashboard"){
     document.getElementById("vistaDashboard").style.display="block"
@@ -4098,23 +4158,23 @@ function mostrarVista(vista){
   }
 
   if(vista==="reportes"){
-    document.querySelector(".nav-item:nth-child(1)")?.classList.add("active")
     vistaReportes.style.display="block"
     if(!tabla.innerHTML.trim()) cargarDatos()
   }
 
   if(vista==="config"){
-    document.querySelector(".nav-item:nth-child(3)")?.classList.add("active")
     document.getElementById("vistaConfig").style.display="block"
     cargarConfigCurso()
   }
 
   if(vista==="usuarios"){
-    document.querySelector(".nav-item:nth-child(4)")?.classList.add("active")
     document.getElementById("vistaUsuarios").style.display="block"
     renderUsuariosAdmin()
     cargarAspirantesCargados()
   }
+
+  vistaAdminActual = vista
+  aplicarRestriccionesPanelPorContexto()
 
 }
 
