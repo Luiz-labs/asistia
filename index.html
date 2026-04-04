@@ -2479,8 +2479,9 @@ function cargarLuizLabsDesdeStorage(){
     const rolNormalizado = normalizarRolUsuario(u.rol || ROLES_ADMIN.ADMINISTRADOR)
     return {
     usuario: String(u.usuario || "").toLowerCase(),
-    password: String(u.password || ""),
-    rol: rolNormalizado === ROLES_ADMIN.SUPERUSUARIO ? ROLES_ADMIN.ADMINISTRADOR : rolNormalizado,
+    // Compatibilidad: acepta ambos formatos históricos de clave (password/clave).
+    password: String(u.password || u.clave || ""),
+    rol: rolNormalizado,
     tenantId: String(u.tenantId || ""),
     estado: String(u.estado || "activo") === "inactivo" ? "inactivo" : "activo",
     fecha_creacion: u.fecha_creacion || new Date().toISOString()
@@ -4415,14 +4416,14 @@ function resolverCredencialesAdmin(usuario, clave){
     }
   }
 
-  if(userLuiz && String(userLuiz.password || "") === clave){
+  if(userLuiz && String(userLuiz.password || userLuiz.clave || "") === clave){
     if(String(userLuiz.estado || "activo") !== "activo"){
       return { valido: false, motivo: "usuario_inactivo" }
     }
     return {
       valido: true,
       usuario: userLuiz.usuario,
-      rol: ROLES_ADMIN.ADMINISTRADOR,
+      rol: normalizarRolUsuario(userLuiz.rol || ROLES_ADMIN.ADMINISTRADOR),
       tenantId: userLuiz.tenantId || "",
       esLegacy: false
     }
