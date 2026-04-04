@@ -1214,10 +1214,15 @@ input, select{
   width:52px;
   height:52px;
   border-radius:14px;
-  object-fit:cover;
+  object-fit:contain;
   border:1px solid #d5e0f4;
   background:#fff;
   padding:6px;
+}
+
+.tenant-dynamic-logo{
+  object-fit:contain;
+  background:#fff;
 }
 
 .tenant-logo-fake{
@@ -1388,7 +1393,7 @@ input, select{
     transform: translateY(-2px);
   ">
 
-    <img id="tenantLogoLoginCard" src="/logo.png" style="width:80px;margin-bottom:10px;">
+    <img id="tenantLogoLoginCard" class="tenant-dynamic-logo" src="/asistIA_logo.png" style="width:80px;height:80px;margin-bottom:10px;">
 
     <h2 style="margin-bottom:20px;">ESBAS 2026</h2>
 
@@ -1450,7 +1455,7 @@ input, select{
     <button id="btnVistaAutoMovil" class="secondary view-switch" onclick="setVistaManual('auto')" title="Automático: usa detección de dispositivo para decidir vista móvil o escritorio.">Automático</button>
   </div>
 
-  <img id="tenantLogoMovil" src="/logo.png" style="width:108px;margin:10px auto;">
+  <img id="tenantLogoMovil" class="tenant-dynamic-logo" src="/asistIA_logo.png" style="width:108px;height:108px;margin:10px auto;">
 
   <div id="mobileStepIngreso" class="mobile-step">
     <p>Ingresa tu DNI para iniciar</p>
@@ -1472,7 +1477,7 @@ input, select{
 <!-- FORMULARIO -->
 <div id="formulario" style="display:none;padding:20px;text-align:center;">
   <div class="form-header">
-    <img id="tenantLogoFormulario" src="/logo.png" alt="Logo de la comandancia">
+    <img id="tenantLogoFormulario" class="tenant-dynamic-logo" src="/asistIA_logo.png" alt="Logo institucional">
     <h3>Registro de Asistencia de Aspirantes</h3>
   </div>
 
@@ -1528,7 +1533,7 @@ input, select{
 
   <div class="header">
     <div style="display:flex;align-items:center;gap:10px;">
-      <img id="tenantLogoPanel" src="/logo.png" style="width:28px;">
+      <img id="tenantLogoPanel" class="tenant-dynamic-logo" src="/asistIA_logo.png" style="width:28px;height:28px;">
       <strong id="tenantPanelTitulo">ESBAS Panel Administrativo</strong>
     </div>
     <div class="header-actions">
@@ -2021,8 +2026,10 @@ input, select{
         <h2 style="margin-bottom:10px;">Nueva institución</h2>
         <div class="filtros">
           <input id="luizInstNombre" placeholder="Nombre de institución" style="min-width:260px;">
+          <input id="luizInstLogoFile" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" style="max-width:280px;">
           <button onclick="crearInstitucionLuizLabs()">Crear institución</button>
         </div>
+        <p class="hint">Logo institucional opcional (PNG/JPG/JPEG). Si no cargas uno, se usará el logo de asistIA.</p>
       </div>
 
       <div class="card" style="margin-bottom:14px;">
@@ -2141,7 +2148,7 @@ const TENANTS = [
     nombre: "XXIV Comandancia Departamental Lima Sur",
     linea: "Incorporación y ESBAS",
     curso: "Instrucción ESBAS 2026",
-    logo: "/logo.png",
+    logo: "/24_logo.png",
     habilitado: true,
     usuariosSistema: ["llecaros"]
   },
@@ -2351,6 +2358,46 @@ function obtenerLogoInstitucion(entidad){
   return logo || DEFAULT_INSTITUTION_LOGO
 }
 
+function leerLogoInstitucionalArchivo(file){
+  return new Promise((resolve, reject)=>{
+    if(!file){
+      resolve("")
+      return
+    }
+    const tipo = String(file.type || "").toLowerCase()
+    if(!/^image\/(png|jpe?g)$/.test(tipo)){
+      reject(new Error("Formato no permitido. Usa PNG, JPG o JPEG."))
+      return
+    }
+    const maxBytes = 2 * 1024 * 1024
+    if(file.size > maxBytes){
+      reject(new Error("El archivo de logo supera 2MB."))
+      return
+    }
+    const fr = new FileReader()
+    fr.onload = ()=> resolve(String(fr.result || ""))
+    fr.onerror = ()=> reject(new Error("No se pudo leer el archivo de logo."))
+    fr.readAsDataURL(file)
+  })
+}
+
+function migrarLogosInstitucionalesBase(){
+  institucionesLuiz.forEach(inst=>{
+    const tenantBase = TENANTS.find(t=>t.id === inst.slug)
+    if(!tenantBase) return
+    const logoInst = normalizarLogoInstitucion(inst.logo)
+    const logoBase = normalizarLogoInstitucion(tenantBase.logo)
+    if(!logoInst){
+      inst.logo = logoBase
+      return
+    }
+    // Migración incremental: reemplaza logo departamental legado por el logo base actualizado.
+    if(logoInst === "/logo.png" && logoBase && logoBase !== "/logo.png"){
+      inst.logo = logoBase
+    }
+  })
+}
+
 function guardarLuizLabsEnStorage(){
   try{
     const payload = {
@@ -2442,6 +2489,7 @@ function cargarLuizLabsDesdeStorage(){
     fecha_creacion: inst.fecha_creacion || new Date().toISOString()
   })).filter(inst=>inst.slug && inst.nombre)
 
+  migrarLogosInstitucionalesBase()
   sincronizarTenantsDesdeInstituciones()
   guardarLuizLabsEnStorage()
 }
@@ -2636,9 +2684,10 @@ function aplicarVisibilidadAccesoAdminInstitucional(){
   }
 }
 
-function crearInstitucionLuizLabs(){
+async function crearInstitucionLuizLabs(){
   if(!puedeEntrarPanelLuizLabs()) return
   const input = document.getElementById("luizInstNombre")
+  const inputLogo = document.getElementById("luizInstLogoFile")
   const nombre = String(input?.value || "").trim()
   if(!nombre){
     alert("Ingresa el nombre de la institución.")
@@ -2646,11 +2695,18 @@ function crearInstitucionLuizLabs(){
   }
 
   const slug = generarSlugInstitucionUnico(nombre)
+  let logoCargado = ""
+  try{
+    logoCargado = await leerLogoInstitucionalArchivo(inputLogo?.files?.[0] || null)
+  }catch(e){
+    alert(e.message || "No se pudo procesar el logo institucional.")
+    return
+  }
   const inst = {
     id: generarIdInstitucion(),
     nombre,
     slug,
-    logo: "",
+    logo: normalizarLogoInstitucion(logoCargado),
     estado: "activo",
     fecha_creacion: new Date().toISOString()
   }
@@ -2672,6 +2728,7 @@ function crearInstitucionLuizLabs(){
   renderTenantSelector()
   renderPanelLuizLabs()
   if(input) input.value = ""
+  if(inputLogo) inputLogo.value = ""
   limpiarUsuarioAdminLuizForm()
 
   alert(
