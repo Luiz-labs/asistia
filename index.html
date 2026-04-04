@@ -1492,7 +1492,7 @@ input, select{
               <label for="userRol">Rol</label>
               <select id="userRol">
                 <option value="administrador">Administrador</option>
-                <option value="super_admin">Super Admin</option>
+                <option value="superusuario">Superusuario</option>
               </select>
             </div>
           </div>
@@ -1789,9 +1789,13 @@ let usuariosAdmin = []
 let cacheReportes = []
 let cacheDashboard = []
 let cacheRiesgoUbo = []
-const STAFF_FLOW_KEY = "asistia_staff_flow"
 const VISTA_MODO_KEY = "vistaModoManual"
+const ADMIN_SESSION_KEY = "asistia_admin_session_v1"
 const MULTITENANT_MODE = false
+const ROLES_ADMIN = Object.freeze({
+  SUPERUSUARIO: "superusuario",
+  ADMINISTRADOR: "administrador"
+})
 const TENANTS = [
   {
     id: "esbas-24",
@@ -1816,6 +1820,7 @@ let tenantActivoId = ""
 let esModoStaff = true
 let accesoDirectoInstitucion = false
 let mostrarSelectorStaff = false
+let sesionAdminActiva = crearSesionAdminVacia()
 const SYSTEM_USERS = [
   { nombre: "Administrador Principal", usuario: "llecaros", rol: "administrador", system: true }
 ]
@@ -1840,8 +1845,122 @@ function haySupabase(){
 
 function normalizarRolUsuario(rol){
   const raw = String(rol || "").trim().toLowerCase()
-  if(raw === "super_admin") return "super_admin"
-  return "administrador"
+  if(raw === "super_admin" || raw === "superusuario") return ROLES_ADMIN.SUPERUSUARIO
+  return ROLES_ADMIN.ADMINISTRADOR
+}
+
+function crearSesionAdminVacia(){
+  return {
+    autenticado: false,
+    usuario: "",
+    rol: "",
+    tenantId: "",
+    origen: ""
+  }
+}
+
+function normalizarSesionAdmin(raw){
+  const base = crearSesionAdminVacia()
+  if(!raw || typeof raw !== "object") return base
+  const autenticado = !!raw.autenticado
+  const usuario = String(raw.usuario || "").trim().toLowerCase()
+  const rol = normalizarRolUsuario(raw.rol || "")
+  const tenantId = String(raw.tenantId || "").trim()
+  const origen = String(raw.origen || "").trim()
+
+  if(!autenticado || !usuario){
+    return base
+  }
+
+  return {
+    autenticado: true,
+    usuario,
+    rol,
+    tenantId,
+    origen
+  }
+}
+
+function guardarSesionAdminEnStorage(){
+  try{
+    if(sesionAdminActiva?.autenticado){
+      sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(sesionAdminActiva))
+    }else{
+      sessionStorage.removeItem(ADMIN_SESSION_KEY)
+    }
+  }catch(e){
+    console.warn("No se pudo guardar sesión admin:", e)
+  }
+}
+
+function cargarSesionAdminDesdeStorage(){
+  try{
+    const raw = sessionStorage.getItem(ADMIN_SESSION_KEY)
+    if(!raw){
+      sesionAdminActiva = crearSesionAdminVacia()
+      sincronizarEstadoLegacyAdmin()
+      return sesionAdminActiva
+    }
+    sesionAdminActiva = normalizarSesionAdmin(JSON.parse(raw))
+  }catch(e){
+    console.warn("No se pudo leer sesión admin:", e)
+    sesionAdminActiva = crearSesionAdminVacia()
+  }
+  sincronizarEstadoLegacyAdmin()
+  return sesionAdminActiva
+}
+
+function sincronizarEstadoLegacyAdmin(){
+  adminAutenticado = !!sesionAdminActiva?.autenticado
+}
+
+function setSesionAdminActiva(sesion){
+  sesionAdminActiva = normalizarSesionAdmin(sesion)
+  guardarSesionAdminEnStorage()
+  sincronizarEstadoLegacyAdmin()
+  return sesionAdminActiva
+}
+
+function actualizarSesionAdmin(parcial){
+  const next = Object.assign({}, sesionAdminActiva || crearSesionAdminVacia(), parcial || {})
+  return setSesionAdminActiva(next)
+}
+
+function limpiarSesionAdminActiva(){
+  sesionAdminActiva = crearSesionAdminVacia()
+  guardarSesionAdminEnStorage()
+  sincronizarEstadoLegacyAdmin()
+}
+
+function obtenerSesionAdminActiva(){
+  return Object.assign({}, sesionAdminActiva)
+}
+
+function haySesionAdminActiva(){
+  return !!sesionAdminActiva?.autenticado
+}
+
+function rolAdminActivo(){
+  return sesionAdminActiva?.rol || ""
+}
+
+function esSuperusuarioActivo(){
+  return rolAdminActivo() === ROLES_ADMIN.SUPERUSUARIO
+}
+
+function esAdministradorActivo(){
+  return rolAdminActivo() === ROLES_ADMIN.ADMINISTRADOR
+}
+
+function tenantSesionActiva(){
+  return String(sesionAdminActiva?.tenantId || "")
+}
+
+function puedeEntrarPanelAdmin(tenantId = tenantActivoId){
+  if(!haySesionAdminActiva()) return false
+  if(esModoStaff) return false
+  if(esSuperusuarioActivo()) return true
+  return tenantSesionActiva() === String(tenantId || "")
 }
 
 enlazarIdsGlobales()
@@ -1882,10 +2001,40 @@ function aplicarAccesoDesdeRuta(){
   const acceso = resolverAccesoDesdeRuta()
   esModoStaff = acceso.staff
   accesoDirectoInstitucion = !acceso.staff
-  mostrarSelectorStaff = false
-  const vieneDeStaff = sessionStorage.getItem(STAFF_FLOW_KEY) === "1"
-  adminAutenticado = !acceso.staff && vieneDeStaff
   asignarTenantActivo(acceso.tenantId)
+
+  if(esModoStaff){
+    if(haySesionAdminActiva()){
+      actualizarSesionAdmin({ tenantId: "" })
+      mostrarSelectorStaff = true
+    }else{
+      mostrarSelectorStaff = false
+    }
+    sincronizarEstadoLegacyAdmin()
+    return
+  }
+
+  mostrarSelectorStaff = false
+
+  if(!haySesionAdminActiva()){
+    sincronizarEstadoLegacyAdmin()
+    return
+  }
+
+  if(esSuperusuarioActivo()){
+    if(acceso.tenantId){
+      actualizarSesionAdmin({ tenantId: acceso.tenantId })
+    }
+    sincronizarEstadoLegacyAdmin()
+    return
+  }
+
+  if(tenantSesionActiva() !== acceso.tenantId){
+    limpiarSesionAdminActiva()
+    return
+  }
+
+  sincronizarEstadoLegacyAdmin()
 }
 
 function obtenerTenantActivo(){
@@ -1957,8 +2106,8 @@ function seleccionarCliente(id){
     alert("Esta institución aún no está habilitada para ingreso.")
     return
   }
-  if(esModoStaff){
-    sessionStorage.setItem(STAFF_FLOW_KEY, "1")
+  if(esModoStaff && haySesionAdminActiva()){
+    actualizarSesionAdmin({ tenantId: tenant.id, origen: "staff_root" })
   }
   window.location.href = obtenerRutaTenant(id)
 }
@@ -1969,7 +2118,7 @@ function volverSeleccionCliente(){
     return
   }
   if(esModoStaff){
-    adminAutenticado = false
+    actualizarSesionAdmin({ tenantId: "" })
     mostrarSelectorStaff = true
     loginMsg.innerText = ""
     loginUser.value = ""
@@ -1979,7 +2128,7 @@ function volverSeleccionCliente(){
     return
   }
 
-  adminAutenticado = false
+  limpiarSesionAdminActiva()
   asignarTenantActivo("")
   loginMsg.innerText = ""
   loginUser.value = ""
@@ -2073,7 +2222,7 @@ function irEscritorioAdmin(){
   const elMovilInicio = document.getElementById("vistaMovilInicio")
   const elMovil = document.getElementById("vistaMovil")
   setVistaManual("desktop")
-  if(!adminAutenticado){
+  if(!haySesionAdminActiva()){
     if(elTenant) elTenant.style.display = "none"
     if(elLogin) elLogin.style.display = "flex"
     if(elDesktop) elDesktop.style.display = "none"
@@ -2928,7 +3077,7 @@ function aplicarLayout(){
     if(elMovil) elMovil.style.display="none"
     if(elFormulario) elFormulario.style.display="none"
 
-    if(adminAutenticado){
+    if(puedeEntrarPanelAdmin()){
       if(elTenant) elTenant.style.display="none"
       if(elLogin) elLogin.style.display="none"
       if(elDesktop) elDesktop.style.display="block"
@@ -2958,6 +3107,7 @@ function actualizarEstadoChecks(){
 window.onload = async ()=>{
   enlazarIdsGlobales()
   renderTenantSelector()
+  cargarSesionAdminDesdeStorage()
   aplicarAccesoDesdeRuta()
 
   try{
@@ -3016,42 +3166,69 @@ window.onload = async ()=>{
 
 }
 
+function resolverCredencialesAdmin(usuario, clave){
+  const userLocal = (usuariosAdmin || []).find(u=>u.usuario === usuario)
+  const accesoLegacy = usuario === "llecaros" && clave === "1234"
+
+  if(accesoLegacy){
+    // Acceso temporal legacy para continuidad operativa en producción.
+    return {
+      valido: true,
+      usuario: "llecaros",
+      rol: ROLES_ADMIN.SUPERUSUARIO,
+      esLegacy: true
+    }
+  }
+
+  if(userLocal && String(userLocal.clave || "") === clave){
+    return {
+      valido: true,
+      usuario: userLocal.usuario,
+      rol: normalizarRolUsuario(userLocal.rol),
+      esLegacy: false
+    }
+  }
+
+  return { valido: false }
+}
+
 function login(){
   const usuario = (loginUser.value || "").trim().toLowerCase()
   const clave = (loginPass.value || "").trim()
-  let valido = false
-  const esAccesoLegacyLlecaros = usuario === "llecaros" && clave === "1234"
+  const resultado = resolverCredencialesAdmin(usuario, clave)
 
-  if(esModoStaff){
-    const userLocal = (usuariosAdmin || []).find(u=>u.usuario === usuario)
-    valido =
-      esAccesoLegacyLlecaros ||
-      (!!userLocal && String(userLocal.clave || "") === clave)
-  }else{
+  if(!esModoStaff){
     const tenant = obtenerTenantActivo()
     if(!tenant){
       loginMsg.innerText = "Institución no válida para esta ruta."
       return
     }
-    const userLocal = (usuariosAdmin || []).find(u=>u.usuario === usuario)
-    valido =
-      esAccesoLegacyLlecaros ||
-      (!!userLocal && String(userLocal.clave || "") === clave)
   }
 
-  if(valido){
+  if(resultado.valido){
     if(esModoStaff){
-      // Staff primero elige institución; no entra directo al panel.
-      adminAutenticado = false
+      // En raíz se guarda sesión administrativa y luego se selecciona institución.
+      setSesionAdminActiva({
+        autenticado: true,
+        usuario: resultado.usuario,
+        rol: resultado.rol,
+        tenantId: "",
+        origen: "staff_root"
+      })
       mostrarSelectorStaff = true
-      sessionStorage.setItem(STAFF_FLOW_KEY, "1")
       loginMsg.innerText = ""
       aplicarLayout()
       renderTenantSelector()
       return
     }
 
-    adminAutenticado = true
+    setSesionAdminActiva({
+      autenticado: true,
+      usuario: resultado.usuario,
+      rol: resultado.rol,
+      tenantId: tenantActivoId,
+      origen: "tenant_route"
+    })
     loginScreen.style.display="none"
     vistaDesktop.style.display="block"
     mostrarVista("reportes")
@@ -3090,8 +3267,8 @@ function verCriterio(tipo){
 }
 
 function logout(){
-  adminAutenticado = false
-  const vieneDeStaff = sessionStorage.getItem(STAFF_FLOW_KEY) === "1"
+  const origenSesion = obtenerSesionAdminActiva().origen || ""
+  limpiarSesionAdminActiva()
 
   mostrarSelectorStaff = false
   dniMovil = ""
@@ -3103,9 +3280,8 @@ function logout(){
   if(mobileDniInicio) mobileDniInicio.value = ""
   sessionStorage.removeItem(VISTA_MODO_KEY)
   localStorage.removeItem(VISTA_MODO_KEY)
-  sessionStorage.removeItem(STAFF_FLOW_KEY)
 
-  if(accesoDirectoInstitucion && vieneDeStaff){
+  if(accesoDirectoInstitucion && origenSesion === "staff_root"){
     window.location.href = "/"
     return
   }
