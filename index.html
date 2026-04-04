@@ -175,6 +175,74 @@ h2{
   }
 }
 
+#tutorialOverlay{
+  position:fixed;
+  inset:0;
+  z-index:1390;
+  display:none;
+  background:rgba(14, 24, 44, 0.56);
+  backdrop-filter:blur(1.5px);
+}
+
+#tutorialTooltip{
+  position:fixed;
+  z-index:1400;
+  display:none;
+  width:min(360px, calc(100vw - 26px));
+  background:#ffffff;
+  border:1px solid #d7e1f2;
+  border-radius:14px;
+  box-shadow:0 24px 48px rgba(17, 36, 72, 0.2), 0 8px 18px rgba(17, 36, 72, 0.14);
+  padding:14px;
+  color:#1e2b47;
+}
+
+.tutorial-tooltip-title{
+  font-size:15px;
+  font-weight:700;
+  margin-bottom:6px;
+}
+
+.tutorial-tooltip-desc{
+  font-size:13px;
+  line-height:1.5;
+  color:#4e628b;
+  margin-bottom:12px;
+  white-space:pre-line;
+}
+
+.tutorial-tooltip-foot{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.tutorial-tooltip-step{
+  font-size:12px;
+  color:#6a7fa8;
+  font-weight:600;
+}
+
+.tutorial-tooltip-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.tutorial-spotlight-target{
+  position:relative;
+  z-index:1395 !important;
+  border-radius:12px;
+  box-shadow:0 0 0 3px rgba(152, 192, 255, 0.95), 0 0 28px rgba(46, 115, 236, 0.32);
+}
+
+@media (max-width: 760px){
+  #tutorialTooltip{
+    width:min(340px, calc(100vw - 20px));
+  }
+}
+
 .sidebar{
   width:228px;
   padding:20px 14px;
@@ -1691,6 +1759,9 @@ input, select{
   </div>
 </div>
 
+<div id="tutorialOverlay" aria-hidden="true"></div>
+<div id="tutorialTooltip" aria-hidden="true"></div>
+
 <!-- 💻 ADMIN (TU PANEL ORIGINAL) -->
 <div id="vistaDesktop" style="display:none;">
 
@@ -1702,6 +1773,7 @@ input, select{
     <div class="header-actions">
       <button id="btnInstitucion" onclick="volverSeleccionCliente()" class="secondary">Institución</button>
       <button id="btnVolverLuizLabs" onclick="irPanelPrincipalLuizLabs()" class="secondary" style="display:none;">Panel principal</button>
+      <button id="btnTutorial" onclick="iniciarTutorial(true)" class="secondary">Ver tutorial</button>
       <button id="btnForzarMovil" onclick="setVistaManual('mobile')" class="secondary view-switch">Ver móvil</button>
       <button id="btnVistaAutoDesktop" onclick="setVistaManual('auto')" class="secondary view-switch" title="Automático: usa detección de dispositivo para decidir vista móvil o escritorio.">Automático</button>
       <button onclick="logout()" class="secondary">Salir</button>
@@ -2348,6 +2420,10 @@ let cacheDashboard = []
 let cacheRiesgoUbo = []
 let vistaAdminActual = "reportes"
 let vistaLuizLabsActual = "instituciones"
+const TUTORIAL_STORAGE_KEY = "asistia_tutorial_visto"
+let tutorialActivo = false
+let tutorialPasoActual = 0
+let tutorialTargetResaltado = null
 const VISTA_MODO_KEY = "vistaModoManual"
 const ADMIN_SESSION_KEY = "asistia_admin_session_v1"
 const LUIZLABS_STORE_KEY = "asistia_luizlabs_v1"
@@ -2389,6 +2465,78 @@ let editUsuarioLuizIndex = -1
 let editUsuarioGlobalLuizIndex = -1
 const SYSTEM_USERS = [
   { nombre: "Administrador Principal", usuario: "llecaros", rol: "administrador", system: true }
+]
+const tutorialSteps = [
+  {
+    target: "#vistaDesktop [data-account-btn]",
+    titulo: "Cuenta",
+    descripcion: `Aquí puedes ver tu sesión activa:
+
+• Usuario con el que ingresaste
+• Rol (Administrador o Superusuario)
+• Institución en la que estás trabajando
+
+Esto te ayuda a evitar errores y saber en qué entorno estás operando.`
+  },
+  {
+    target: "#vistaReportes",
+    vista: "reportes",
+    titulo: "Reportes",
+    descripcion: `Aquí puedes consultar asistencias registradas.
+
+Puedes:
+• Filtrar por UBO
+• Seleccionar rango de fechas
+• Aplicar o limpiar filtros
+• Ver todos los registros
+• Exportar resultados a Excel
+
+También verás alertas de marcación en la parte inferior.`
+  },
+  {
+    target: "#vistaDashboard",
+    vista: "dashboard",
+    titulo: "Dashboard",
+    descripcion: `Aquí ves un resumen general del sistema.
+
+Puedes analizar:
+• Total de activos
+• Asistencia e inasistencia
+• Cobertura
+• Alertas de dispositivo
+• Semáforo de puntualidad
+• Riesgo por UBO
+
+Los colores se calculan según la hora de inicio de cada sección.`
+  },
+  {
+    target: "#vistaConfig",
+    vista: "config",
+    titulo: "Configuración",
+    descripcion: `Aquí administras la operación del sistema.
+
+Puedes:
+• Cargar coordenadas GPS de UBO
+• Cargar aspirantes desde Excel
+• Retirar o reactivar aspirantes
+• Configurar curso, secciones y sedes
+
+Este módulo define cómo funciona todo el control de asistencia.`
+  },
+  {
+    target: "#vistaUsuarios",
+    vista: "usuarios",
+    titulo: "Usuarios",
+    descripcion: `Aquí gestionas accesos administrativos.
+
+Puedes:
+• Crear usuarios
+• Editarlos
+• Desactivarlos
+• Asignar roles
+
+Solo administras usuarios de esta institución.`
+  }
 ]
 
 const SECTION_TO_UBO_FIELD = {
@@ -2603,6 +2751,170 @@ function renderInfoSesionHeader(){
 
 function actualizarInfoSesionHeader(){
   renderInfoSesionHeader()
+}
+
+function esTutorialModoMovil(){
+  return window.innerWidth <= 760 || getVistaActiva() === "mobile"
+}
+
+function limpiarResalteTutorial(){
+  if(tutorialTargetResaltado){
+    tutorialTargetResaltado.classList.remove("tutorial-spotlight-target")
+    tutorialTargetResaltado = null
+  }
+}
+
+function obtenerTargetTutorial(step){
+  if(!step?.target) return null
+  return document.querySelector(step.target)
+}
+
+function puedeIniciarTutorial(){
+  return !esModoStaff && haySesionAdminActiva() && puedeEntrarPanelAdmin()
+}
+
+function renderTooltipTutorial(step, index){
+  const tooltip = document.getElementById("tutorialTooltip")
+  if(!tooltip) return
+
+  tooltip.innerHTML = `
+    <div class="tutorial-tooltip-title">${step.titulo}</div>
+    <div class="tutorial-tooltip-desc">${step.descripcion}</div>
+    <div class="tutorial-tooltip-foot">
+      <span class="tutorial-tooltip-step">Paso ${index + 1} de ${tutorialSteps.length}</span>
+      <div class="tutorial-tooltip-actions">
+        <button class="secondary" data-tutorial-prev ${index === 0 ? "disabled" : ""}>Anterior</button>
+        <button class="secondary" data-tutorial-skip>Omitir</button>
+        <button data-tutorial-next>${index === tutorialSteps.length - 1 ? "Finalizar" : "Siguiente"}</button>
+      </div>
+    </div>
+  `
+
+  tooltip.querySelector("[data-tutorial-prev]")?.addEventListener("click", anteriorPaso)
+  tooltip.querySelector("[data-tutorial-next]")?.addEventListener("click", siguientePaso)
+  tooltip.querySelector("[data-tutorial-skip]")?.addEventListener("click", finalizarTutorial)
+}
+
+function posicionarTooltipTutorial(target){
+  const tooltip = document.getElementById("tutorialTooltip")
+  if(!tooltip) return
+
+  const margin = 12
+  const isMovil = esTutorialModoMovil()
+  const tw = tooltip.offsetWidth || 340
+  const th = tooltip.offsetHeight || 220
+
+  if(isMovil || !target){
+    const top = Math.max(margin, (window.innerHeight - th) / 2)
+    const left = Math.max(margin, (window.innerWidth - tw) / 2)
+    tooltip.style.top = `${top}px`
+    tooltip.style.left = `${left}px`
+    return
+  }
+
+  const rect = target.getBoundingClientRect()
+  const preferTop = rect.bottom + margin + th > window.innerHeight
+  let top = preferTop ? rect.top - th - margin : rect.bottom + margin
+  let left = rect.left + (rect.width / 2) - (tw / 2)
+
+  top = Math.max(margin, Math.min(top, window.innerHeight - th - margin))
+  left = Math.max(margin, Math.min(left, window.innerWidth - tw - margin))
+
+  tooltip.style.top = `${top}px`
+  tooltip.style.left = `${left}px`
+}
+
+function mostrarPaso(index){
+  if(!tutorialActivo) return
+
+  if(index < 0) index = 0
+  if(index >= tutorialSteps.length){
+    finalizarTutorial()
+    return
+  }
+
+  tutorialPasoActual = index
+  const step = tutorialSteps[index]
+
+  if(step?.vista){
+    mostrarVista(step.vista)
+  }
+
+  window.setTimeout(()=>{
+    if(!tutorialActivo) return
+    const overlay = document.getElementById("tutorialOverlay")
+    const tooltip = document.getElementById("tutorialTooltip")
+    if(!overlay || !tooltip) return
+
+    const target = obtenerTargetTutorial(step)
+    const isMovil = esTutorialModoMovil()
+
+    limpiarResalteTutorial()
+    if(target && !isMovil){
+      target.scrollIntoView({ behavior: "smooth", block: "center" })
+      target.classList.add("tutorial-spotlight-target")
+      tutorialTargetResaltado = target
+    }
+
+    renderTooltipTutorial(step, index)
+    overlay.style.display = "block"
+    overlay.setAttribute("aria-hidden", "false")
+    tooltip.style.display = "block"
+    tooltip.setAttribute("aria-hidden", "false")
+    posicionarTooltipTutorial(target)
+  }, 180)
+}
+
+function iniciarTutorial(forzado = false){
+  if(tutorialActivo) return
+  if(!puedeIniciarTutorial()){
+    if(forzado){
+      alert("El tutorial está disponible dentro del panel administrativo institucional.")
+    }
+    return
+  }
+  if(!forzado && localStorage.getItem(TUTORIAL_STORAGE_KEY) === "true"){
+    return
+  }
+  tutorialActivo = true
+  tutorialPasoActual = 0
+  mostrarPaso(0)
+}
+
+function siguientePaso(){
+  mostrarPaso(tutorialPasoActual + 1)
+}
+
+function anteriorPaso(){
+  mostrarPaso(tutorialPasoActual - 1)
+}
+
+function cerrarTutorial(){
+  tutorialActivo = false
+  limpiarResalteTutorial()
+  const overlay = document.getElementById("tutorialOverlay")
+  const tooltip = document.getElementById("tutorialTooltip")
+  if(overlay){
+    overlay.style.display = "none"
+    overlay.setAttribute("aria-hidden", "true")
+  }
+  if(tooltip){
+    tooltip.style.display = "none"
+    tooltip.setAttribute("aria-hidden", "true")
+    tooltip.innerHTML = ""
+  }
+}
+
+function finalizarTutorial(){
+  localStorage.setItem(TUTORIAL_STORAGE_KEY, "true")
+  cerrarTutorial()
+}
+
+function evaluarInicioTutorialAutomatico(){
+  if(tutorialActivo) return
+  if(localStorage.getItem(TUTORIAL_STORAGE_KEY) === "true") return
+  if(!puedeIniciarTutorial()) return
+  iniciarTutorial(false)
 }
 
 function esTenantConDatosLegacy(tenantId){
@@ -4926,6 +5238,7 @@ function aplicarLayout(){
   actualizarBotonesVista()
   aplicarVisibilidadAccesoAdminInstitucional()
   actualizarInfoSesionHeader()
+  evaluarInicioTutorialAutomatico()
 }
 
 function actualizarEstadoChecks(){
@@ -5191,6 +5504,7 @@ function verCriterio(tipo){
 
 function logout(){
   const origenSesion = obtenerSesionAdminActiva().origen || ""
+  cerrarTutorial()
   limpiarSesionAdminActiva()
 
   mostrarSelectorStaff = false
@@ -6160,8 +6474,23 @@ document.addEventListener("keydown", e=>{
     cerrarModal()
     cerrarCuentaModal()
     cerrarAccesoAdminInstitucional()
+    if(tutorialActivo){
+      cerrarTutorial()
+    }
   }
 })
+
+window.addEventListener("resize", ()=>{
+  if(!tutorialActivo) return
+  const step = tutorialSteps[tutorialPasoActual]
+  posicionarTooltipTutorial(obtenerTargetTutorial(step))
+})
+
+window.addEventListener("scroll", ()=>{
+  if(!tutorialActivo) return
+  const step = tutorialSteps[tutorialPasoActual]
+  posicionarTooltipTutorial(obtenerTargetTutorial(step))
+}, true)
 
 async function guardarCurso(){
   const mapSedes = {}
