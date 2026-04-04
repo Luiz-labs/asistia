@@ -402,6 +402,18 @@ input, select{
   align-items:center;
 }
 
+.file-upload-row{
+  align-items:center;
+}
+
+.file-upload-row input[type="file"]{
+  height:42px;
+  padding:8px 10px;
+  line-height:24px;
+  min-width:260px;
+  background:#fff;
+}
+
 .config-row select,
 .config-row input{
   min-width:170px;
@@ -1886,30 +1898,6 @@ input, select{
             </table>
           </div>
         </div>
-
-        <div class="card config-card">
-          <h3>Carga de Aspirantes (Excel)</h3>
-          <div class="hint">Archivo requerido con columnas: <strong>apellidos, nombres, dni, ubo</strong>.</div>
-          <div class="config-row" style="margin-top:10px;">
-            <input type="file" id="archivoAspirantes" accept=".xlsx,.xls,.csv">
-            <button onclick="cargarExcelAspirantes()">Subir Archivo</button>
-            <button class="secondary" onclick="cargarAspirantesCargados()">Refrescar Listado</button>
-          </div>
-          <p id="msgCargaAspirantes" class="hint"></p>
-          <div class="table-wrap user-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Apellidos</th>
-                  <th>Nombres</th>
-                  <th>DNI</th>
-                  <th>UBO</th>
-                </tr>
-              </thead>
-              <tbody id="tablaAspirantesCargados"></tbody>
-            </table>
-          </div>
-        </div>
       </div>
 
       <div id="vistaConfig" style="display:none;">
@@ -1930,6 +1918,31 @@ input, select{
             <button class="secondary" onclick="cargarUbos()">Refrescar UBOs</button>
           </div>
           <p id="msgCargaUbosSedes" class="hint"></p>
+        </div>
+
+        <div class="card config-card">
+          <h3>Carga de Aspirantes (Excel / SQL)</h3>
+          <div class="hint">Archivo requerido con columnas: <strong>apellidos, nombres, dni, ubo</strong>. El listado integra datos desde <strong>aspirantes</strong> y registros en <strong>asistencias</strong>.</div>
+          <div class="config-row file-upload-row" style="margin-top:10px;">
+            <input type="file" id="archivoAspirantes" accept=".xlsx,.xls,.csv">
+            <button onclick="cargarExcelAspirantes()">Subir Archivo</button>
+            <button class="secondary" onclick="cargarAspirantesCargados()">Refrescar Listado</button>
+          </div>
+          <p id="msgCargaAspirantes" class="hint"></p>
+          <div class="table-wrap user-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Apellidos</th>
+                  <th>Nombres</th>
+                  <th>DNI</th>
+                  <th>UBO</th>
+                  <th>Origen</th>
+                </tr>
+              </thead>
+              <tbody id="tablaAspirantesCargados"></tbody>
+            </table>
+          </div>
         </div>
 
         <!-- RETIRAR ASPIRANTE -->
@@ -4411,31 +4424,76 @@ async function cargarExcelAspirantes(){
 async function cargarAspirantesCargados(){
   if(!tablaAspirantesCargados) return
 
-  const { data, error } = await supabaseClient
+  const normalizarTexto = (v)=>String(v || "").trim()
+  const limpiarDni = (v)=>String(v || "").replace(/\D/g, "")
+  const registros = new Map()
+
+  const { data: dataAspirantes, error: errorAspirantes } = await supabaseClient
     .from("aspirantes")
     .select("apellidos,nombres,dni,ubo")
-    .order("apellidos", { ascending: true })
-    .order("nombres", { ascending: true })
-    .limit(300)
+    .limit(1000)
 
-  if(error){
-    tablaAspirantesCargados.innerHTML = `<tr><td colspan="4">No se pudo cargar el listado.</td></tr>`
+  if(errorAspirantes){
+    tablaAspirantesCargados.innerHTML = `<tr><td colspan="5">No se pudo cargar el listado.</td></tr>`
     return
   }
 
-  if(!data || !data.length){
-    tablaAspirantesCargados.innerHTML = `<tr><td colspan="4">Sin aspirantes cargados.</td></tr>`
+  ;(dataAspirantes || []).forEach(r=>{
+    const dni = limpiarDni(r.dni)
+    if(!dni) return
+    registros.set(dni, {
+      apellidos: normalizarTexto(r.apellidos),
+      nombres: normalizarTexto(r.nombres),
+      dni,
+      ubo: normalizarTexto(r.ubo),
+      origen: "Aspirantes"
+    })
+  })
+
+  const { data: dataAsistencias, error: errorAsistencias } = await withTenantScope(supabaseClient
+    .from("asistencias")
+    .select("nombre,dni,ubo,fecha,hora,tenant_id")
+    .order("fecha", { ascending: false })
+    .order("hora", { ascending: false })
+    .limit(1200))
+
+  if(!errorAsistencias){
+    const asistencias = filtrarDataTenantActivo(dataAsistencias)
+    asistencias.forEach(r=>{
+      const dni = limpiarDni(r.dni)
+      if(!dni || registros.has(dni)) return
+      registros.set(dni, {
+        apellidos: "",
+        nombres: normalizarTexto(r.nombre),
+        dni,
+        ubo: normalizarTexto(r.ubo),
+        origen: "Asistencias (SQL)"
+      })
+    })
+  }
+
+  const lista = Array.from(registros.values())
+    .sort((a,b)=>{
+      const aa = `${a.apellidos} ${a.nombres}`.trim().toLowerCase()
+      const bb = `${b.apellidos} ${b.nombres}`.trim().toLowerCase()
+      return aa.localeCompare(bb)
+    })
+    .slice(0, 600)
+
+  if(!lista.length){
+    tablaAspirantesCargados.innerHTML = `<tr><td colspan="5">Sin aspirantes cargados.</td></tr>`
     return
   }
 
   let html = ""
-  data.forEach(r=>{
+  lista.forEach(r=>{
     html += `
       <tr>
         <td>${r.apellidos || ""}</td>
         <td>${r.nombres || ""}</td>
         <td>${r.dni || ""}</td>
         <td>${r.ubo || ""}</td>
+        <td>${r.origen || ""}</td>
       </tr>
     `
   })
@@ -5910,12 +5968,12 @@ function mostrarVista(vista){
   if(vista==="config"){
     document.getElementById("vistaConfig").style.display="block"
     cargarConfigCurso()
+    cargarAspirantesCargados()
   }
 
   if(vista==="usuarios"){
     document.getElementById("vistaUsuarios").style.display="block"
     renderUsuariosAdmin()
-    cargarAspirantesCargados()
   }
 
   vistaAdminActual = vista
