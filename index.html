@@ -408,6 +408,8 @@ input, select{
 .table-actions{
   display:flex;
   gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
 }
 
 .table-actions button{
@@ -415,6 +417,63 @@ input, select{
   height:32px;
   padding:0 10px;
   font-size:12px;
+}
+
+.icon-btn{
+  width:32px;
+  height:32px;
+  padding:0 !important;
+  min-width:32px !important;
+  border-radius:10px;
+  background:#edf1f8 !important;
+  color:#1f2c45 !important;
+  box-shadow:none !important;
+  border:1px solid #d7e0ef;
+}
+
+.icon-btn:hover{
+  background:#e4ebf7 !important;
+  transform:none !important;
+  filter:none !important;
+}
+
+.icon-btn svg{
+  width:16px;
+  height:16px;
+  display:block;
+}
+
+.state-toggle{
+  width:46px;
+  height:28px;
+  border-radius:999px;
+  border:1px solid #c9d5ea;
+  background:#dfe6f2;
+  padding:0 3px !important;
+  min-width:46px !important;
+  display:inline-flex;
+  align-items:center;
+  justify-content:flex-start;
+  box-shadow:none !important;
+  transition:background .2s, border-color .2s;
+}
+
+.state-toggle .dot{
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 1px 4px rgba(17,34,68,.25);
+  transition:transform .2s;
+}
+
+.state-toggle.active{
+  background:linear-gradient(180deg, #46b36a 0%, #2ea356 100%);
+  border-color:#2c9b52;
+}
+
+.state-toggle.active .dot{
+  transform:translateX(18px);
 }
 
 .hint{
@@ -2193,9 +2252,20 @@ function renderPanelLuizLabs(){
             <td>
               <div class="table-actions">
                 <button onclick="ingresarInstitucionLuizLabs('${inst.slug}')">Ingresar</button>
-                <button class="secondary" onclick="copiarEnlaceInstitucionLuizLabs('${inst.slug}')">Copiar enlace</button>
+                <button class="icon-btn" onclick="copiarEnlaceInstitucionLuizLabs('${inst.slug}')" title="Copiar enlace" aria-label="Copiar enlace">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="9" y="3" width="11" height="14" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
+                    <rect x="4" y="8" width="11" height="13" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
+                  </svg>
+                </button>
                 <button onclick="editarInstitucionLuizLabs('${inst.id}')">Editar</button>
-                <button class="secondary" onclick="toggleEstadoInstitucionLuizLabs('${inst.id}')">${activo ? "Desactivar" : "Activar"}</button>
+                <button
+                  class="state-toggle ${activo ? "active" : ""}"
+                  onclick="toggleEstadoInstitucionLuizLabs('${inst.id}')"
+                  title="${activo ? "Desactivar institución" : "Activar institución"}"
+                  aria-label="${activo ? "Desactivar institución" : "Activar institución"}">
+                  <span class="dot"></span>
+                </button>
                 <button class="secondary" onclick="eliminarInstitucionLuizLabs('${inst.id}')">Eliminar</button>
               </div>
             </td>
