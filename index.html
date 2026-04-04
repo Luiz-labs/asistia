@@ -883,6 +883,18 @@ input, select{
   background:radial-gradient(circle at 20% 0%, #f7fbff 0%, #eff2f7 55%);
 }
 
+.tenant-top-actions{
+  position:absolute;
+  top:16px;
+  right:16px;
+}
+
+.tenant-top-actions button{
+  min-width:auto;
+  height:38px;
+  padding:0 14px;
+}
+
 .tenant-title{
   text-align:center;
   margin-bottom:24px;
@@ -1084,6 +1096,9 @@ input, select{
 
 <!-- SELECCIÓN INSTITUCIONAL -->
 <div id="tenantScreen" class="tenant-screen">
+  <div class="tenant-top-actions">
+    <button id="btnSalirTenant" class="secondary" onclick="logout()">Salir</button>
+  </div>
   <div class="tenant-title">
     <h1 class="brand-main">asistIA</h1>
     <p class="tenant-subtitle">Control Inteligente de Asistencia</p>
@@ -3028,17 +3043,24 @@ function logout(){
   adminAutenticado = false
   const vieneDeStaff = sessionStorage.getItem(STAFF_FLOW_KEY) === "1"
 
+  mostrarSelectorStaff = false
+  dniMovil = ""
+  seccion = ""
+  if(loginMsg) loginMsg.innerText = ""
+  if(loginUser) loginUser.value = ""
+  if(loginPass) loginPass.value = ""
+  if(mobileDni) mobileDni.value = ""
+  if(mobileDniInicio) mobileDniInicio.value = ""
+  sessionStorage.removeItem(VISTA_MODO_KEY)
+  localStorage.removeItem(VISTA_MODO_KEY)
+  sessionStorage.removeItem(STAFF_FLOW_KEY)
+
   if(accesoDirectoInstitucion && vieneDeStaff){
-    sessionStorage.removeItem(STAFF_FLOW_KEY)
     window.location.href = "/"
     return
   }
 
   if(esModoStaff){
-    mostrarSelectorStaff = false
-    loginMsg.innerText = ""
-    if(loginPass) loginPass.value = ""
-    sessionStorage.removeItem(STAFF_FLOW_KEY)
     aplicarLayout()
     return
   }
