@@ -939,6 +939,86 @@ input, select{
   justify-content:center;
 }
 
+#vistaMovil .mobile-qr-brandline,
+#vistaMovilInicio .mobile-qr-brandline{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  margin:0 0 8px;
+}
+
+.mobile-qr-logo{
+  width:48px;
+  height:48px;
+  border-radius:12px;
+  object-fit:contain;
+  background:#fff;
+  border:1px solid #d7e3f6;
+  padding:4px;
+  box-shadow:0 8px 18px rgba(29, 62, 119, 0.12);
+}
+
+.mobile-qr-brandcopy{
+  text-align:left;
+}
+
+.mobile-asistia-wordmark{
+  margin:0;
+  font-family:"Outfit","Sora","Avenir Next","Nunito Sans",sans-serif;
+  font-size:clamp(2rem, 7.2vw, 2.45rem);
+  line-height:0.95;
+  font-weight:800;
+  letter-spacing:-0.5px;
+  background:linear-gradient(92deg, #0d52d8 6%, #2b7dff 46%, #77b2ff 100%);
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+
+.mobile-qr-title{
+  margin:5px 0 0;
+  font-size:clamp(1.1rem, 4.8vw, 1.35rem);
+  line-height:1.1;
+  font-weight:700;
+  letter-spacing:-0.15px;
+  color:#162544;
+}
+
+.mobile-qr-subtitle{
+  margin:4px 0 0;
+  font-size:clamp(1.05rem, 4.4vw, 1.3rem);
+  color:#5f7298;
+  font-weight:500;
+}
+
+#vistaMovil .mobile-tenant-lines{
+  margin:2px 0 10px;
+  text-align:center;
+}
+
+.mobile-tenant-lines p{
+  margin:2px 0;
+}
+
+.mobile-tenant-title{
+  font-size:14px;
+  color:#2e4268;
+  font-weight:700;
+}
+
+.mobile-tenant-subtitle{
+  font-size:13px;
+  color:#51668f;
+  font-weight:600;
+}
+
+.mobile-tenant-course{
+  font-size:12px;
+  color:#667ca5;
+  font-weight:500;
+}
+
 #vistaMovilInicio{
   max-width:420px;
   margin:0 auto;
@@ -954,9 +1034,9 @@ input, select{
   background:var(--surface);
   border:1px solid rgba(164, 179, 211, 0.25);
   box-shadow:var(--shadow);
-  border-radius:16px;
-  padding:16px;
-  margin-top:12px;
+  border-radius:22px;
+  padding:18px;
+  margin-top:14px;
 }
 
 #vistaMovilInicio p{
@@ -965,48 +1045,52 @@ input, select{
 
 #vistaMovilInicio input{
   width:100%;
-  margin:10px 0;
+  margin:12px 0;
+  height:52px;
+  border-radius:16px;
+  font-size:18px;
+  text-align:center;
 }
 
 #vistaMovilInicio button{
   width:min(100%, 320px);
-  min-height:48px;
-  border-radius:14px;
-  font-size:15px;
-  font-weight:600;
-}
-
-#vistaMovil h2{
-  margin-bottom:6px;
-  font-size:1.35rem;
-  line-height:1.15;
+  min-height:52px;
+  border-radius:18px;
+  font-size:18px;
+  font-weight:700;
 }
 
 #vistaMovil .mobile-step{
   background:var(--surface);
   border:1px solid rgba(164, 179, 211, 0.25);
   box-shadow:var(--shadow);
-  border-radius:16px;
-  padding:16px;
-  margin-top:12px;
+  border-radius:22px;
+  padding:18px;
+  margin-top:14px;
 }
 
 #vistaMovil .mobile-step p{
-  margin-bottom:10px;
+  margin-bottom:12px;
   color:var(--muted);
+  font-size:18px;
+  font-weight:500;
 }
 
 #vistaMovil input{
   width:100%;
-  margin-bottom:10px;
+  margin-bottom:12px;
+  height:52px;
+  border-radius:16px;
+  font-size:18px;
+  text-align:center;
 }
 
 #vistaMovil button{
   width:min(100%, 320px);
-  min-height:48px;
-  border-radius:14px;
-  font-size:15px;
-  font-weight:600;
+  min-height:52px;
+  border-radius:18px;
+  font-size:18px;
+  font-weight:700;
 }
 
 #scanOverlay{
@@ -1651,9 +1735,14 @@ input, select{
 
 <!-- 📱 VISTA MOVIL -->
 <div id="vistaMovilInicio" style="display:none;">
-  <h1 class="brand-mobile">asistIA</h1>
-  <h2>Asistencia Aspirantes</h2>
-  <p>Escaneo QR</p>
+  <div class="mobile-qr-brandline">
+    <img id="tenantLogoMovilInicio" class="mobile-qr-logo" src="/asistIA_logo.png" alt="asistIA">
+    <div class="mobile-qr-brandcopy">
+      <h1 class="mobile-asistia-wordmark">asistIA</h1>
+      <p class="mobile-qr-title">Asistencia Aspirantes</p>
+      <p class="mobile-qr-subtitle">Escaneo QR</p>
+    </div>
+  </div>
   <div class="mobile-step">
     <p>Ingresa tu DNI para continuar</p>
     <input id="mobileDniInicio" placeholder="Ingrese DNI" inputmode="numeric" pattern="[0-9]*" maxlength="8">
@@ -1665,18 +1754,25 @@ input, select{
 </div>
 
 <div id="vistaMovil" style="display:none;text-align:center;padding:20px;">
-  <h1 class="brand-mobile">asistIA</h1>
+  <div class="mobile-qr-brandline">
+    <img id="tenantLogoMovil" class="mobile-qr-logo tenant-dynamic-logo" src="/asistIA_logo.png" alt="Logo institucional">
+    <div class="mobile-qr-brandcopy">
+      <h1 class="mobile-asistia-wordmark">asistIA</h1>
+      <p class="mobile-qr-title">Asistencia Aspirantes</p>
+      <p class="mobile-qr-subtitle">Escaneo QR</p>
+    </div>
+  </div>
 
-  <h2 id="tenantTituloMovil">XXIV Comandancia Departamental Lima Sur</h2>
-  <h2 id="tenantSubtituloMovil">Incorporación y ESBAS</h2>
-  <p id="tenantCursoMovil">Instrucción ESBAS 2026</p>
+  <div class="mobile-tenant-lines">
+    <p id="tenantTituloMovil" class="mobile-tenant-title">XXIV Comandancia Departamental Lima Sur</p>
+    <p id="tenantSubtituloMovil" class="mobile-tenant-subtitle">Incorporación y ESBAS</p>
+    <p id="tenantCursoMovil" class="mobile-tenant-course">Instrucción ESBAS 2026</p>
+  </div>
 
   <div class="view-switch-wrap">
     <button id="btnForzarDesktop" class="secondary view-switch" onclick="irEscritorioAdmin()">Ver escritorio</button>
     <button id="btnVistaAutoMovil" class="secondary view-switch" onclick="setVistaManual('auto')" title="Automático: usa detección de dispositivo para decidir vista móvil o escritorio.">Automático</button>
   </div>
-
-  <img id="tenantLogoMovil" class="tenant-dynamic-logo" src="/asistIA_logo.png" style="width:108px;height:108px;margin:10px auto;">
 
   <div id="mobileStepIngreso" class="mobile-step">
     <p>Ingresa tu DNI para iniciar</p>
@@ -4043,6 +4139,7 @@ function aplicarTenantEnUI(){
   if(tenantPanelTitulo) tenantPanelTitulo.innerText = `asistIA Panel Administrativo - ${titulo}`
   if(tenantLogoLoginCard) tenantLogoLoginCard.src = logoRuta
   if(tenantLogoMovil) tenantLogoMovil.src = logoRuta
+  if(tenantLogoMovilInicio) tenantLogoMovilInicio.src = logoRuta
   if(tenantLogoFormulario) tenantLogoFormulario.src = logoRuta
   if(tenantLogoPanel) tenantLogoPanel.src = logoRuta
 }
