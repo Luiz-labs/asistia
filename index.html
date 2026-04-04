@@ -3454,7 +3454,9 @@ function esRutaInstitucionalValidaActiva(){
 }
 
 function puedeMostrarAccesoAdminInstitucional(){
-  return esRutaInstitucionalValidaActiva() && !haySesionAdminActiva()
+  return esRutaInstitucionalValidaActiva() &&
+    !haySesionAdminActiva() &&
+    getVistaActiva() === "mobile"
 }
 
 function setMensajeAccesoAdminInstitucional(msg = ""){
