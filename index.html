@@ -57,7 +57,7 @@ h2{
   flex-wrap:wrap;
 }
 
-#infoSesionHeader{
+.info-sesion-header{
   display:none;
   min-width:220px;
   background:#f6f8fd;
@@ -69,11 +69,25 @@ h2{
   color:#2a3a5d;
 }
 
-#infoSesionHeader .session-row{
+.info-sesion-header .session-row{
   display:block;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+}
+
+@media (max-width: 760px){
+  .info-sesion-header{
+    min-width:0;
+    max-width:100%;
+    width:100%;
+    padding:6px 8px;
+    font-size:11px;
+  }
+  .info-sesion-header.compact .session-row{
+    display:inline;
+    white-space:normal;
+  }
 }
 
 .sidebar{
@@ -1556,7 +1570,7 @@ input, select{
       <strong id="tenantPanelTitulo">ESBAS Panel Administrativo</strong>
     </div>
     <div class="header-actions">
-      <div id="infoSesionHeader"></div>
+      <div id="infoSesionHeader" class="info-sesion-header" data-session-info></div>
       <button id="btnInstitucion" onclick="volverSeleccionCliente()" class="secondary">Institución</button>
       <button id="btnVolverLuizLabs" onclick="irPanelPrincipalLuizLabs()" class="secondary" style="display:none;">Panel principal</button>
       <button id="btnForzarMovil" onclick="setVistaManual('mobile')" class="secondary view-switch">Ver móvil</button>
@@ -2031,6 +2045,7 @@ input, select{
       <strong>asistIA - Gestión de Instituciones</strong>
     </div>
     <div class="header-actions">
+      <div id="infoSesionHeaderLuiz" class="info-sesion-header" data-session-info></div>
       <button onclick="logout()" class="secondary">Salir</button>
     </div>
   </div>
@@ -2389,12 +2404,15 @@ function obtenerNombreTenantUI(tenantId){
 }
 
 function renderInfoSesionHeader(){
-  const el = document.getElementById("infoSesionHeader")
-  if(!el) return
+  const nodos = Array.from(document.querySelectorAll("[data-session-info]"))
+  if(!nodos.length) return
 
   if(!haySesionAdminActiva()){
-    el.style.display = "none"
-    el.innerHTML = ""
+    nodos.forEach(el=>{
+      el.style.display = "none"
+      el.innerHTML = ""
+      el.classList.remove("compact")
+    })
     return
   }
 
@@ -2403,13 +2421,22 @@ function renderInfoSesionHeader(){
   const rolUI = obtenerNombreRolUI(sesion.rol)
   const tenantUI = obtenerNombreTenantUI(sesion.tenantId)
   const tenantLinea = sesion.tenantId ? `Accediendo a: ${tenantUI}` : tenantUI
+  const compact = getVistaActiva() === "mobile" || (window.innerWidth || 0) < 760
 
-  el.innerHTML = `
-    <span class="session-row">👤 ${usuario}</span>
-    <span class="session-row">🔐 ${rolUI}</span>
-    <span class="session-row">🏢 ${tenantLinea}</span>
-  `
-  el.style.display = "block"
+  nodos.forEach(el=>{
+    if(compact){
+      el.innerHTML = `<span class="session-row">👤 ${usuario} · 🔐 ${rolUI} · 🏢 ${tenantLinea}</span>`
+      el.classList.add("compact")
+    }else{
+      el.innerHTML = `
+        <span class="session-row">👤 ${usuario}</span>
+        <span class="session-row">🔐 ${rolUI}</span>
+        <span class="session-row">🏢 ${tenantLinea}</span>
+      `
+      el.classList.remove("compact")
+    }
+    el.style.display = "block"
+  })
 }
 
 function actualizarInfoSesionHeader(){
