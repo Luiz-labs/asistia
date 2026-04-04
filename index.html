@@ -476,6 +476,81 @@ input, select{
   transform:translateX(18px);
 }
 
+.luiz-inst-table th.actions-col{
+  text-align:center;
+}
+
+.luiz-inst-table{
+  min-width:1080px;
+}
+
+.luiz-inst-table td{
+  vertical-align:middle;
+}
+
+.luiz-inst-table td.name-col,
+.luiz-inst-table td.slug-col,
+.luiz-inst-table td.status-col,
+.luiz-inst-table td.date-col{
+  white-space:nowrap;
+}
+
+.luiz-inst-table td.name-col{
+  max-width:340px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.luiz-inst-table td.slug-col{
+  max-width:280px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.luiz-inst-table td.date-col{
+  min-width:120px;
+}
+
+.luiz-inst-table td.actions-col{
+  text-align:center;
+}
+
+.luiz-actions{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  flex-wrap:nowrap;
+  white-space:nowrap;
+}
+
+.luiz-actions button{
+  height:30px;
+  padding:0 9px;
+  font-size:11px;
+}
+
+.luiz-actions .icon-btn{
+  width:30px;
+  height:30px;
+  min-width:30px !important;
+}
+
+.luiz-actions .state-toggle{
+  width:42px;
+  min-width:42px !important;
+  height:26px;
+}
+
+.luiz-actions .state-toggle .dot{
+  width:18px;
+  height:18px;
+}
+
+.luiz-actions .state-toggle.active .dot{
+  transform:translateX(16px);
+}
+
 .hint{
   font-size:12px;
   color:var(--muted);
@@ -1853,14 +1928,14 @@ input, select{
       <div class="card" style="margin-bottom:14px;">
         <h2 style="margin-bottom:10px;">Instituciones</h2>
         <div class="table-wrap">
-          <table>
+          <table class="luiz-inst-table">
             <thead>
               <tr>
                 <th>Nombre</th>
                 <th>Slug</th>
                 <th>Estado</th>
                 <th>Fecha</th>
-                <th>Acciones</th>
+                <th class="actions-col">Acciones</th>
               </tr>
             </thead>
             <tbody id="tablaInstitucionesLuiz"></tbody>
@@ -2245,12 +2320,12 @@ function renderPanelLuizLabs(){
         const fecha = String(inst.fecha_creacion || "").slice(0,10)
         html += `
           <tr>
-            <td>${inst.nombre}</td>
-            <td>${inst.slug}</td>
-            <td>${activo ? "Activo" : "Inactivo"}</td>
-            <td>${fecha}</td>
-            <td>
-              <div class="table-actions">
+            <td class="name-col" title="${inst.nombre}">${inst.nombre}</td>
+            <td class="slug-col" title="${inst.slug}">${inst.slug}</td>
+            <td class="status-col">${activo ? "Activo" : "Inactivo"}</td>
+            <td class="date-col">${fecha}</td>
+            <td class="actions-col">
+              <div class="table-actions luiz-actions">
                 <button onclick="ingresarInstitucionLuizLabs('${inst.slug}')">Ingresar</button>
                 <button class="icon-btn" onclick="copiarEnlaceInstitucionLuizLabs('${inst.slug}')" title="Copiar enlace" aria-label="Copiar enlace">
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
