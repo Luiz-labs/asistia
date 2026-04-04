@@ -2205,6 +2205,7 @@ input, select{
 
           <div class="config-row">
             <select id="filtroUboConfig"></select>
+            <input id="filtroTextoRetiro" placeholder="Buscar por DNI o nombre">
             <button onclick="buscarAspirantes()">Buscar</button>
             <button class="secondary" onclick="limpiarRetiro()">Limpiar</button>
           </div>
@@ -2220,6 +2221,7 @@ input, select{
 
           <div class="config-row"> 
             <select id="filtroRetirados"></select>
+            <input id="filtroTextoRetirados" placeholder="Buscar por DNI o nombre">
             <button onclick="cargarRetirados()">Buscar</button>
             <button class="secondary" onclick="limpiarRetirados()">Limpiar</button>
           </div>
@@ -6469,6 +6471,7 @@ function verUbo(ubo){
 async function buscarAspirantes(){
 
   const ubo = filtroUboConfig.value
+  const texto = String(filtroTextoRetiro?.value || "").trim().toLowerCase()
 
   const { data } = await withTenantScope(supabaseClient
     .from("asistencias")
@@ -6479,10 +6482,15 @@ async function buscarAspirantes(){
 
   ;(scopedData || []).forEach(a=>{
     const dni = String(a?.dni || "").trim()
+    const nombre = String(a?.nombre || "").trim()
+    const matchTexto = !texto ||
+      dni.toLowerCase().includes(texto) ||
+      nombre.toLowerCase().includes(texto)
+    if(!matchTexto) return
     if(!dni || dedupe.has(dni)) return
     dedupe.set(dni, {
       dni,
-      nombre: String(a?.nombre || "").trim() || "Sin nombre",
+      nombre: nombre || "Sin nombre",
       ubo: String(a?.ubo || "").trim()
     })
   })
@@ -6546,6 +6554,7 @@ function mostrarVista(vista){
 
   if(vista==="config"){
     document.getElementById("vistaConfig").style.display="block"
+    cargarUbos()
     cargarConfigCurso()
     cargarAspirantesCargados()
   }
@@ -7183,6 +7192,7 @@ function limpiarDashboard(){
 
 function limpiarRetiro(){
   filtroUboConfig.value=""
+  if(filtroTextoRetiro) filtroTextoRetiro.value = ""
   listaAspirantes.innerHTML=""
 }
 
@@ -7223,6 +7233,7 @@ async function limpiarCurso(){
 async function cargarRetirados(){
 
   const ubo = filtroRetirados.value
+  const texto = String(filtroTextoRetirados?.value || "").trim().toLowerCase()
 
   let q = withTenantScope(supabaseClient
     .from("asistencias")
@@ -7235,10 +7246,26 @@ async function cargarRetirados(){
 
   const { data } = await q
   const scopedData = filtrarDataTenantActivo(data)
+  const dedupe = new Map()
+
+  ;(scopedData || []).forEach(a=>{
+    const dni = String(a?.dni || "").trim()
+    const nombre = String(a?.nombre || "").trim()
+    const matchTexto = !texto ||
+      dni.toLowerCase().includes(texto) ||
+      nombre.toLowerCase().includes(texto)
+    if(!matchTexto) return
+    if(!dni || dedupe.has(dni)) return
+    dedupe.set(dni, {
+      dni,
+      nombre: nombre || "Sin nombre",
+      ubo: String(a?.ubo || "").trim()
+    })
+  })
 
   let html=""
 
-  scopedData.forEach(a=>{
+  Array.from(dedupe.values()).forEach(a=>{
     html += `
       <p style="display:flex; justify-content:space-between; align-items:center;">
         <span>${a.nombre} (${a.dni}) - UBO ${a.ubo}</span>
@@ -7247,11 +7274,12 @@ async function cargarRetirados(){
     `
   })
 
-  listaRetirados.innerHTML = html
+  listaRetirados.innerHTML = html || `<p class="hint">No hay aspirantes retirados para el filtro seleccionado.</p>`
 }
 
 function limpiarRetirados(){
   filtroRetirados.value=""
+  if(filtroTextoRetirados) filtroTextoRetirados.value = ""
   listaRetirados.innerHTML=""
 }
 
