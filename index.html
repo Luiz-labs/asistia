@@ -65,103 +65,113 @@ h2{
   min-width:0;
 }
 
-.info-sesion-header{
-  display:none;
-  min-width:0;
-  max-width:380px;
-  height:42px;
-  align-items:center;
-  gap:8px;
-  background:#f3f6fb;
-  border:1px solid #d7e0ef;
-  border-radius:12px;
-  padding:0 12px;
-  color:#2b3a5c;
-  box-shadow:0 2px 8px rgba(20, 40, 80, 0.06);
-}
-
-.info-sesion-header .session-row{
-  display:inline-flex;
-  align-items:center;
-  gap:4px;
-  max-width:150px;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  font-size:12px;
-  font-weight:500;
-  color:#44557a;
-}
-
-.info-sesion-header .session-row strong{
-  font-weight:600;
-  color:#25365d;
-}
-
-.info-sesion-header .session-sep{
-  color:#98a8c8;
-  font-size:11px;
-  opacity:0.9;
-}
-
-.info-sesion-sidebar{
-  display:flex;
-  flex-direction:column;
-  align-items:stretch;
+.sidebar-account-btn{
   width:100%;
-  max-width:none;
-  height:auto;
-  margin:0 0 14px;
-  padding:10px 11px;
-  border-radius:14px;
-  background:linear-gradient(180deg, #f8fbff 0%, #f1f5fc 100%);
-  border:1px solid #d9e2f1;
+  justify-content:flex-start;
+  gap:8px;
+  padding:0 12px;
+  margin:0 0 12px;
+  border-radius:12px;
+  background:#eef3fb;
+  color:#22345b;
+  border:1px solid #d7e1f2;
+  box-shadow:none;
 }
 
-.info-sesion-sidebar .session-row{
-  max-width:none;
+.sidebar-account-btn:hover{
+  filter:none;
+  transform:none;
+  background:#e8eef9;
+}
+
+.cuenta-modal{
+  position:fixed;
+  inset:0;
+  z-index:1200;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(11, 22, 45, 0.28);
+  backdrop-filter:blur(3px);
+}
+
+.cuenta-modal-card{
+  width:min(92vw, 420px);
+  background:#fff;
+  border:1px solid #d7e1f2;
+  border-radius:16px;
+  box-shadow:0 24px 50px rgba(20, 42, 80, 0.2), 0 8px 20px rgba(20, 42, 80, 0.12);
+  padding:14px;
+}
+
+.cuenta-modal-head{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  white-space:normal;
-  overflow:visible;
-  text-overflow:clip;
-  margin:2px 0;
+  margin-bottom:10px;
 }
 
-.info-sesion-sidebar .session-key{
-  font-size:11px;
-  color:#6a7b9f;
+.cuenta-modal-title{
+  font-size:15px;
+  font-weight:700;
+  color:#20325a;
+}
+
+.cuenta-modal-close{
+  min-width:auto;
+  width:32px;
+  height:32px;
+  border-radius:10px;
+  padding:0;
+  background:#eef2f9;
+  color:#233252;
+  box-shadow:none;
+  font-size:19px;
+  line-height:1;
+}
+
+.cuenta-modal-close:hover{
+  filter:none;
+  transform:none;
+  background:#e7edf7;
+}
+
+.cuenta-modal-body{
+  display:grid;
+  gap:8px;
+}
+
+.cuenta-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  border:1px solid #e3e9f5;
+  background:#f8faff;
+  border-radius:11px;
+  padding:9px 10px;
+}
+
+.cuenta-key{
+  color:#66799f;
+  font-size:12px;
   font-weight:600;
-  letter-spacing:0.1px;
 }
 
-.info-sesion-sidebar .session-sep{
-  display:none;
+.cuenta-value{
+  color:#253b66;
+  font-size:15px;
+  font-weight:700;
+  text-align:right;
 }
 
 @media (max-width: 760px){
-  .info-sesion-header{
-    min-width:0;
-    max-width:100%;
-    width:100%;
-    height:auto;
-    padding:6px 8px;
-    font-size:11px;
-    gap:6px;
+  .cuenta-modal-card{
+    width:min(94vw, 380px);
+    padding:12px;
   }
-  .info-sesion-header.compact .session-row{
-    display:inline-flex;
-    white-space:normal;
-    max-width:none;
-  }
-  .info-sesion-header .session-sep{
-    display:none;
-  }
-
-  .info-sesion-sidebar{
-    padding:8px 9px;
-    margin-bottom:10px;
+  .cuenta-value{
+    font-size:14px;
   }
 }
 
@@ -1636,6 +1646,16 @@ input, select{
   </div>
 </div>
 
+<div id="cuentaModal" class="cuenta-modal" aria-hidden="true" onclick="cerrarCuentaModalPorBackdrop(event)">
+  <div class="cuenta-modal-card" role="dialog" aria-modal="true" aria-label="Detalle de cuenta">
+    <div class="cuenta-modal-head">
+      <span class="cuenta-modal-title">Cuenta</span>
+      <button class="cuenta-modal-close" onclick="cerrarCuentaModal()" aria-label="Cerrar detalle de cuenta">×</button>
+    </div>
+    <div id="cuentaModalBody" class="cuenta-modal-body"></div>
+  </div>
+</div>
+
 <!-- 💻 ADMIN (TU PANEL ORIGINAL) -->
 <div id="vistaDesktop" style="display:none;">
 
@@ -1656,7 +1676,7 @@ input, select{
   <div style="display:flex;min-height:calc(100vh - 60px);">
 
     <div class="sidebar">
-      <div id="infoSesionSidebarAdmin" class="info-sesion-header info-sesion-sidebar" data-session-info></div>
+      <button class="sidebar-account-btn secondary" onclick="abrirCuentaModal()" style="display:none;" data-account-btn>👤 Cuenta</button>
       <p id="navReportes" class="nav-item active" data-view="reportes" onclick="mostrarVista('reportes')">📄 Reportes</p>
       <p id="navDashboard" class="nav-item" data-view="dashboard" onclick="mostrarVista('dashboard')">📊 Dashboard</p>
       <p id="navConfig" class="nav-item" data-view="config" onclick="mostrarVista('config')">⚙️ Configuración</p>
@@ -2126,7 +2146,7 @@ input, select{
 
   <div style="display:flex;min-height:calc(100vh - 60px);">
     <div class="sidebar">
-      <div id="infoSesionSidebarLuiz" class="info-sesion-header info-sesion-sidebar" data-session-info></div>
+      <button class="sidebar-account-btn secondary" onclick="abrirCuentaModal()" style="display:none;" data-account-btn>👤 Cuenta</button>
       <p class="nav-item active">🏢 Instituciones</p>
       <p class="hint" style="padding:0 8px;">Próximamente: Usuarios y métricas</p>
     </div>
@@ -2478,16 +2498,17 @@ function obtenerNombreTenantUI(tenantId){
   return tenant?.nombre || id
 }
 
-function renderInfoSesionHeader(){
-  const nodos = Array.from(document.querySelectorAll("[data-session-info]"))
-  if(!nodos.length) return
+function actualizarBotonCuentaSidebar(){
+  const mostrar = haySesionAdminActiva()
+  document.querySelectorAll("[data-account-btn]").forEach(el=>{
+    el.style.display = mostrar ? "inline-flex" : "none"
+  })
+}
 
+function renderCuentaModalDetalle(){
+  if(!cuentaModalBody) return
   if(!haySesionAdminActiva()){
-    nodos.forEach(el=>{
-      el.style.display = "none"
-      el.innerHTML = ""
-      el.classList.remove("compact")
-    })
+    cuentaModalBody.innerHTML = `<p class="hint">Sin sesión activa.</p>`
     return
   }
 
@@ -2495,35 +2516,48 @@ function renderInfoSesionHeader(){
   const usuario = String(sesion.usuario || "").trim() || "-"
   const rolUI = obtenerNombreRolUI(sesion.rol)
   const tenantUI = obtenerNombreTenantUI(sesion.tenantId)
-  const tenantLinea = tenantUI
-  const compact = getVistaActiva() === "mobile" || (window.innerWidth || 0) < 760
 
-  nodos.forEach(el=>{
-    const enSidebar = el.classList.contains("info-sesion-sidebar")
-    if(enSidebar){
-      el.innerHTML = `
-        <span class="session-row"><span class="session-key">👤 Usuario</span><strong>${usuario}</strong></span>
-        <span class="session-row"><span class="session-key">🔐 Rol</span><strong>${rolUI}</strong></span>
-        <span class="session-row"><span class="session-key">🏢 Entorno</span><strong>${tenantLinea}</strong></span>
-      `
-      el.classList.remove("compact")
-      el.style.display = "flex"
-    }else if(compact){
-      el.innerHTML = `<span class="session-row">👤 <strong>${usuario}</strong> · 🔐 <strong>${rolUI}</strong> · 🏢 <strong>${tenantLinea}</strong></span>`
-      el.classList.add("compact")
-      el.style.display = "inline-flex"
-    }else{
-      el.innerHTML = `
-        <span class="session-row" title="Usuario activo">👤 <strong>${usuario}</strong></span>
-        <span class="session-sep">|</span>
-        <span class="session-row" title="Rol activo">🔐 <strong>${rolUI}</strong></span>
-        <span class="session-sep">|</span>
-        <span class="session-row" title="Institución activa">🏢 <strong>${tenantLinea}</strong></span>
-      `
-      el.classList.remove("compact")
-      el.style.display = "inline-flex"
-    }
-  })
+  cuentaModalBody.innerHTML = `
+    <div class="cuenta-row">
+      <span class="cuenta-key">👤 Usuario</span>
+      <span class="cuenta-value">${usuario}</span>
+    </div>
+    <div class="cuenta-row">
+      <span class="cuenta-key">🔐 Rol</span>
+      <span class="cuenta-value">${rolUI}</span>
+    </div>
+    <div class="cuenta-row">
+      <span class="cuenta-key">🏢 Entorno</span>
+      <span class="cuenta-value">${tenantUI}</span>
+    </div>
+  `
+}
+
+function abrirCuentaModal(){
+  if(!haySesionAdminActiva()) return
+  renderCuentaModalDetalle()
+  if(!cuentaModal) return
+  cuentaModal.style.display = "flex"
+  cuentaModal.setAttribute("aria-hidden", "false")
+}
+
+function cerrarCuentaModal(){
+  if(!cuentaModal) return
+  cuentaModal.style.display = "none"
+  cuentaModal.setAttribute("aria-hidden", "true")
+}
+
+function cerrarCuentaModalPorBackdrop(e){
+  if(e?.target?.id === "cuentaModal"){
+    cerrarCuentaModal()
+  }
+}
+
+function renderInfoSesionHeader(){
+  actualizarBotonCuentaSidebar()
+  if(cuentaModal?.style?.display === "flex"){
+    renderCuentaModalDetalle()
+  }
 }
 
 function actualizarInfoSesionHeader(){
@@ -5958,6 +5992,8 @@ function cerrarModal(){
 document.addEventListener("keydown", e=>{
   if(e.key==="Escape"){
     cerrarModal()
+    cerrarCuentaModal()
+    cerrarAccesoAdminInstitucional()
   }
 })
 
