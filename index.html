@@ -2050,6 +2050,51 @@ input, select{
         </div>
       </div>
 
+      <div class="card" style="margin-bottom:14px;">
+        <h2 style="margin-bottom:10px;">Usuarios asistIA (globales)</h2>
+        <div class="config-grid" style="margin-bottom:10px;">
+          <div>
+            <label for="luizGlobalUserNombre">Usuario</label>
+            <input id="luizGlobalUserNombre" placeholder="superusuario">
+          </div>
+          <div>
+            <label for="luizGlobalUserRol">Rol</label>
+            <select id="luizGlobalUserRol">
+              <option value="superusuario">Superusuario</option>
+            </select>
+          </div>
+          <div>
+            <label for="luizGlobalUserPass">Clave</label>
+            <input id="luizGlobalUserPass" placeholder="Clave global">
+          </div>
+        </div>
+        <div class="table-actions" style="margin-bottom:10px;">
+          <button onclick="guardarUsuarioGlobalLuiz()">Guardar usuario global</button>
+          <button class="secondary" onclick="generarClaveUsuarioGlobalLuiz()">Generar clave</button>
+          <button class="icon-btn" onclick="copiarClaveUsuarioGlobalLuiz()" title="Copiar clave global" aria-label="Copiar clave global">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="9" y="3" width="11" height="14" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
+              <rect x="4" y="8" width="11" height="13" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
+            </svg>
+          </button>
+          <button class="secondary" onclick="limpiarUsuarioGlobalLuizForm()">Limpiar</button>
+        </div>
+        <div class="table-wrap">
+          <table class="luiz-users-table">
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Rol</th>
+                <th>Estado</th>
+                <th>Fecha</th>
+                <th class="actions-col">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tablaUsuariosGlobalLuiz"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="card">
         <h2 style="margin-bottom:10px;">Usuarios admin por institución</h2>
         <div class="config-grid" style="margin-bottom:10px;">
@@ -2170,6 +2215,7 @@ let sesionAdminActiva = crearSesionAdminVacia()
 let institucionesLuiz = []
 let usuariosAdminLuiz = []
 let editUsuarioLuizIndex = -1
+let editUsuarioGlobalLuizIndex = -1
 const SYSTEM_USERS = [
   { nombre: "Administrador Principal", usuario: "llecaros", rol: "administrador", system: true }
 ]
@@ -2451,6 +2497,35 @@ function esUsuarioProtegidoLuiz(usuario){
   return user === "llecaros" || user === "llecarosd"
 }
 
+function esUsuarioGlobalAsistIA(user){
+  if(!user) return false
+  const rol = normalizarRolUsuario(user.rol || "")
+  if(rol === ROLES_ADMIN.SUPERUSUARIO) return true
+  return !String(user.tenantId || "").trim()
+}
+
+function esUsuarioInstitucionalLuiz(user){
+  if(!user) return false
+  const rol = normalizarRolUsuario(user.rol || "")
+  return rol === ROLES_ADMIN.ADMINISTRADOR && !!String(user.tenantId || "").trim()
+}
+
+function asegurarUsuariosGlobalesLegacy(){
+  const legacy = ["llecaros", "llecarosd"]
+  legacy.forEach(usuario=>{
+    const existe = (usuariosAdminLuiz || []).some(u=>String(u.usuario || "").toLowerCase() === usuario)
+    if(existe) return
+    usuariosAdminLuiz.push({
+      usuario,
+      password: "1234",
+      rol: ROLES_ADMIN.SUPERUSUARIO,
+      tenantId: "",
+      estado: "activo",
+      fecha_creacion: new Date().toISOString()
+    })
+  })
+}
+
 function obtenerTenantAsignadoUsuario(usuario){
   const user = String(usuario || "").trim().toLowerCase()
   const match = (usuariosAdminLuiz || []).find(u=>String(u.usuario || "").toLowerCase() === user)
@@ -2497,6 +2572,7 @@ function cargarLuizLabsDesdeStorage(){
     fecha_creacion: inst.fecha_creacion || new Date().toISOString()
   })).filter(inst=>inst.slug && inst.nombre)
 
+  asegurarUsuariosGlobalesLegacy()
   migrarLogosInstitucionalesBase()
   sincronizarTenantsDesdeInstituciones()
   guardarLuizLabsEnStorage()
@@ -2538,10 +2614,11 @@ function obtenerInstitucionLuiz(tenantId){
 
 function renderPanelLuizLabs(){
   const tablaInst = document.getElementById("tablaInstitucionesLuiz")
+  const tablaGlobal = document.getElementById("tablaUsuariosGlobalLuiz")
   const tablaUsers = document.getElementById("tablaUsuariosAdminLuiz")
   const elTenant = document.getElementById("luizUserTenant")
   const tenantPrevio = elTenant?.value || ""
-  if(!tablaInst || !tablaUsers) return
+  if(!tablaInst || !tablaUsers || !tablaGlobal) return
 
   if(elTenant){
     const institucionesActivas = institucionesLuiz.filter(i=>i.estado === "activo")
@@ -2597,9 +2674,52 @@ function renderPanelLuizLabs(){
     tablaInst.innerHTML = html
   }
 
+  const usuariosGlobales = (usuariosAdminLuiz || [])
+    .map((u, idx)=>({ u, idx }))
+    .filter(({ u })=>esUsuarioGlobalAsistIA(u))
+
+  if(!usuariosGlobales.length){
+    tablaGlobal.innerHTML = `<tr><td colspan="5">Sin usuarios globales.</td></tr>`
+  }else{
+    let globalHtml = ""
+    usuariosGlobales.forEach(({ u, idx })=>{
+      const estadoUser = u.estado === "activo"
+      const fechaUser = String(u.fecha_creacion || "").slice(0,10)
+      const protegido = esUsuarioProtegidoLuiz(u.usuario)
+      globalHtml += `
+        <tr>
+          <td>${u.usuario || ""}${protegido ? ` <span class="tag-system">LEGACY</span>` : ""}</td>
+          <td>${normalizarRolUsuario(u.rol)}</td>
+          <td>${estadoUser ? "Activo" : "Inactivo"}</td>
+          <td>${fechaUser}</td>
+          <td class="actions-col">
+            <div class="table-actions luiz-actions">
+              ${protegido
+                ? `<span class="hint">Protegido</span>`
+                : `
+                  <button onclick="editarUsuarioGlobalLuiz(${idx})">Editar</button>
+                  <button class="secondary" onclick="regenerarClaveUsuarioAdminLuiz(${idx})" title="Regenerar clave temporal">Reset</button>
+                  <button
+                    class="state-toggle ${estadoUser ? "active" : ""}"
+                    onclick="toggleEstadoUsuarioGlobalLuiz(${idx})"
+                    title="${estadoUser ? "Desactivar usuario" : "Activar usuario"}"
+                    aria-label="${estadoUser ? "Desactivar usuario" : "Activar usuario"}">
+                    <span class="dot"></span>
+                  </button>
+                  <button class="secondary" onclick="eliminarUsuarioGlobalLuiz(${idx})">Eliminar</button>
+                `
+              }
+            </div>
+          </td>
+        </tr>
+      `
+    })
+    tablaGlobal.innerHTML = globalHtml
+  }
+
   const usuariosInstitucionales = (usuariosAdminLuiz || [])
     .map((u, idx)=>({ u, idx }))
-    .filter(({ u })=>normalizarRolUsuario(u.rol) !== ROLES_ADMIN.SUPERUSUARIO)
+    .filter(({ u })=>esUsuarioInstitucionalLuiz(u))
 
   if(!usuariosInstitucionales.length){
     tablaUsers.innerHTML = `<tr><td colspan="6">Sin usuarios admin.</td></tr>`
@@ -2854,6 +2974,7 @@ function regenerarClaveUsuarioAdminLuiz(idx){
   if(!puedeEntrarPanelLuizLabs()) return
   const user = usuariosAdminLuiz[idx]
   if(!user) return
+  if(!esUsuarioInstitucionalLuiz(user) && !esUsuarioGlobalAsistIA(user)) return
   if(esUsuarioProtegidoLuiz(user.usuario)){
     alert("El usuario legacy está protegido y no se puede modificar aquí.")
     return
@@ -2873,6 +2994,7 @@ function toggleEstadoUsuarioAdminLuiz(idx){
   if(!puedeEntrarPanelLuizLabs()) return
   const user = usuariosAdminLuiz[idx]
   if(!user) return
+  if(!esUsuarioInstitucionalLuiz(user)) return
   if(esUsuarioProtegidoLuiz(user.usuario)){
     alert("El usuario legacy está protegido y no se puede modificar aquí.")
     return
@@ -2886,6 +3008,7 @@ function eliminarUsuarioAdminLuiz(idx){
   if(!puedeEntrarPanelLuizLabs()) return
   const user = usuariosAdminLuiz[idx]
   if(!user) return
+  if(!esUsuarioInstitucionalLuiz(user)) return
   if(esUsuarioProtegidoLuiz(user.usuario)){
     alert("El usuario legacy está protegido y no se puede eliminar.")
     return
@@ -2895,6 +3018,144 @@ function eliminarUsuarioAdminLuiz(idx){
   usuariosAdminLuiz.splice(idx, 1)
   guardarLuizLabsEnStorage()
   renderPanelLuizLabs()
+}
+
+function limpiarUsuarioGlobalLuizForm(){
+  editUsuarioGlobalLuizIndex = -1
+  if(luizGlobalUserNombre) luizGlobalUserNombre.value = ""
+  if(luizGlobalUserRol) luizGlobalUserRol.value = ROLES_ADMIN.SUPERUSUARIO
+  if(luizGlobalUserPass) luizGlobalUserPass.value = ""
+}
+
+function generarClaveUsuarioGlobalLuiz(){
+  if(!luizGlobalUserPass) return
+  luizGlobalUserPass.value = generarClaveTemporal(8)
+}
+
+async function copiarClaveUsuarioGlobalLuiz(){
+  const clave = String(luizGlobalUserPass?.value || "").trim()
+  if(!clave){
+    alert("No hay clave global para copiar.")
+    return
+  }
+  try{
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(clave)
+      alert("Clave global copiada.")
+      return
+    }
+  }catch(e){
+    console.warn("No se pudo copiar clave global:", e)
+  }
+  const soporte = window.prompt("Copia esta clave:", clave)
+  if(soporte !== null){
+    alert("Clave lista para copiar.")
+  }
+}
+
+function editarUsuarioGlobalLuiz(idx){
+  if(!puedeEntrarPanelLuizLabs()) return
+  const user = usuariosAdminLuiz[idx]
+  if(!user || !esUsuarioGlobalAsistIA(user)) return
+  if(esUsuarioProtegidoLuiz(user.usuario)){
+    alert("Usuario legacy protegido.")
+    return
+  }
+
+  editUsuarioGlobalLuizIndex = idx
+  if(luizGlobalUserNombre) luizGlobalUserNombre.value = user.usuario || ""
+  if(luizGlobalUserRol) luizGlobalUserRol.value = ROLES_ADMIN.SUPERUSUARIO
+  if(luizGlobalUserPass) luizGlobalUserPass.value = user.password || ""
+}
+
+function toggleEstadoUsuarioGlobalLuiz(idx){
+  if(!puedeEntrarPanelLuizLabs()) return
+  const user = usuariosAdminLuiz[idx]
+  if(!user || !esUsuarioGlobalAsistIA(user)) return
+  if(esUsuarioProtegidoLuiz(user.usuario)){
+    alert("El usuario legacy está protegido y no se puede modificar aquí.")
+    return
+  }
+  user.estado = user.estado === "activo" ? "inactivo" : "activo"
+  guardarLuizLabsEnStorage()
+  renderPanelLuizLabs()
+}
+
+function eliminarUsuarioGlobalLuiz(idx){
+  if(!puedeEntrarPanelLuizLabs()) return
+  const user = usuariosAdminLuiz[idx]
+  if(!user || !esUsuarioGlobalAsistIA(user)) return
+  if(esUsuarioProtegidoLuiz(user.usuario)){
+    alert("El usuario legacy está protegido y no se puede eliminar.")
+    return
+  }
+  const ok = confirm(`¿Eliminar usuario global "${user.usuario}"?`)
+  if(!ok) return
+  usuariosAdminLuiz.splice(idx, 1)
+  guardarLuizLabsEnStorage()
+  renderPanelLuizLabs()
+}
+
+function guardarUsuarioGlobalLuiz(){
+  if(!puedeEntrarPanelLuizLabs()) return
+  const usuario = String(luizGlobalUserNombre?.value || "").trim().toLowerCase()
+  const rol = normalizarRolUsuario(luizGlobalUserRol?.value || ROLES_ADMIN.SUPERUSUARIO)
+  const password = String(luizGlobalUserPass?.value || "").trim()
+
+  if(!usuario || !password){
+    alert("Completa usuario y clave global.")
+    return
+  }
+  if(rol !== ROLES_ADMIN.SUPERUSUARIO){
+    alert("En esta sección solo se gestionan superusuarios globales.")
+    return
+  }
+  if(esUsuarioProtegidoLuiz(usuario)){
+    alert("El usuario legacy está protegido y no se gestiona desde aquí.")
+    return
+  }
+  const usuarioSupabase = (usuariosAdmin || []).some(u=>String(u.usuario || "").toLowerCase() === usuario)
+  if(usuarioSupabase){
+    alert("Ese usuario ya existe en el panel de usuarios.")
+    return
+  }
+
+  if(editUsuarioGlobalLuizIndex >= 0){
+    const actual = usuariosAdminLuiz[editUsuarioGlobalLuizIndex]
+    if(!actual || !esUsuarioGlobalAsistIA(actual)){
+      limpiarUsuarioGlobalLuizForm()
+      return
+    }
+    const duplicado = usuariosAdminLuiz.some((u, i)=>i !== editUsuarioGlobalLuizIndex && String(u.usuario || "").toLowerCase() === usuario)
+    if(duplicado){
+      alert("Ya existe un usuario con ese nombre.")
+      return
+    }
+    actual.usuario = usuario
+    actual.password = password
+    actual.rol = ROLES_ADMIN.SUPERUSUARIO
+    actual.tenantId = ""
+    if(!actual.fecha_creacion) actual.fecha_creacion = new Date().toISOString()
+    if(!actual.estado) actual.estado = "activo"
+  }else{
+    const existe = usuariosAdminLuiz.some(u=>String(u.usuario || "").toLowerCase() === usuario)
+    if(existe){
+      alert("Ese usuario ya existe.")
+      return
+    }
+    usuariosAdminLuiz.push({
+      usuario,
+      password,
+      rol: ROLES_ADMIN.SUPERUSUARIO,
+      tenantId: "",
+      estado: "activo",
+      fecha_creacion: new Date().toISOString()
+    })
+  }
+
+  guardarLuizLabsEnStorage()
+  renderPanelLuizLabs()
+  limpiarUsuarioGlobalLuizForm()
 }
 
 function limpiarUsuarioAdminLuizForm(){
@@ -2935,6 +3196,7 @@ function editarUsuarioAdminLuiz(idx){
   if(!puedeEntrarPanelLuizLabs()) return
   const user = usuariosAdminLuiz[idx]
   if(!user) return
+  if(!esUsuarioInstitucionalLuiz(user)) return
   if(esUsuarioProtegidoLuiz(user.usuario)){
     alert("El usuario legacy está protegido y no se edita desde este módulo.")
     return
