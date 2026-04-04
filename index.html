@@ -710,6 +710,24 @@ input, select{
   padding:16px !important;
 }
 
+#formulario .form-header{
+  margin-bottom:14px;
+}
+
+#formulario .form-header img{
+  width:74px;
+  margin:0 auto 8px;
+  display:block;
+}
+
+#formulario .form-header h3{
+  margin:0;
+  font-family:"Outfit","Sora","Avenir Next","Nunito Sans",sans-serif;
+  font-size:20px;
+  line-height:1.2;
+  color:#1a2e57;
+}
+
 #formulario input{
   width:100%;
   margin-bottom:10px;
@@ -858,7 +876,7 @@ input, select{
 }
 
 #vistaMovil .view-switch-wrap{
-  display:flex;
+  display:none;
   gap:8px;
   justify-content:center;
   margin:8px 0 4px;
@@ -870,6 +888,12 @@ input, select{
   min-width:130px;
   min-height:40px;
   font-size:13px;
+}
+
+@media (min-width: 901px){
+  #vistaMovil .view-switch-wrap{
+    display:flex;
+  }
 }
 
 .tenant-screen{
@@ -1231,6 +1255,10 @@ input, select{
 
 <!-- FORMULARIO -->
 <div id="formulario" style="display:none;padding:20px;text-align:center;">
+  <div class="form-header">
+    <img src="/logo.png" alt="Logo de la comandancia">
+    <h3>Registro de Asistencia de Aspirantes</h3>
+  </div>
 
   <input id="nombres" placeholder="Nombres">
   <input id="apellidos" placeholder="Apellidos">
