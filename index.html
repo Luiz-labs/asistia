@@ -474,6 +474,28 @@ input, select{
   align-items:center;
 }
 
+.gps-upload-hint{
+  margin-top:4px;
+  margin-bottom:10px;
+}
+
+.gps-toggle-label{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  font-size:18px;
+  font-weight:500;
+  color:#1f2d49;
+  line-height:1.2;
+}
+
+.gps-toggle-label input[type="checkbox"]{
+  width:26px;
+  height:26px;
+  margin:0;
+  transform:translateY(-1px);
+}
+
 .file-upload-row input[type="file"]{
   height:42px;
   padding:8px 10px;
@@ -2131,11 +2153,11 @@ input, select{
         <!-- GPS -->
         <div class="card config-card">
           <h3>GPS</h3>
-          <label>
+          <div class="hint gps-upload-hint">Carga masiva de coordenadas UBO (columnas: <strong>UBO, LATITUD, LONGITUD</strong>. Opcional: <strong>NOMBRE</strong>).</div>
+          <label class="gps-toggle-label">
             <input type="checkbox" id="toggleGPS">
             Activar validación GPS (Proximamente)
           </label>
-          <div class="hint" style="margin-top:12px;">Carga masiva de coordenadas UBO (columnas: <strong>UBO, LATITUD, LONGITUD</strong>. Opcional: <strong>NOMBRE</strong>).</div>
           <div class="config-row file-upload-row" style="margin-top:10px;">
             <input type="file" id="archivoUbosSedes" accept=".xlsx,.xls,.csv">
             <button onclick="cargarExcelUbosSedes()">Subir Coordenadas</button>
