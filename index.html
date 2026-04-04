@@ -2109,6 +2109,10 @@ function mapearUsuariosBaseDesdeTenants(){
   return items
 }
 
+function esTenantProtegido(slug){
+  return slug === "esbas-24" || slug === "bomberos-lurin-129"
+}
+
 function cargarLuizLabsDesdeStorage(){
   try{
     const raw = localStorage.getItem(LUIZLABS_STORE_KEY)
@@ -2188,8 +2192,11 @@ function renderPanelLuizLabs(){
             <td>${fecha}</td>
             <td>
               <div class="table-actions">
+                <button onclick="ingresarInstitucionLuizLabs('${inst.slug}')">Ingresar</button>
+                <button class="secondary" onclick="copiarEnlaceInstitucionLuizLabs('${inst.slug}')">Copiar enlace</button>
                 <button onclick="editarInstitucionLuizLabs('${inst.id}')">Editar</button>
                 <button class="secondary" onclick="toggleEstadoInstitucionLuizLabs('${inst.id}')">${activo ? "Desactivar" : "Activar"}</button>
+                <button class="secondary" onclick="eliminarInstitucionLuizLabs('${inst.id}')">Eliminar</button>
               </div>
             </td>
           </tr>
@@ -2285,6 +2292,76 @@ function toggleEstadoInstitucionLuizLabs(id){
   if(!inst) return
   inst.estado = inst.estado === "activo" ? "inactivo" : "activo"
   sincronizarTenantsDesdeInstituciones()
+  guardarLuizLabsEnStorage()
+  renderTenantSelector()
+  renderPanelLuizLabs()
+}
+
+function ingresarInstitucionLuizLabs(slug){
+  if(!puedeEntrarPanelLuizLabs()) return
+  const inst = institucionesLuiz.find(x=>x.slug === slug)
+  if(!inst){
+    alert("Institución no encontrada.")
+    return
+  }
+  if(inst.estado !== "activo"){
+    alert("La institución está inactiva. Actívala antes de ingresar.")
+    return
+  }
+  window.location.href = obtenerRutaTenant(slug)
+}
+
+async function copiarEnlaceInstitucionLuizLabs(slug){
+  if(!puedeEntrarPanelLuizLabs()) return
+  const ruta = obtenerRutaTenant(slug)
+  const url = `${window.location.origin}${ruta}`
+
+  try{
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(url)
+      alert(`Enlace copiado:\n${url}`)
+      return
+    }
+  }catch(e){
+    console.warn("No se pudo copiar usando clipboard API:", e)
+  }
+
+  const soporte = window.prompt("Copia este enlace:", url)
+  if(soporte !== null){
+    alert("Enlace listo para copiar.")
+  }
+}
+
+function eliminarInstitucionLuizLabs(id){
+  if(!puedeEntrarPanelLuizLabs()) return
+  const idx = institucionesLuiz.findIndex(x=>x.id === id)
+  if(idx < 0) return
+  const inst = institucionesLuiz[idx]
+
+  if(esTenantProtegido(inst.slug)){
+    alert("Esta institución está protegida y no puede eliminarse.")
+    return
+  }
+
+  if(inst.estado !== "inactivo"){
+    alert("Primero desactiva la institución para poder eliminarla.")
+    return
+  }
+
+  const ok = confirm(
+    `¿Eliminar definitivamente la institución "${inst.nombre}"?\n` +
+    `Esta acción también eliminará su usuario admin asociado.`
+  )
+  if(!ok) return
+
+  institucionesLuiz.splice(idx, 1)
+  usuariosAdminLuiz = usuariosAdminLuiz.filter(u=>u.tenantId !== inst.slug)
+
+  const idxTenant = TENANTS.findIndex(t=>t.id === inst.slug)
+  if(idxTenant >= 0){
+    TENANTS.splice(idxTenant, 1)
+  }
+
   guardarLuizLabsEnStorage()
   renderTenantSelector()
   renderPanelLuizLabs()
