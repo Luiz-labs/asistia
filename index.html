@@ -2183,131 +2183,135 @@ input, select{
   <div style="display:flex;min-height:calc(100vh - 60px);">
     <div class="sidebar">
       <button class="sidebar-account-btn secondary" onclick="abrirCuentaModal()" style="display:none;" data-account-btn>👤 Cuenta</button>
-      <p class="nav-item active">🏢 Instituciones</p>
-      <p class="hint" style="padding:0 8px;">Próximamente: Usuarios y métricas</p>
+      <p id="luizNavInstituciones" class="nav-item active" onclick="mostrarVistaLuizLabs('instituciones')">🏢 Instituciones</p>
+      <p id="luizNavUsuarios" class="nav-item" onclick="mostrarVistaLuizLabs('usuarios')">👥 Usuarios</p>
     </div>
 
     <div style="flex:1;padding:20px;">
-      <div class="card" style="margin-bottom:14px;">
-        <h2 style="margin-bottom:10px;">Nueva institución</h2>
-        <div class="filtros luiz-inst-create-row">
-          <input id="luizInstNombre" placeholder="Nombre de institución" style="min-width:260px;">
-          <input id="luizInstLogoFile" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
-          <button onclick="crearInstitucionLuizLabs()">Crear institución</button>
+      <div id="luizBloqueInstituciones">
+        <div class="card" style="margin-bottom:14px;">
+          <h2 style="margin-bottom:10px;">Nueva institución</h2>
+          <div class="filtros luiz-inst-create-row">
+            <input id="luizInstNombre" placeholder="Nombre de institución" style="min-width:260px;">
+            <input id="luizInstLogoFile" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
+            <button onclick="crearInstitucionLuizLabs()">Crear institución</button>
+          </div>
+          <p class="hint">Logo institucional opcional (PNG/JPG/JPEG). Si no cargas uno, se usará el logo de asistIA.</p>
         </div>
-        <p class="hint">Logo institucional opcional (PNG/JPG/JPEG). Si no cargas uno, se usará el logo de asistIA.</p>
-      </div>
 
-      <div class="card" style="margin-bottom:14px;">
-        <h2 style="margin-bottom:10px;">Instituciones</h2>
-        <div class="table-wrap">
-          <table class="luiz-inst-table">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Slug</th>
-                <th>Estado</th>
-                <th>Fecha</th>
-                <th class="actions-col">Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="tablaInstitucionesLuiz"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="card" style="margin-bottom:14px;">
-        <h2 style="margin-bottom:10px;">Usuarios asistIA (globales)</h2>
-        <div class="config-grid" style="margin-bottom:10px;">
-          <div>
-            <label for="luizGlobalUserNombre">Usuario</label>
-            <input id="luizGlobalUserNombre" placeholder="superusuario">
+        <div class="card" style="margin-bottom:14px;">
+          <h2 style="margin-bottom:10px;">Instituciones</h2>
+          <div class="table-wrap">
+            <table class="luiz-inst-table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Slug</th>
+                  <th>Estado</th>
+                  <th>Fecha</th>
+                  <th class="actions-col">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tablaInstitucionesLuiz"></tbody>
+            </table>
           </div>
-          <div>
-            <label for="luizGlobalUserRol">Rol</label>
-            <select id="luizGlobalUserRol">
-              <option value="superusuario">Superusuario</option>
-            </select>
-          </div>
-          <div>
-            <label for="luizGlobalUserPass">Clave</label>
-            <input id="luizGlobalUserPass" placeholder="Clave global">
-          </div>
-        </div>
-        <div class="table-actions" style="margin-bottom:10px;">
-          <button onclick="guardarUsuarioGlobalLuiz()">Guardar usuario global</button>
-          <button class="secondary" onclick="generarClaveUsuarioGlobalLuiz()">Generar clave</button>
-          <button class="icon-btn" onclick="copiarClaveUsuarioGlobalLuiz()" title="Copiar clave global" aria-label="Copiar clave global">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <rect x="9" y="3" width="11" height="14" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
-              <rect x="4" y="8" width="11" height="13" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
-            </svg>
-          </button>
-          <button class="secondary" onclick="limpiarUsuarioGlobalLuizForm()">Limpiar</button>
-        </div>
-        <div class="table-wrap">
-          <table class="luiz-users-table">
-            <thead>
-              <tr>
-                <th>Usuario</th>
-                <th>Rol</th>
-                <th>Estado</th>
-                <th>Fecha</th>
-                <th class="actions-col">Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="tablaUsuariosGlobalLuiz"></tbody>
-          </table>
         </div>
       </div>
 
-      <div class="card">
-        <h2 style="margin-bottom:10px;">Usuarios admin por institución</h2>
-        <div class="config-grid" style="margin-bottom:10px;">
-          <div>
-            <label for="luizUserNombre">Usuario</label>
-            <input id="luizUserNombre" placeholder="admin@institucion">
+      <div id="luizBloqueUsuarios" style="display:none;">
+        <div class="card" style="margin-bottom:14px;">
+          <h2 style="margin-bottom:10px;">Usuarios asistIA (globales)</h2>
+          <div class="config-grid" style="margin-bottom:10px;">
+            <div>
+              <label for="luizGlobalUserNombre">Usuario</label>
+              <input id="luizGlobalUserNombre" placeholder="superusuario">
+            </div>
+            <div>
+              <label for="luizGlobalUserRol">Rol</label>
+              <select id="luizGlobalUserRol">
+                <option value="superusuario">Superusuario</option>
+              </select>
+            </div>
+            <div>
+              <label for="luizGlobalUserPass">Clave</label>
+              <input id="luizGlobalUserPass" placeholder="Clave global">
+            </div>
           </div>
-          <div>
-            <label for="luizUserRol">Rol</label>
-            <select id="luizUserRol">
-              <option value="administrador">Administrador</option>
-            </select>
+          <div class="table-actions" style="margin-bottom:10px;">
+            <button onclick="guardarUsuarioGlobalLuiz()">Guardar usuario global</button>
+            <button class="secondary" onclick="generarClaveUsuarioGlobalLuiz()">Generar clave</button>
+            <button class="icon-btn" onclick="copiarClaveUsuarioGlobalLuiz()" title="Copiar clave global" aria-label="Copiar clave global">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="9" y="3" width="11" height="14" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
+                <rect x="4" y="8" width="11" height="13" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
+              </svg>
+            </button>
+            <button class="secondary" onclick="limpiarUsuarioGlobalLuizForm()">Limpiar</button>
           </div>
-          <div>
-            <label for="luizUserTenant">Institución</label>
-            <select id="luizUserTenant"></select>
-          </div>
-          <div>
-            <label for="luizUserPass">Clave</label>
-            <input id="luizUserPass" placeholder="Clave temporal">
+          <div class="table-wrap">
+            <table class="luiz-users-table">
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Rol</th>
+                  <th>Estado</th>
+                  <th>Fecha</th>
+                  <th class="actions-col">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tablaUsuariosGlobalLuiz"></tbody>
+            </table>
           </div>
         </div>
-        <div class="table-actions" style="margin-bottom:10px;">
-          <button onclick="guardarUsuarioAdminLuiz()">Guardar usuario</button>
-          <button class="secondary" onclick="generarClaveUsuarioLuiz()">Generar clave</button>
-          <button class="icon-btn" onclick="copiarClaveUsuarioLuiz()" title="Copiar clave" aria-label="Copiar clave">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <rect x="9" y="3" width="11" height="14" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
-              <rect x="4" y="8" width="11" height="13" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
-            </svg>
-          </button>
-          <button class="secondary" onclick="limpiarUsuarioAdminLuizForm()">Limpiar</button>
-        </div>
-        <div class="table-wrap">
-          <table class="luiz-users-table">
-            <thead>
-              <tr>
-                <th>Usuario</th>
-                <th>Rol</th>
-                <th>Institución</th>
-                <th>Estado institución</th>
-                <th>Fecha</th>
-                <th class="actions-col">Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="tablaUsuariosAdminLuiz"></tbody>
-          </table>
+
+        <div class="card">
+          <h2 style="margin-bottom:10px;">Usuarios admin por institución</h2>
+          <div class="config-grid" style="margin-bottom:10px;">
+            <div>
+              <label for="luizUserNombre">Usuario</label>
+              <input id="luizUserNombre" placeholder="admin@institucion">
+            </div>
+            <div>
+              <label for="luizUserRol">Rol</label>
+              <select id="luizUserRol">
+                <option value="administrador">Administrador</option>
+              </select>
+            </div>
+            <div>
+              <label for="luizUserTenant">Institución</label>
+              <select id="luizUserTenant"></select>
+            </div>
+            <div>
+              <label for="luizUserPass">Clave</label>
+              <input id="luizUserPass" placeholder="Clave temporal">
+            </div>
+          </div>
+          <div class="table-actions" style="margin-bottom:10px;">
+            <button onclick="guardarUsuarioAdminLuiz()">Guardar usuario</button>
+            <button class="secondary" onclick="generarClaveUsuarioLuiz()">Generar clave</button>
+            <button class="icon-btn" onclick="copiarClaveUsuarioLuiz()" title="Copiar clave" aria-label="Copiar clave">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="9" y="3" width="11" height="14" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
+                <rect x="4" y="8" width="11" height="13" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
+              </svg>
+            </button>
+            <button class="secondary" onclick="limpiarUsuarioAdminLuizForm()">Limpiar</button>
+          </div>
+          <div class="table-wrap">
+            <table class="luiz-users-table">
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Rol</th>
+                  <th>Institución</th>
+                  <th>Estado institución</th>
+                  <th>Fecha</th>
+                  <th class="actions-col">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tablaUsuariosAdminLuiz"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -2343,6 +2347,7 @@ let cacheReportes = []
 let cacheDashboard = []
 let cacheRiesgoUbo = []
 let vistaAdminActual = "reportes"
+let vistaLuizLabsActual = "instituciones"
 const VISTA_MODO_KEY = "vistaModoManual"
 const ADMIN_SESSION_KEY = "asistia_admin_session_v1"
 const LUIZLABS_STORE_KEY = "asistia_luizlabs_v1"
@@ -2861,6 +2866,21 @@ function obtenerInstitucionLuiz(tenantId){
   return institucionesLuiz.find(x=>x.slug === String(tenantId || ""))
 }
 
+function mostrarVistaLuizLabs(vista){
+  const next = vista === "usuarios" ? "usuarios" : "instituciones"
+  vistaLuizLabsActual = next
+
+  const navInst = document.getElementById("luizNavInstituciones")
+  const navUsers = document.getElementById("luizNavUsuarios")
+  if(navInst) navInst.classList.toggle("active", next === "instituciones")
+  if(navUsers) navUsers.classList.toggle("active", next === "usuarios")
+
+  const bloqueInst = document.getElementById("luizBloqueInstituciones")
+  const bloqueUsers = document.getElementById("luizBloqueUsuarios")
+  if(bloqueInst) bloqueInst.style.display = next === "instituciones" ? "block" : "none"
+  if(bloqueUsers) bloqueUsers.style.display = next === "usuarios" ? "block" : "none"
+}
+
 function renderPanelLuizLabs(){
   const tablaInst = document.getElementById("tablaInstitucionesLuiz")
   const tablaGlobal = document.getElementById("tablaUsuariosGlobalLuiz")
@@ -2868,6 +2888,7 @@ function renderPanelLuizLabs(){
   const elTenant = document.getElementById("luizUserTenant")
   const tenantPrevio = elTenant?.value || ""
   if(!tablaInst || !tablaUsers || !tablaGlobal) return
+  mostrarVistaLuizLabs(vistaLuizLabsActual)
 
   if(elTenant){
     const institucionesActivas = institucionesLuiz.filter(i=>i.estado === "activo")
