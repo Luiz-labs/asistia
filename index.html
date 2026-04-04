@@ -1085,7 +1085,7 @@ input, select{
 <!-- SELECCIÓN INSTITUCIONAL -->
 <div id="tenantScreen" class="tenant-screen">
   <div class="tenant-title">
-    <h1 class="brand-main">AsistIA</h1>
+    <h1 class="brand-main">asistIA</h1>
     <p class="tenant-subtitle">Control Inteligente de Asistencia</p>
   </div>
   <p class="tenant-caption">Selecciona la institución para continuar</p>
@@ -1170,7 +1170,7 @@ input, select{
 
 <!-- 📱 VISTA MOVIL -->
 <div id="vistaMovilInicio" style="display:none;">
-  <h1 class="brand-mobile">AsistIA</h1>
+  <h1 class="brand-mobile">asistIA</h1>
   <h2>Asistencia Aspirantes</h2>
   <p>Escaneo QR</p>
   <div class="mobile-step">
@@ -1184,7 +1184,7 @@ input, select{
 </div>
 
 <div id="vistaMovil" style="display:none;text-align:center;padding:20px;">
-  <h1 class="brand-mobile">AsistIA</h1>
+  <h1 class="brand-mobile">asistIA</h1>
 
   <h2 id="tenantTituloMovil">XXIV Comandancia Departamental Lima Sur</h2>
   <h2 id="tenantSubtituloMovil">Incorporación y ESBAS</h2>
@@ -1852,7 +1852,7 @@ function asignarTenantActivo(id){
 
 function aplicarTenantEnUI(){
   const tenant = obtenerTenantActivo() || TENANTS[0]
-  const titulo = esModoStaff ? "AsistIA" : (tenant?.nombre || "Panel ESBAS")
+  const titulo = esModoStaff ? "asistIA" : (tenant?.nombre || "Panel ESBAS")
   const linea = esModoStaff ? "Control Inteligente de Asistencia" : (tenant?.linea || "Incorporación y ESBAS")
   const curso = esModoStaff ? "Plataforma asistIA" : (tenant?.curso || "Instrucción ESBAS")
 
