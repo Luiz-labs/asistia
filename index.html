@@ -2952,7 +2952,14 @@ const supabaseUrl = 'https://kcapmyovaigjntaqeqwn.supabase.co'
 const supabaseKey = 'sb_publishable_oObf3s5mQ4sfmJ03JKQrnQ__8Rmb63F'
 
 const supabaseClient = window.supabase?.createClient
-  ? window.supabase.createClient(supabaseUrl, supabaseKey)
+  ? window.supabase.createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: "asistia-auth"
+      }
+    })
   : null
 let adminAutenticado = false
 let dniMovil = ""
@@ -7567,23 +7574,51 @@ async function autenticarAdminConSupabaseAuth(usuario, clave){
 
   for(const email of emails){
     intentado = true
+
     const { data, error } = await supabaseClient.auth.signInWithPassword({
       email,
       password: clave
     })
-    if(error || !data?.user){
+
+    // ✅ Exigir sesión real, no solo user
+    if(error || !data?.user || !data?.session){
+      try{
+        await supabaseClient.auth.signOut()
+      }catch(_){}
       continue
     }
-    const authId = String(data.user.id || "")
+
+    // ✅ Validar que la sesión quedó realmente activa
+    const { data: sessionWrap, error: sessionError } = await supabaseClient.auth.getSession()
+    const session = sessionWrap?.session || null
+
+    if(sessionError || !session?.access_token || !session?.user){
+      try{
+        await supabaseClient.auth.signOut()
+      }catch(_){}
+      continue
+    }
+
+    const authId = String(session.user.id || data.user.id || "")
+
     if(userDb?.authUserId){
       if(authId && authId === String(userDb.authUserId || "")){
-        return { ok: true, intentado: true, authUserId: authId }
+        return {
+          ok: true,
+          intentado: true,
+          authUserId: authId
+        }
       }
       await supabaseClient.auth.signOut()
       continue
     }
+
     if(authId){
-      return { ok: true, intentado: true, authUserId: authId }
+      return {
+        ok: true,
+        intentado: true,
+        authUserId: authId
+      }
     }
   }
 
