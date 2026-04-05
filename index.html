@@ -7543,9 +7543,6 @@ window.onload = async ()=>{
 async function autenticarAdminConSupabaseAuth(usuario, clave){
   if(!haySupabase()) return { ok: false, intentado: false }
   const userDb = (usuariosAdmin || []).find(u=>u.usuario === usuario)
-  if(!userDb?.authUserId){
-    return { ok: false, intentado: false }
-  }
 
   const candidatos = []
   const correoDb = String(userDb.correo || "").trim().toLowerCase()
@@ -7557,8 +7554,10 @@ async function autenticarAdminConSupabaseAuth(usuario, clave){
   }
   candidatos.push(`${usuario}@asistia.local`)
   const emails = Array.from(new Set(candidatos.filter(Boolean)))
+  let intentado = false
 
   for(const email of emails){
+    intentado = true
     const { data, error } = await supabaseClient.auth.signInWithPassword({
       email,
       password: clave
@@ -7567,13 +7566,19 @@ async function autenticarAdminConSupabaseAuth(usuario, clave){
       continue
     }
     const authId = String(data.user.id || "")
-    if(authId && authId === String(userDb.authUserId || "")){
+    if(userDb?.authUserId){
+      if(authId && authId === String(userDb.authUserId || "")){
+        return { ok: true, intentado: true, authUserId: authId }
+      }
+      await supabaseClient.auth.signOut()
+      continue
+    }
+    if(authId){
       return { ok: true, intentado: true, authUserId: authId }
     }
-    await supabaseClient.auth.signOut()
   }
 
-  return { ok: false, intentado: true }
+  return { ok: false, intentado }
 }
 
 async function resolverCredencialesAdminViaRPC(usuario, clave, tenantId = ""){
@@ -7613,14 +7618,27 @@ async function resolverCredencialesAdminViaRPC(usuario, clave, tenantId = ""){
 
 async function resolverCredencialesAdmin(usuario, clave, contexto = {}){
   const tenantContexto = String(contexto?.tenantId || "").trim().toLowerCase()
-  const resultadoRpc = await resolverCredencialesAdminViaRPC(usuario, clave, tenantContexto)
-  if(resultadoRpc){
-    return resultadoRpc
+  const requiereJwt = String(contexto?.origen || "") === "tenant_route"
+
+  // 🔥 IMPORTANTE:
+  // En ruta institucional NO aceptamos autenticación solo por RPC,
+  // porque RLS necesita un JWT real en el navegador.
+  // La RPC queda permitida solo para staff_root.
+  let resultadoRpc = null
+  if(!requiereJwt){
+    resultadoRpc = await resolverCredencialesAdminViaRPC(usuario, clave, tenantContexto)
+    if(resultadoRpc){
+      return resultadoRpc
+    }
   }
 
   const userLocal = (usuariosAdmin || []).find(u=>u.usuario === usuario)
   const userLuiz = (usuariosAdminLuiz || []).find(u=>u.usuario === usuario)
   const authResultado = await autenticarAdminConSupabaseAuth(usuario, clave)
+
+  if(requiereJwt && !authResultado.ok){
+    return { valido: false, motivo: "clave_incorrecta" }
+  }
 
   if(userLocal?.authUserId && !authResultado.ok){
     return { valido: false, motivo: "clave_incorrecta" }
@@ -7644,7 +7662,44 @@ async function resolverCredencialesAdmin(usuario, clave, contexto = {}){
     }
   }
 
-  if(userLuiz && String(userLuiz.password || userLuiz.clave || "") === clave){
+  if(requiereJwt && authResultado.ok && !userLocal && authResultado.authUserId){
+    let dataDb = null
+    let errorDb = null
+    ;({ data: dataDb, error: errorDb } = await supabaseClient
+      .from("usuarios_admin")
+      .select("usuario,rol,tenant_id,activo")
+      .eq("auth_user_id", authResultado.authUserId)
+      .eq("activo", true)
+      .limit(1))
+
+    if(errorDb && /tenant_id/i.test(String(errorDb.message || ""))){
+      const fallback = await supabaseClient
+        .from("usuarios_admin")
+        .select("usuario,rol,activo")
+        .eq("auth_user_id", authResultado.authUserId)
+        .eq("activo", true)
+        .limit(1)
+      dataDb = (fallback.data || []).map(x=>Object.assign({}, x, { tenant_id: tenantContexto || "" }))
+      errorDb = fallback.error
+    }
+
+    const row = Array.isArray(dataDb) ? dataDb[0] : null
+    if(!errorDb && row){
+      const usuarioDb = String(row.usuario || usuario).trim().toLowerCase()
+      const perfilLocal = String(perfilesUsuariosLocales?.[usuarioDb] || "administrador")
+      return {
+        valido: true,
+        usuario: usuarioDb,
+        rol: normalizarRolUsuario(row.rol || ROLES_ADMIN.ADMINISTRADOR),
+        tenantId: String(row.tenant_id || tenantContexto || "").trim().toLowerCase(),
+        perfilId: perfilLocal,
+        esLegacy: false,
+        viaAuth: true
+      }
+    }
+  }
+
+  if(!requiereJwt && userLuiz && String(userLuiz.password || userLuiz.clave || "") === clave){
     if(String(userLuiz.estado || "activo") !== "activo"){
       return { valido: false, motivo: "usuario_inactivo" }
     }
@@ -7758,6 +7813,14 @@ async function login(){
         loginMsg.innerText = "Usuario no autorizado para esta institución."
         return
       }
+    }
+  }
+
+  if(!esModoStaff && resultado.valido){
+    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession()
+    if(sessionError || !sessionData?.session?.access_token || !sessionData?.session?.user){
+      loginMsg.innerText = "Login inválido: no se generó sesión JWT."
+      return
     }
   }
 
