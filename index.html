@@ -6611,11 +6611,11 @@ async function cargarUsuariosAdminDesdeSupabase(){
 
   ;({ data, error } = await supabaseClient
     .from("usuarios_admin")
-    .select("id,nombre,nombres,apellidos,dni,correo,celular,usuario,clave,rol,activo,tenant_id")
+    .select("id,nombre,nombres,apellidos,dni,correo,celular,usuario,clave,rol,activo,tenant_id,auth_user_id")
     .eq("activo", true)
     .order("nombre", { ascending: true }))
 
-  if(error && /(tenant_id|nombres|apellidos|dni|correo|celular)/i.test(String(error.message || ""))){
+  if(error && /(tenant_id|nombres|apellidos|dni|correo|celular|auth_user_id)/i.test(String(error.message || ""))){
     const fallback = await supabaseClient
       .from("usuarios_admin")
       .select("id,nombre,usuario,clave,rol,activo")
@@ -6627,7 +6627,8 @@ async function cargarUsuariosAdminDesdeSupabase(){
       apellidos: "",
       dni: "",
       correo: "",
-      celular: ""
+      celular: "",
+      auth_user_id: null
     }))
     error = fallback.error
   }
@@ -6652,7 +6653,8 @@ async function cargarUsuariosAdminDesdeSupabase(){
     usuario: (u.usuario || "").toLowerCase(),
     clave: u.clave || "",
     rol: normalizarRolUsuario(u.rol),
-    tenantId: String(u.tenant_id || "").trim().toLowerCase()
+    tenantId: String(u.tenant_id || "").trim().toLowerCase(),
+    authUserId: String(u.auth_user_id || "").trim()
   }))
   renderUsuariosAdmin()
 }
@@ -7487,11 +7489,48 @@ window.onload = async ()=>{
 
 }
 
-function resolverCredencialesAdmin(usuario, clave){
+async function autenticarAdminConSupabaseAuth(usuario, clave){
+  if(!haySupabase()) return { ok: false, intentado: false }
+  const userDb = (usuariosAdmin || []).find(u=>u.usuario === usuario)
+  if(!userDb?.authUserId){
+    return { ok: false, intentado: false }
+  }
+
+  const candidatos = []
+  const correoDb = String(userDb.correo || "").trim().toLowerCase()
+  if(correoDb && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoDb)){
+    candidatos.push(correoDb)
+  }
+  if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(usuario)){
+    candidatos.push(usuario)
+  }
+  candidatos.push(`${usuario}@asistia.local`)
+  const emails = Array.from(new Set(candidatos.filter(Boolean)))
+
+  for(const email of emails){
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password: clave
+    })
+    if(error || !data?.user){
+      continue
+    }
+    const authId = String(data.user.id || "")
+    if(authId && authId === String(userDb.authUserId || "")){
+      return { ok: true, intentado: true, authUserId: authId }
+    }
+    await supabaseClient.auth.signOut()
+  }
+
+  return { ok: false, intentado: true }
+}
+
+async function resolverCredencialesAdmin(usuario, clave){
   const userLocal = (usuariosAdmin || []).find(u=>u.usuario === usuario)
   const userLuiz = (usuariosAdminLuiz || []).find(u=>u.usuario === usuario)
+  const authResultado = await autenticarAdminConSupabaseAuth(usuario, clave)
 
-  if(userLocal && String(userLocal.clave || "") === clave){
+  if(userLocal && (authResultado.ok || String(userLocal.clave || "") === clave)){
     const perfilLocal = String(perfilesUsuariosLocales?.[String(userLocal.usuario || "").toLowerCase()] || "administrador")
     const perfilDataLocal = obtenerPerfilPorId(perfilLocal)
     const rolLocal = normalizarRolUsuario(userLocal.rol)
@@ -7504,8 +7543,13 @@ function resolverCredencialesAdmin(usuario, clave){
       rol: rolLocal,
       tenantId: String(userLocal.tenantId || "").trim().toLowerCase(),
       perfilId: perfilLocal,
-      esLegacy: false
+      esLegacy: false,
+      viaAuth: !!authResultado.ok
     }
+  }
+
+  if(userLocal?.authUserId && authResultado.intentado && !authResultado.ok){
+    return { valido: false, motivo: "clave_incorrecta" }
   }
 
   if(userLuiz && String(userLuiz.password || userLuiz.clave || "") === clave){
@@ -7532,7 +7576,7 @@ function resolverCredencialesAdmin(usuario, clave){
   return { valido: false }
 }
 
-function loginAccesoAdminInstitucional(){
+async function loginAccesoAdminInstitucional(){
   if(!esRutaInstitucionalValidaActiva()){
     setMensajeAccesoAdminInstitucional("Institución inactiva o no válida.")
     return
@@ -7546,7 +7590,7 @@ function loginAccesoAdminInstitucional(){
   }
 
   const tenant = obtenerTenantActivo()
-  const resultado = resolverCredencialesAdmin(usuario, clave)
+  const resultado = await resolverCredencialesAdmin(usuario, clave)
 
   if(!resultado.valido){
     if(resultado.motivo === "usuario_inactivo"){
@@ -7592,10 +7636,10 @@ function loginAccesoAdminInstitucional(){
   aplicarLayout()
 }
 
-function login(){
+async function login(){
   const usuario = (loginUser.value || "").trim().toLowerCase()
   const clave = (loginPass.value || "").trim()
-  const resultado = resolverCredencialesAdmin(usuario, clave)
+  const resultado = await resolverCredencialesAdmin(usuario, clave)
 
   if(!esModoStaff){
     const tenant = obtenerTenantActivo()
@@ -7700,6 +7744,9 @@ function verCriterio(tipo){
 }
 
 function logout(){
+  if(haySupabase()){
+    void supabaseClient.auth.signOut()
+  }
   const sesionPrev = obtenerSesionAdminActiva()
   const origenSesion = sesionPrev.origen || ""
   if(sesionPrev?.autenticado){
