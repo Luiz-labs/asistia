@@ -419,11 +419,24 @@ input, select{
   -webkit-text-fill-color:transparent;
 }
 
+.login-project-title-xl{
+  font-size:clamp(3rem, 5vw, 4.4rem);
+  line-height:1;
+}
+
 .login-brand-logo{
   width:42px;
   height:42px;
   object-fit:contain;
   border-radius:10px;
+}
+
+.login-card-title{
+  margin-bottom:20px;
+  font-family:"Outfit","Sora","Avenir Next","Nunito Sans",sans-serif;
+  font-weight:800;
+  letter-spacing:-0.2px;
+  color:#18284c;
 }
 
 #tabla{
@@ -1758,7 +1771,6 @@ input, select{
   <!-- TITULO FUERA -->
   <div style="text-align:center;margin-bottom:30px;">
     <div class="login-tenant-head">
-      <img src="/asistIA_logo.png" class="login-brand-logo" alt="asistIA">
       <h1 id="tenantTituloLogin" style="margin:0;">XXIV Comandancia Departamental Lima Sur</h1>
     </div>
     <h2 id="tenantSubtituloLogin" style="margin:5px 0;">Incorporación y ESBAS</h2>
@@ -1782,7 +1794,7 @@ input, select{
 
     <img id="tenantLogoLoginCard" class="tenant-dynamic-logo" src="/asistIA_logo.png" style="width:80px;height:80px;margin-bottom:10px;">
 
-    <h2 style="margin-bottom:20px;">ESBAS 2026</h2>
+    <h2 id="tenantCardTituloLogin" class="login-card-title">ESBAS 2026</h2>
 
     <!-- INPUTS EN LINEA -->
     <div style="
@@ -4213,14 +4225,25 @@ function aplicarTenantEnUI(){
   const titulo = esModoStaff ? "asistIA" : (tenant?.nombre || "Panel ESBAS")
   const linea = esModoStaff ? "Control Inteligente de Asistencia" : (tenant?.linea || "Incorporación y ESBAS")
   const curso = esModoStaff ? "Plataforma asistIA" : (tenant?.curso || "Instrucción ESBAS")
+  const tituloCard = esModoStaff
+    ? linea
+    : (String(curso || "").replace(/^Instrucci[oó]n\s+/i, "").trim() || "ESBAS 2026")
   const logoRuta = esModoStaff ? DEFAULT_INSTITUTION_LOGO : obtenerLogoInstitucion(tenant)
 
   if(tenantTituloLogin){
     tenantTituloLogin.innerText = titulo
     tenantTituloLogin.classList.toggle("login-project-title", esModoStaff)
+    tenantTituloLogin.classList.toggle("login-project-title-xl", esModoStaff)
   }
-  if(tenantSubtituloLogin) tenantSubtituloLogin.innerText = linea
-  if(tenantCursoLogin) tenantCursoLogin.innerText = curso
+  if(tenantSubtituloLogin){
+    tenantSubtituloLogin.innerText = linea
+    tenantSubtituloLogin.style.display = esModoStaff ? "none" : "block"
+  }
+  if(tenantCursoLogin){
+    tenantCursoLogin.innerText = curso
+    tenantCursoLogin.style.display = "none"
+  }
+  if(tenantCardTituloLogin) tenantCardTituloLogin.innerText = tituloCard
 
   if(tenantTituloMovil) tenantTituloMovil.innerText = titulo
   if(tenantSubtituloMovil) tenantSubtituloMovil.innerText = linea
