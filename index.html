@@ -471,7 +471,7 @@ input, select{
 .login-powered{
   margin-top:14px;
   display:flex;
-  align-items:center;
+  align-items:flex-end;
   justify-content:center;
   gap:8px;
   color:#6a7895;
@@ -479,16 +479,22 @@ input, select{
   font-weight:600;
 }
 
+.login-powered span:first-child{
+  line-height:1.05;
+  transform:translateY(-1px);
+}
+
 .login-powered-wordmark{
   font-family:"Outfit","Sora","Avenir Next","Nunito Sans",sans-serif;
   font-size:22px;
-  line-height:1;
+  line-height:.9;
   font-weight:800;
   letter-spacing:-0.25px;
   background:linear-gradient(94deg, #0b4fd6 8%, #1575ff 42%, #58a0ff 66%, #112a56 100%);
   -webkit-background-clip:text;
   background-clip:text;
   -webkit-text-fill-color:transparent;
+  transform:translateY(1px);
 }
 
 #tabla{
