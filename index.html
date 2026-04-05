@@ -3027,6 +3027,9 @@ let perfilesUsuariosLocales = {}
 let editUsuarioLuizIndex = -1
 let editUsuarioGlobalLuizIndex = -1
 let editPerfilLuizIndex = -1
+let soporteLuizLabsSupabase = null
+let soporteActividadLogsSupabase = null
+let syncLuizLabsEnCurso = null
 const SYSTEM_USERS = []
 const tutorialSteps = [
   {
@@ -3117,6 +3120,105 @@ function enlazarIdsGlobales(){
 
 function haySupabase(){
   return !!supabaseClient
+}
+
+function mapearActividadSupabaseALocal(row){
+  let detalle = row?.detalle || {}
+  if(typeof detalle === "string"){
+    try{
+      detalle = JSON.parse(detalle)
+    }catch(_){
+      detalle = { valor: detalle }
+    }
+  }
+  if(!detalle || typeof detalle !== "object"){
+    detalle = {}
+  }
+  return {
+    id: String(row?.id || `${Date.now()}_${Math.random().toString(36).slice(2,8)}`),
+    fecha: row?.fecha || new Date().toISOString(),
+    accion: String(row?.accion || ""),
+    usuario: String(row?.usuario || "sistema"),
+    rol: normalizarRolUsuario(row?.rol || ""),
+    tenantId: String(row?.tenant_id || ""),
+    tenantNombre: String(row?.tenant_nombre || ""),
+    entorno: String(row?.entorno || ""),
+    ruta: String(row?.ruta || ""),
+    deviceId: String(row?.device_id || ""),
+    deviceLabel: String(row?.device_label || ""),
+    ip: String(row?.ip || "N/D"),
+    deviceUa: String(row?.device_ua || ""),
+    detalle
+  }
+}
+
+async function cargarActividadLogsDesdeSupabase(){
+  if(!haySupabase()) return null
+  if(soporteActividadLogsSupabase === false) return null
+  const { data, error } = await supabaseClient
+    .from("actividad_logs")
+    .select("id,fecha,accion,usuario,rol,tenant_id,tenant_nombre,entorno,ruta,device_label,device_id,ip,device_ua,detalle")
+    .order("fecha", { ascending: false })
+    .limit(ACTIVITY_LOGS_MAX)
+
+  if(error){
+    if(esTablaNoExiste(error)){
+      soporteActividadLogsSupabase = false
+      return null
+    }
+    console.warn("No se pudo cargar actividad_logs:", error.message)
+    return null
+  }
+
+  soporteActividadLogsSupabase = true
+  return (data || []).map(mapearActividadSupabaseALocal)
+}
+
+async function insertarActividadLogEnSupabase(entry){
+  if(!haySupabase()) return
+  if(soporteActividadLogsSupabase === false) return
+  const payload = {
+    fecha: entry.fecha || new Date().toISOString(),
+    accion: String(entry.accion || ""),
+    usuario: String(entry.usuario || "sistema"),
+    rol: normalizarRolUsuario(entry.rol || ""),
+    tenant_id: String(entry.tenantId || "") || null,
+    tenant_nombre: String(entry.tenantNombre || ""),
+    entorno: String(entry.entorno || ""),
+    ruta: String(entry.ruta || ""),
+    device_label: String(entry.deviceLabel || ""),
+    device_id: String(entry.deviceId || ""),
+    ip: String(entry.ip || "N/D"),
+    device_ua: String(entry.deviceUa || ""),
+    detalle: (entry.detalle && typeof entry.detalle === "object") ? entry.detalle : {}
+  }
+  const { error } = await supabaseClient.from("actividad_logs").insert([payload])
+  if(error){
+    if(esTablaNoExiste(error)){
+      soporteActividadLogsSupabase = false
+      return
+    }
+    console.warn("No se pudo insertar actividad log:", error.message)
+  }else{
+    soporteActividadLogsSupabase = true
+  }
+}
+
+async function hidratarActividadLogsInicial(){
+  const logsLocales = leerActividadLogs()
+  const logsSupabase = await cargarActividadLogsDesdeSupabase()
+  if(!Array.isArray(logsSupabase)){
+    return
+  }
+  if(logsSupabase.length){
+    guardarActividadLogs(logsSupabase)
+    return
+  }
+  if(logsLocales.length){
+    for(const entry of logsLocales.slice(0, 200).reverse()){
+      await insertarActividadLogEnSupabase(entry)
+    }
+  }
 }
 
 function leerActividadLogs(){
@@ -3211,6 +3313,7 @@ function registrarActividad(accion, detalle = {}, opts = {}){
     logs.length = ACTIVITY_LOGS_MAX
   }
   guardarActividadLogs(logs)
+  void insertarActividadLogEnSupabase(entry)
 }
 
 function obtenerActividadPorScope(scope = "actual"){
@@ -4219,6 +4322,151 @@ function guardarLuizLabsEnStorage(){
   }catch(e){
     console.warn("No se pudo guardar Luiz Labs en storage:", e)
   }
+  void sincronizarLuizLabsASupabase()
+}
+
+function normalizarInstitucionesSupabase(items = []){
+  return (items || []).map(inst=>({
+    id: String(inst.id || generarIdInstitucion()),
+    nombre: String(inst.nombre || "").trim(),
+    slug: String(inst.slug || "").trim(),
+    logo: normalizarLogoInstitucion(inst.logo || ""),
+    estado: String(inst.estado || "activo") === "inactivo" ? "inactivo" : "activo",
+    fecha_creacion: inst.fecha_creacion || new Date().toISOString()
+  })).filter(inst=>inst.slug && inst.nombre)
+}
+
+function normalizarPerfilesSupabase(items = []){
+  return (items || []).map(p=>({
+    id: normalizarPerfilId(p.id || p.nombre || ""),
+    nombre: String(p.nombre || "").trim(),
+    estado: String(p.estado || "activo") === "inactivo" ? "inactivo" : "activo",
+    permisos: normalizarPermisosPerfil(p.permisos || {}),
+    system: !!p.system,
+    fecha_creacion: p.fecha_creacion || new Date().toISOString()
+  })).filter(p=>p.id && p.nombre)
+}
+
+async function cargarLuizLabsDesdeSupabase(){
+  if(!haySupabase()) return null
+  if(soporteLuizLabsSupabase === false) return null
+
+  const [instRes, perfRes, mapRes] = await Promise.all([
+    supabaseClient
+      .from("instituciones_luiz")
+      .select("id,nombre,slug,estado,logo,fecha_creacion")
+      .order("fecha_creacion", { ascending: true }),
+    supabaseClient
+      .from("perfiles_luiz")
+      .select("id,nombre,estado,permisos,system,fecha_creacion")
+      .order("fecha_creacion", { ascending: true }),
+    supabaseClient
+      .from("usuarios_perfiles_luiz")
+      .select("usuario,perfil_id")
+  ])
+
+  const errores = [instRes.error, perfRes.error, mapRes.error].filter(Boolean)
+  if(errores.length){
+    if(errores.some(esTablaNoExiste)){
+      soporteLuizLabsSupabase = false
+      return null
+    }
+    console.warn("No se pudo cargar Luiz Labs desde Supabase:", errores.map(e=>e.message).join(" | "))
+    return null
+  }
+
+  soporteLuizLabsSupabase = true
+  const instituciones = normalizarInstitucionesSupabase(instRes.data || [])
+  const perfiles = normalizarPerfilesSupabase(perfRes.data || [])
+  const userProfiles = {}
+  ;(mapRes.data || []).forEach(row=>{
+    const usuario = String(row?.usuario || "").trim().toLowerCase()
+    const perfilId = normalizarPerfilId(row?.perfil_id || "")
+    if(usuario && perfilId) userProfiles[usuario] = perfilId
+  })
+  return { instituciones, perfiles, userProfiles }
+}
+
+async function sincronizarLuizLabsASupabase(){
+  if(!haySupabase()) return
+  if(soporteLuizLabsSupabase === false) return
+  if(syncLuizLabsEnCurso){
+    return syncLuizLabsEnCurso
+  }
+  const institucionesPayload = (institucionesLuiz || []).map(inst=>({
+    id: String(inst.id || generarIdInstitucion()),
+    nombre: String(inst.nombre || "").trim(),
+    slug: String(inst.slug || "").trim(),
+    estado: String(inst.estado || "activo") === "inactivo" ? "inactivo" : "activo",
+    logo: normalizarLogoInstitucion(inst.logo || ""),
+    fecha_creacion: inst.fecha_creacion || new Date().toISOString()
+  })).filter(inst=>inst.slug && inst.nombre)
+  const perfilesPayload = (perfilesLuiz || []).map(p=>({
+    id: normalizarPerfilId(p.id || p.nombre || ""),
+    nombre: String(p.nombre || "").trim(),
+    estado: String(p.estado || "activo") === "inactivo" ? "inactivo" : "activo",
+    permisos: normalizarPermisosPerfil(p.permisos || {}),
+    system: !!p.system,
+    fecha_creacion: p.fecha_creacion || new Date().toISOString()
+  })).filter(p=>p.id && p.nombre)
+  const userProfilesPayload = Object.entries(perfilesUsuariosLocales || {})
+    .map(([usuario, perfilId])=>({
+      usuario: String(usuario || "").trim().toLowerCase(),
+      perfil_id: normalizarPerfilId(perfilId || "administrador")
+    }))
+    .filter(x=>x.usuario && x.perfil_id)
+
+  syncLuizLabsEnCurso = (async ()=>{
+    if(institucionesPayload.length){
+      const { error } = await supabaseClient
+        .from("instituciones_luiz")
+        .upsert(institucionesPayload, { onConflict: "id" })
+      if(error){
+        if(esTablaNoExiste(error)){
+          soporteLuizLabsSupabase = false
+          return
+        }
+        console.warn("No se pudo sync instituciones_luiz:", error.message)
+      }else{
+        soporteLuizLabsSupabase = true
+      }
+    }
+    if(perfilesPayload.length){
+      const { error } = await supabaseClient
+        .from("perfiles_luiz")
+        .upsert(perfilesPayload, { onConflict: "id" })
+      if(error){
+        if(esTablaNoExiste(error)){
+          soporteLuizLabsSupabase = false
+          return
+        }
+        console.warn("No se pudo sync perfiles_luiz:", error.message)
+      }else{
+        soporteLuizLabsSupabase = true
+      }
+    }
+    if(userProfilesPayload.length){
+      const { error } = await supabaseClient
+        .from("usuarios_perfiles_luiz")
+        .upsert(userProfilesPayload, { onConflict: "usuario" })
+      if(error){
+        if(esTablaNoExiste(error)){
+          soporteLuizLabsSupabase = false
+          return
+        }
+        console.warn("No se pudo sync usuarios_perfiles_luiz:", error.message)
+      }else{
+        soporteLuizLabsSupabase = true
+      }
+    }
+  })()
+    .catch(e=>{
+      console.warn("Error sincronizando Luiz Labs:", e)
+    })
+    .finally(()=>{
+      syncLuizLabsEnCurso = null
+    })
+  return syncLuizLabsEnCurso
 }
 
 function mapearInstitucionesBaseDesdeTenants(){
@@ -4283,10 +4531,12 @@ function obtenerTenantAsignadoUsuario(usuario){
   return String(match?.tenantId || "")
 }
 
-function cargarLuizLabsDesdeStorage(){
+async function cargarLuizLabsDesdeStorage(){
+  let teniaDataLocal = false
   try{
     const raw = localStorage.getItem(LUIZLABS_STORE_KEY)
     if(raw){
+      teniaDataLocal = true
       const parsed = JSON.parse(raw)
       institucionesLuiz = Array.isArray(parsed?.instituciones) ? parsed.instituciones : []
       usuariosAdminLuiz = Array.isArray(parsed?.usuarios_admin) ? parsed.usuarios_admin : []
@@ -4295,6 +4545,18 @@ function cargarLuizLabsDesdeStorage(){
     }
   }catch(e){
     console.warn("No se pudo leer storage de Luiz Labs:", e)
+  }
+
+  const remoto = await cargarLuizLabsDesdeSupabase()
+  const remotoTieneData = !!(remoto && (
+    (remoto.instituciones || []).length ||
+    (remoto.perfiles || []).length ||
+    Object.keys(remoto.userProfiles || {}).length
+  ))
+  if(remotoTieneData){
+    institucionesLuiz = remoto.instituciones || []
+    perfilesLuiz = remoto.perfiles || []
+    perfilesUsuariosLocales = remoto.userProfiles || {}
   }
 
   if(!institucionesLuiz.length){
@@ -4365,6 +4627,9 @@ function cargarLuizLabsDesdeStorage(){
   migrarLogosInstitucionalesBase()
   sincronizarTenantsDesdeInstituciones()
   guardarLuizLabsEnStorage()
+  if(!remotoTieneData && teniaDataLocal){
+    void sincronizarLuizLabsASupabase()
+  }
 }
 
 function sincronizarTenantsDesdeInstituciones(){
@@ -6936,7 +7201,7 @@ function actualizarEstadoChecks(){
 
 window.onload = async ()=>{
   enlazarIdsGlobales()
-  cargarLuizLabsDesdeStorage()
+  await cargarLuizLabsDesdeStorage()
   renderTenantSelector()
   cargarSesionAdminDesdeStorage()
   aplicarAccesoDesdeRuta()
@@ -6950,6 +7215,7 @@ window.onload = async ()=>{
   try{
     aplicarRangoMesActualEnFiltros()
     aplicarRangoMesActualEnLogs()
+    await hidratarActividadLogsInicial()
   }catch(e){
     console.error("Error aplicando rango de fechas:", e)
   }
