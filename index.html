@@ -5330,9 +5330,9 @@ function filtrarDataTenantActivo(rows){
   if(!MULTITENANT_MODE || !tenantActivoId){
     return Array.isArray(rows) ? rows : []
   }
-  const tenant = String(tenantActivoId || "")
+  const tenant = String(tenantActivoId || "").trim().toLowerCase()
   return (rows || []).filter(r=>{
-    const tenantFila = String(r?.tenant_id || "").trim()
+    const tenantFila = String(r?.tenant_id || "").trim().toLowerCase()
     if(tenantFila){
       return tenantFila === tenant
     }
@@ -6039,7 +6039,12 @@ async function cargarExcelAspirantes(){
 }
 
 async function cargarAspirantesCargados(){
-  if(!tablaAspirantesCargados) return
+  const tablaEl = document.getElementById("tablaAspirantesCargados")
+  if(!tablaEl) return
+  if(!haySupabase()){
+    tablaEl.innerHTML = `<tr><td colspan="5">Supabase no disponible.</td></tr>`
+    return
+  }
 
   const normalizarTexto = (v)=>String(v || "").trim()
   const limpiarDni = (v)=>String(v || "").replace(/\D/g, "")
@@ -6065,7 +6070,7 @@ async function cargarAspirantesCargados(){
   }
 
   if(errorAspirantes){
-    tablaAspirantesCargados.innerHTML = `<tr><td colspan="5">No se pudo cargar el listado.</td></tr>`
+    tablaEl.innerHTML = `<tr><td colspan="5">No se pudo cargar el listado.</td></tr>`
     return
   }
 
@@ -6114,7 +6119,10 @@ async function cargarAspirantesCargados(){
     .slice(0, 600)
 
   if(!lista.length){
-    tablaAspirantesCargados.innerHTML = `<tr><td colspan="5">Sin aspirantes cargados.</td></tr>`
+    tablaEl.innerHTML = `<tr><td colspan="5">Sin aspirantes cargados.</td></tr>`
+    if(msgCargaAspirantes){
+      msgCargaAspirantes.innerText = "Listado actualizado: 0 registros."
+    }
     return
   }
 
@@ -6130,7 +6138,10 @@ async function cargarAspirantesCargados(){
       </tr>
     `
   })
-  tablaAspirantesCargados.innerHTML = html
+  tablaEl.innerHTML = html
+  if(msgCargaAspirantes){
+    msgCargaAspirantes.innerText = `Listado actualizado: ${lista.length} registro(s).`
+  }
 }
 
 async function cargarExcelUbosSedes(){
