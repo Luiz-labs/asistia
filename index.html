@@ -2871,7 +2871,7 @@ const TENANTS = [
     curso: "Instrucción ESBAS 2026",
     logo: "/24_logo.png",
     habilitado: true,
-    usuariosSistema: ["llecaros"]
+    usuariosSistema: []
   },
   {
     id: "bomberos-lurin-129",
@@ -2895,9 +2895,7 @@ let perfilesUsuariosLocales = {}
 let editUsuarioLuizIndex = -1
 let editUsuarioGlobalLuizIndex = -1
 let editPerfilLuizIndex = -1
-const SYSTEM_USERS = [
-  { nombre: "Administrador Principal", usuario: "llecaros", rol: "administrador", system: true }
-]
+const SYSTEM_USERS = []
 const tutorialSteps = [
   {
     target: "#vistaDesktop [data-account-btn]",
@@ -4053,7 +4051,7 @@ function esTenantProtegido(slug){
 
 function esUsuarioProtegidoLuiz(usuario){
   const user = String(usuario || "").trim().toLowerCase()
-  return user === "llecaros" || user === "llecarosd"
+  return user === "llecarosd"
 }
 
 function esUsuarioGlobalAsistIA(user){
@@ -4070,7 +4068,7 @@ function esUsuarioInstitucionalLuiz(user){
 }
 
 function asegurarUsuariosGlobalesLegacy(){
-  const legacy = ["llecaros", "llecarosd"]
+  const legacy = ["llecarosd"]
   legacy.forEach(usuario=>{
     const existe = (usuariosAdminLuiz || []).some(u=>String(u.usuario || "").toLowerCase() === usuario)
     if(existe) return
@@ -4124,6 +4122,9 @@ function cargarLuizLabsDesdeStorage(){
     fecha_creacion: u.fecha_creacion || new Date().toISOString(),
     perfilId: normalizarPerfilId(u.perfilId || "")
   }})
+
+  // Migración incremental: `llecaros` ya no debe autenticar desde storage local.
+  usuariosAdminLuiz = usuariosAdminLuiz.filter(u=>String(u.usuario || "").toLowerCase() !== "llecaros")
 
   perfilesLuiz = (perfilesLuiz || []).map(p=>({
     id: normalizarPerfilId(p.id || p.nombre || ""),
@@ -6593,17 +6594,6 @@ window.onload = async ()=>{
 function resolverCredencialesAdmin(usuario, clave){
   const userLocal = (usuariosAdmin || []).find(u=>u.usuario === usuario)
   const userLuiz = (usuariosAdminLuiz || []).find(u=>u.usuario === usuario)
-  const accesoLegacy = (usuario === "llecaros" || usuario === "llecarosd") && clave === "1234"
-
-  if(accesoLegacy){
-    // Acceso temporal legacy para continuidad operativa en producción.
-    return {
-      valido: true,
-      usuario,
-      rol: ROLES_ADMIN.SUPERUSUARIO,
-      esLegacy: true
-    }
-  }
 
   if(userLocal && String(userLocal.clave || "") === clave){
     const perfilLocal = String(perfilesUsuariosLocales?.[String(userLocal.usuario || "").toLowerCase()] || "administrador")
