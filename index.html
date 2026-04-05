@@ -6040,107 +6040,112 @@ async function cargarExcelAspirantes(){
 
 async function cargarAspirantesCargados(){
   const tablaEl = document.getElementById("tablaAspirantesCargados")
+  const msgEl = document.getElementById("msgCargaAspirantes")
   if(!tablaEl) return
-  if(!haySupabase()){
-    tablaEl.innerHTML = `<tr><td colspan="5">Supabase no disponible.</td></tr>`
-    return
-  }
+  try{
+    if(!haySupabase()){
+      tablaEl.innerHTML = `<tr><td colspan="5">Supabase no disponible.</td></tr>`
+      if(msgEl) msgEl.innerText = "No se pudo conectar con Supabase."
+      return
+    }
 
-  const normalizarTexto = (v)=>String(v || "").trim()
-  const limpiarDni = (v)=>String(v || "").replace(/\D/g, "")
-  const registros = new Map()
+    const normalizarTexto = (v)=>String(v || "").trim()
+    const limpiarDni = (v)=>String(v || "").replace(/\D/g, "")
+    const registros = new Map()
 
-  let dataAspirantes = []
-  let errorAspirantes = null
+    let dataAspirantes = []
+    let errorAspirantes = null
 
-  // Intenta leer tenant_id para aislar por institución cuando la columna exista.
-  ({ data: dataAspirantes, error: errorAspirantes } = await supabaseClient
-    .from("aspirantes")
-    .select("apellidos,nombres,dni,ubo,tenant_id")
-    .limit(1000))
-
-  if(errorAspirantes && /tenant_id/i.test(String(errorAspirantes.message || ""))){
-    // Compatibilidad con esquemas legacy sin tenant_id en aspirantes.
-    const fallback = await supabaseClient
+    // Intenta leer tenant_id para aislar por institución cuando la columna exista.
+    ;({ data: dataAspirantes, error: errorAspirantes } = await supabaseClient
       .from("aspirantes")
-      .select("apellidos,nombres,dni,ubo")
-      .limit(1000)
-    dataAspirantes = (fallback.data || []).map(r=>Object.assign({}, r, { tenant_id: null }))
-    errorAspirantes = fallback.error
-  }
+      .select("apellidos,nombres,dni,ubo,tenant_id")
+      .limit(1000))
 
-  if(errorAspirantes){
-    tablaEl.innerHTML = `<tr><td colspan="5">No se pudo cargar el listado.</td></tr>`
-    return
-  }
+    if(errorAspirantes && /tenant_id/i.test(String(errorAspirantes.message || ""))){
+      // Compatibilidad con esquemas legacy sin tenant_id en aspirantes.
+      const fallback = await supabaseClient
+        .from("aspirantes")
+        .select("apellidos,nombres,dni,ubo")
+        .limit(1000)
+      dataAspirantes = (fallback.data || []).map(r=>Object.assign({}, r, { tenant_id: null }))
+      errorAspirantes = fallback.error
+    }
 
-  const aspirantesScoped = filtrarDataTenantActivo(dataAspirantes || [])
+    if(errorAspirantes){
+      tablaEl.innerHTML = `<tr><td colspan="5">No se pudo cargar el listado.</td></tr>`
+      if(msgEl) msgEl.innerText = `Error listando aspirantes: ${errorAspirantes.message || "desconocido"}`
+      return
+    }
 
-  ;(aspirantesScoped || []).forEach(r=>{
-    const dni = limpiarDni(r.dni)
-    if(!dni) return
-    registros.set(dni, {
-      apellidos: normalizarTexto(r.apellidos),
-      nombres: normalizarTexto(r.nombres),
-      dni,
-      ubo: normalizarTexto(r.ubo),
-      origen: "Aspirantes"
-    })
-  })
+    const aspirantesScoped = filtrarDataTenantActivo(dataAspirantes || [])
 
-  const { data: dataAsistencias, error: errorAsistencias } = await withTenantScope(supabaseClient
-    .from("asistencias")
-    .select("nombre,dni,ubo,fecha,hora,tenant_id")
-    .order("fecha", { ascending: false })
-    .order("hora", { ascending: false })
-    .limit(1200))
-
-  if(!errorAsistencias){
-    const asistencias = filtrarDataTenantActivo(dataAsistencias)
-    asistencias.forEach(r=>{
+    ;(aspirantesScoped || []).forEach(r=>{
       const dni = limpiarDni(r.dni)
-      if(!dni || registros.has(dni)) return
+      if(!dni) return
       registros.set(dni, {
-        apellidos: "",
-        nombres: normalizarTexto(r.nombre),
+        apellidos: normalizarTexto(r.apellidos),
+        nombres: normalizarTexto(r.nombres),
         dni,
         ubo: normalizarTexto(r.ubo),
-        origen: "Asistencias (SQL)"
+        origen: "Aspirantes"
       })
     })
-  }
 
-  const lista = Array.from(registros.values())
-    .sort((a,b)=>{
-      const aa = `${a.apellidos} ${a.nombres}`.trim().toLowerCase()
-      const bb = `${b.apellidos} ${b.nombres}`.trim().toLowerCase()
-      return aa.localeCompare(bb)
-    })
-    .slice(0, 600)
+    const { data: dataAsistencias, error: errorAsistencias } = await withTenantScope(supabaseClient
+      .from("asistencias")
+      .select("nombre,dni,ubo,fecha,hora,tenant_id")
+      .order("fecha", { ascending: false })
+      .order("hora", { ascending: false })
+      .limit(1200))
 
-  if(!lista.length){
-    tablaEl.innerHTML = `<tr><td colspan="5">Sin aspirantes cargados.</td></tr>`
-    if(msgCargaAspirantes){
-      msgCargaAspirantes.innerText = "Listado actualizado: 0 registros."
+    if(!errorAsistencias){
+      const asistencias = filtrarDataTenantActivo(dataAsistencias)
+      asistencias.forEach(r=>{
+        const dni = limpiarDni(r.dni)
+        if(!dni || registros.has(dni)) return
+        registros.set(dni, {
+          apellidos: "",
+          nombres: normalizarTexto(r.nombre),
+          dni,
+          ubo: normalizarTexto(r.ubo),
+          origen: "Asistencias (SQL)"
+        })
+      })
     }
-    return
-  }
 
-  let html = ""
-  lista.forEach(r=>{
-    html += `
-      <tr>
-        <td>${r.apellidos || ""}</td>
-        <td>${r.nombres || ""}</td>
-        <td>${r.dni || ""}</td>
-        <td>${r.ubo || ""}</td>
-        <td>${r.origen || ""}</td>
-      </tr>
-    `
-  })
-  tablaEl.innerHTML = html
-  if(msgCargaAspirantes){
-    msgCargaAspirantes.innerText = `Listado actualizado: ${lista.length} registro(s).`
+    const lista = Array.from(registros.values())
+      .sort((a,b)=>{
+        const aa = `${a.apellidos} ${a.nombres}`.trim().toLowerCase()
+        const bb = `${b.apellidos} ${b.nombres}`.trim().toLowerCase()
+        return aa.localeCompare(bb)
+      })
+      .slice(0, 600)
+
+    if(!lista.length){
+      tablaEl.innerHTML = `<tr><td colspan="5">Sin aspirantes cargados.</td></tr>`
+      if(msgEl) msgEl.innerText = "Listado actualizado: 0 registros."
+      return
+    }
+
+    let html = ""
+    lista.forEach(r=>{
+      html += `
+        <tr>
+          <td>${r.apellidos || ""}</td>
+          <td>${r.nombres || ""}</td>
+          <td>${r.dni || ""}</td>
+          <td>${r.ubo || ""}</td>
+          <td>${r.origen || ""}</td>
+        </tr>
+      `
+    })
+    tablaEl.innerHTML = html
+    if(msgEl) msgEl.innerText = `Listado actualizado: ${lista.length} registro(s).`
+  }catch(e){
+    console.error("Error en cargarAspirantesCargados:", e)
+    tablaEl.innerHTML = `<tr><td colspan="5">Error cargando listado.</td></tr>`
+    if(msgEl) msgEl.innerText = "Error cargando listado de aspirantes."
   }
 }
 
