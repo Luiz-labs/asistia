@@ -538,6 +538,16 @@ input, select{
     min-width:100%;
     width:100%;
   }
+
+  #vistaActividad .config-row,
+  #luizBloqueLogs .config-row{
+    grid-template-columns:1fr 1fr;
+  }
+
+  #filtroActividadTenantTexto,
+  #filtroActividadGlobalTexto{
+    grid-column:1 / -1;
+  }
 }
 
 .config-row select,
@@ -659,6 +669,75 @@ input, select{
   border:1px solid #e3e9f5;
   border-radius:12px;
   background:#fff;
+}
+
+#vistaActividad .config-row,
+#luizBloqueLogs .config-row{
+  display:grid;
+  grid-template-columns:repeat(6, minmax(130px, 1fr));
+  gap:10px;
+  align-items:stretch;
+}
+
+#vistaActividad .config-row input,
+#vistaActividad .config-row select,
+#luizBloqueLogs .config-row input,
+#luizBloqueLogs .config-row select{
+  min-width:0;
+  width:100%;
+  height:42px;
+}
+
+#filtroActividadTenantTexto,
+#filtroActividadGlobalTexto{
+  grid-column:span 2;
+}
+
+#vistaActividad .config-row button,
+#luizBloqueLogs .config-row button{
+  width:100%;
+  min-width:0;
+  height:42px;
+}
+
+#vistaActividad .user-table-wrap,
+#luizBloqueLogs .user-table-wrap{
+  max-height:clamp(280px, 46vh, 560px);
+}
+
+#vistaActividad .table-wrap table{
+  min-width:840px;
+}
+
+#luizBloqueLogs .table-wrap table{
+  min-width:1020px;
+}
+
+#tablaActividadTenant td,
+#tablaActividadGlobal td{
+  vertical-align:top;
+  white-space:normal;
+  line-height:1.35;
+}
+
+#tablaActividadTenant td:nth-child(1),
+#tablaActividadGlobal td:nth-child(1){
+  white-space:nowrap;
+  color:#31476f;
+  font-size:12px;
+}
+
+#tablaActividadTenant td:nth-child(2),
+#tablaActividadGlobal td:nth-child(2){
+  font-weight:600;
+  color:#1f3560;
+}
+
+#tablaActividadTenant td:last-child,
+#tablaActividadGlobal td:last-child{
+  color:#556b93;
+  font-size:12px;
+  word-break:break-word;
 }
 
 .table-actions{
@@ -1732,6 +1811,16 @@ input, select{
   #vistaMovil{
     padding:12px !important;
   }
+
+  #vistaActividad .config-row,
+  #luizBloqueLogs .config-row{
+    grid-template-columns:1fr;
+  }
+
+  #vistaActividad .config-row button,
+  #luizBloqueLogs .config-row button{
+    width:100%;
+  }
 }
 
 </style>
@@ -1980,6 +2069,7 @@ input, select{
       <p id="navDashboard" class="nav-item" data-view="dashboard" onclick="mostrarVista('dashboard')">📊 Dashboard</p>
       <p id="navConfig" class="nav-item" data-view="config" onclick="mostrarVista('config')">⚙️ Configuración</p>
       <p id="navUsuarios" class="nav-item" data-view="usuarios" onclick="mostrarVista('usuarios')">👥 Usuarios</p>
+      <p id="navActividad" class="nav-item" data-view="actividad" onclick="mostrarVista('actividad')">🧾 Actividad</p>
     </div>
 
     <div style="flex:1;padding:20px;">
@@ -2423,6 +2513,35 @@ input, select{
 
       </div>
 
+      <div id="vistaActividad" style="display:none;">
+        <h2>Actividad</h2>
+        <div class="card config-card" style="margin-bottom:14px;">
+          <h3>Logs institucionales</h3>
+          <div class="config-row">
+            <input id="filtroActividadTenantTexto" placeholder="Buscar acción/usuario/ruta">
+            <input id="filtroActividadTenantDesde" type="date">
+            <input id="filtroActividadTenantHasta" type="date">
+            <button onclick="cargarActividadTenant()">Filtrar</button>
+            <button class="secondary" onclick="limpiarActividadTenant()">Limpiar</button>
+            <button class="secondary" onclick="exportarActividadCSV('tenant')">Exportar CSV</button>
+          </div>
+          <div class="table-wrap user-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Acción</th>
+                  <th>Usuario</th>
+                  <th>Rol</th>
+                  <th>Detalle</th>
+                </tr>
+              </thead>
+              <tbody id="tablaActividadTenant"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       
 
     </div>
@@ -2451,6 +2570,7 @@ input, select{
       <button class="sidebar-account-btn secondary" onclick="abrirCuentaModal()" style="display:none;" data-account-btn>👤 Cuenta</button>
       <p id="luizNavInstituciones" class="nav-item active" onclick="mostrarVistaLuizLabs('instituciones')">🏢 Instituciones</p>
       <p id="luizNavUsuarios" class="nav-item" onclick="mostrarVistaLuizLabs('usuarios')">👥 Usuarios</p>
+      <p id="luizNavLogs" class="nav-item" onclick="mostrarVistaLuizLabs('logs')">🧾 Logs</p>
     </div>
 
     <div style="flex:1;padding:20px;">
@@ -2580,6 +2700,36 @@ input, select{
           </div>
         </div>
       </div>
+
+      <div id="luizBloqueLogs" style="display:none;">
+        <div class="card">
+          <h2 style="margin-bottom:10px;">Logs globales asistIA</h2>
+          <div class="config-row">
+            <select id="filtroActividadGlobalTenant"></select>
+            <input id="filtroActividadGlobalTexto" placeholder="Buscar acción/usuario/ruta">
+            <input id="filtroActividadGlobalDesde" type="date">
+            <input id="filtroActividadGlobalHasta" type="date">
+            <button onclick="cargarActividadGlobal()">Filtrar</button>
+            <button class="secondary" onclick="limpiarActividadGlobal()">Limpiar</button>
+            <button class="secondary" onclick="exportarActividadCSV('global')">Exportar CSV</button>
+          </div>
+          <div class="table-wrap user-table-wrap">
+            <table class="luiz-users-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Acción</th>
+                  <th>Usuario</th>
+                  <th>Rol</th>
+                  <th>Institución</th>
+                  <th>Detalle</th>
+                </tr>
+              </thead>
+              <tbody id="tablaActividadGlobal"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2625,6 +2775,8 @@ let tutorialTargetResaltado = null
 const VISTA_MODO_KEY = "vistaModoManual"
 const ADMIN_SESSION_KEY = "asistia_admin_session_v1"
 const LUIZLABS_STORE_KEY = "asistia_luizlabs_v1"
+const ACTIVITY_LOGS_KEY = "asistia_activity_logs_v1"
+const ACTIVITY_LOGS_MAX = 1200
 const DEFAULT_INSTITUTION_LOGO = "/asistIA_logo.png"
 const MULTITENANT_MODE = true
 let tenantScopeBackendReady = false
@@ -2753,6 +2905,312 @@ function enlazarIdsGlobales(){
 
 function haySupabase(){
   return !!supabaseClient
+}
+
+function leerActividadLogs(){
+  try{
+    const raw = localStorage.getItem(ACTIVITY_LOGS_KEY)
+    if(!raw) return []
+    const data = JSON.parse(raw)
+    return Array.isArray(data) ? data : []
+  }catch(e){
+    console.warn("No se pudo leer logs de actividad:", e)
+    return []
+  }
+}
+
+function guardarActividadLogs(logs){
+  try{
+    localStorage.setItem(ACTIVITY_LOGS_KEY, JSON.stringify(logs || []))
+  }catch(e){
+    console.warn("No se pudo guardar logs de actividad:", e)
+  }
+}
+
+function obtenerContextoActividad(){
+  const sesion = sesionAdminActiva || crearSesionAdminVacia()
+  const tenantId = String(sesion.tenantId || tenantActivoId || "").trim()
+  return {
+    usuario: String(sesion.usuario || "sistema").trim().toLowerCase() || "sistema",
+    rol: normalizarRolUsuario(sesion.rol || ""),
+    tenantId,
+    tenantNombre: obtenerNombreTenantUI(tenantId),
+    entorno: esModoStaff ? "staff_root" : "tenant_route",
+    ruta: String(window.location.pathname || "/")
+  }
+}
+
+function registrarActividad(accion, detalle = {}, opts = {}){
+  const nombreAccion = String(accion || "").trim()
+  if(!nombreAccion) return
+  const now = new Date()
+  const contexto = obtenerContextoActividad()
+  const overrideTenantId = String(opts.tenantId || "").trim()
+  const tenantIdFinal = overrideTenantId || contexto.tenantId
+
+  const entry = {
+    id: `${now.getTime()}_${Math.random().toString(36).slice(2,8)}`,
+    fecha: now.toISOString(),
+    accion: nombreAccion,
+    usuario: String(opts.usuario || contexto.usuario || "sistema").toLowerCase(),
+    rol: normalizarRolUsuario(opts.rol || contexto.rol || ""),
+    tenantId: tenantIdFinal,
+    tenantNombre: obtenerNombreTenantUI(tenantIdFinal),
+    entorno: String(opts.entorno || contexto.entorno || ""),
+    ruta: String(opts.ruta || contexto.ruta || "/"),
+    detalle: (detalle && typeof detalle === "object") ? detalle : { valor: String(detalle || "") }
+  }
+
+  const logs = leerActividadLogs()
+  logs.unshift(entry)
+  if(logs.length > ACTIVITY_LOGS_MAX){
+    logs.length = ACTIVITY_LOGS_MAX
+  }
+  guardarActividadLogs(logs)
+}
+
+function obtenerActividadPorScope(scope = "actual"){
+  const logs = leerActividadLogs()
+  if(scope === "global"){
+    return logs
+  }
+  if(scope === "tenant"){
+    const tenant = String(tenantActivoId || "").trim()
+    return logs.filter(x=>String(x?.tenantId || "").trim() === tenant)
+  }
+  if(scope === "sesion"){
+    const sesion = obtenerSesionAdminActiva()
+    if(esModoStaff && esSuperusuarioActivo()){
+      return logs
+    }
+    const tenant = String(sesion.tenantId || tenantActivoId || "").trim()
+    return logs.filter(x=>String(x?.tenantId || "").trim() === tenant)
+  }
+  return logs
+}
+
+function formatearFechaActividad(value){
+  const raw = String(value || "").trim()
+  if(!raw) return "-"
+  const d = new Date(raw)
+  if(Number.isNaN(d.getTime())) return raw
+  return d.toLocaleString("es-PE", { hour12: false })
+}
+
+function humanizarAccionActividad(accion){
+  const mapa = {
+    login_admin: "Login admin",
+    login_admin_institucional: "Login admin institucional",
+    logout_admin: "Logout admin",
+    institucion_creada: "Institución creada",
+    institucion_editada: "Institución editada",
+    institucion_estado_actualizado: "Estado institución actualizado",
+    institucion_eliminada: "Institución eliminada",
+    institucion_ingresar_desde_luizlabs: "Ingreso a institución",
+    institucion_enlace_copiado: "Enlace institución copiado",
+    usuario_global_creado: "Usuario global creado",
+    usuario_global_editado: "Usuario global editado",
+    usuario_global_estado_actualizado: "Estado usuario global actualizado",
+    usuario_global_eliminado: "Usuario global eliminado",
+    usuario_admin_luiz_creado: "Usuario admin institucional creado",
+    usuario_admin_luiz_editado: "Usuario admin institucional editado",
+    usuario_admin_institucional_creado: "Usuario admin local creado",
+    usuario_admin_institucional_editado: "Usuario admin local editado",
+    usuario_admin_institucional_desactivado: "Usuario admin local desactivado",
+    usuario_estado_actualizado: "Estado usuario actualizado",
+    usuario_eliminado: "Usuario eliminado",
+    usuario_clave_regenerada: "Clave regenerada",
+    aspirantes_carga_excel: "Carga de aspirantes",
+    gps_carga_coordenadas: "Carga de coordenadas GPS",
+    configuracion_curso_guardada: "Configuración de curso guardada",
+    seccion_curso_creada: "Sección creada",
+    seccion_curso_editada: "Sección editada",
+    seccion_curso_eliminada: "Sección eliminada",
+    sede_ubo_creada: "Sede UBO creada",
+    sede_ubo_editada: "Sede UBO editada",
+    sede_ubo_eliminada: "Sede UBO eliminada",
+    aspirante_retirado: "Aspirante retirado",
+    aspirante_reactivado: "Aspirante reactivado"
+  }
+  return mapa[String(accion || "")] || String(accion || "-")
+}
+
+function resumirDetalleActividad(detalle){
+  if(!detalle || typeof detalle !== "object") return "-"
+  const keys = Object.keys(detalle).slice(0, 4)
+  if(!keys.length) return "-"
+  return keys.map(k=>{
+    const v = detalle[k]
+    if(Array.isArray(v)) return `${k}: ${v.join(", ")}`
+    if(v && typeof v === "object") return `${k}: [objeto]`
+    return `${k}: ${String(v)}`
+  }).join(" | ")
+}
+
+function filtrarLogsActividad(logs = [], opts = {}){
+  const texto = String(opts.texto || "").trim().toLowerCase()
+  const desde = String(opts.desde || "").trim()
+  const hasta = String(opts.hasta || "").trim()
+  const tenant = String(opts.tenantId || "").trim()
+
+  return (logs || []).filter(item=>{
+    const fechaIso = String(item?.fecha || "")
+    const fechaDia = fechaIso.slice(0,10)
+    if(desde && fechaDia < desde) return false
+    if(hasta && fechaDia > hasta) return false
+    if(tenant && String(item?.tenantId || "") !== tenant) return false
+
+    if(!texto) return true
+    const blob = [
+      item?.accion,
+      item?.usuario,
+      item?.rol,
+      item?.tenantNombre,
+      item?.ruta,
+      JSON.stringify(item?.detalle || {})
+    ].join(" ").toLowerCase()
+    return blob.includes(texto)
+  })
+}
+
+function poblarFiltroTenantLogsGlobal(){
+  const el = document.getElementById("filtroActividadGlobalTenant")
+  if(!el) return
+  const prev = el.value || ""
+  let html = `<option value="">Todas las instituciones</option>`
+  TENANTS.slice()
+    .sort((a,b)=>String(a.nombre || "").localeCompare(String(b.nombre || "")))
+    .forEach(t=>{
+      html += `<option value="${t.id}">${t.nombre}</option>`
+    })
+  el.innerHTML = html
+  if(prev && TENANTS.some(t=>t.id === prev)){
+    el.value = prev
+  }
+}
+
+function renderTablaActividadTenant(rows = []){
+  const tbody = document.getElementById("tablaActividadTenant")
+  if(!tbody) return
+  if(!rows.length){
+    tbody.innerHTML = `<tr><td colspan="5">Sin actividad en este tenant.</td></tr>`
+    return
+  }
+  let html = ""
+  rows.slice(0, 500).forEach(item=>{
+    html += `
+      <tr>
+        <td>${formatearFechaActividad(item.fecha)}</td>
+        <td>${humanizarAccionActividad(item.accion)}</td>
+        <td>${item.usuario || "-"}</td>
+        <td>${obtenerNombreRolUI(item.rol)}</td>
+        <td>${resumirDetalleActividad(item.detalle)}</td>
+      </tr>
+    `
+  })
+  tbody.innerHTML = html
+}
+
+function renderTablaActividadGlobal(rows = []){
+  const tbody = document.getElementById("tablaActividadGlobal")
+  if(!tbody) return
+  if(!rows.length){
+    tbody.innerHTML = `<tr><td colspan="6">Sin actividad registrada.</td></tr>`
+    return
+  }
+  let html = ""
+  rows.slice(0, 700).forEach(item=>{
+    html += `
+      <tr>
+        <td>${formatearFechaActividad(item.fecha)}</td>
+        <td>${humanizarAccionActividad(item.accion)}</td>
+        <td>${item.usuario || "-"}</td>
+        <td>${obtenerNombreRolUI(item.rol)}</td>
+        <td>${item.tenantNombre || "Plataforma asistIA"}</td>
+        <td>${resumirDetalleActividad(item.detalle)}</td>
+      </tr>
+    `
+  })
+  tbody.innerHTML = html
+}
+
+function cargarActividadTenant(){
+  const base = obtenerActividadPorScope("tenant")
+  const texto = document.getElementById("filtroActividadTenantTexto")?.value || ""
+  const desde = document.getElementById("filtroActividadTenantDesde")?.value || ""
+  const hasta = document.getElementById("filtroActividadTenantHasta")?.value || ""
+  const filtrada = filtrarLogsActividad(base, { texto, desde, hasta })
+  renderTablaActividadTenant(filtrada)
+}
+
+function limpiarActividadTenant(){
+  const elTexto = document.getElementById("filtroActividadTenantTexto")
+  const elDesde = document.getElementById("filtroActividadTenantDesde")
+  const elHasta = document.getElementById("filtroActividadTenantHasta")
+  if(elTexto) elTexto.value = ""
+  if(elDesde) elDesde.value = ""
+  if(elHasta) elHasta.value = ""
+  cargarActividadTenant()
+}
+
+function cargarActividadGlobal(){
+  const base = obtenerActividadPorScope("global")
+  const texto = document.getElementById("filtroActividadGlobalTexto")?.value || ""
+  const desde = document.getElementById("filtroActividadGlobalDesde")?.value || ""
+  const hasta = document.getElementById("filtroActividadGlobalHasta")?.value || ""
+  const tenantId = document.getElementById("filtroActividadGlobalTenant")?.value || ""
+  const filtrada = filtrarLogsActividad(base, { texto, desde, hasta, tenantId })
+  renderTablaActividadGlobal(filtrada)
+}
+
+function limpiarActividadGlobal(){
+  const elTexto = document.getElementById("filtroActividadGlobalTexto")
+  const elDesde = document.getElementById("filtroActividadGlobalDesde")
+  const elHasta = document.getElementById("filtroActividadGlobalHasta")
+  const elTenant = document.getElementById("filtroActividadGlobalTenant")
+  if(elTexto) elTexto.value = ""
+  if(elDesde) elDesde.value = ""
+  if(elHasta) elHasta.value = ""
+  if(elTenant) elTenant.value = ""
+  cargarActividadGlobal()
+}
+
+function exportarActividadCSV(scope = "tenant"){
+  const esGlobal = scope === "global"
+  const base = obtenerActividadPorScope(esGlobal ? "global" : "tenant")
+  const texto = document.getElementById(esGlobal ? "filtroActividadGlobalTexto" : "filtroActividadTenantTexto")?.value || ""
+  const desde = document.getElementById(esGlobal ? "filtroActividadGlobalDesde" : "filtroActividadTenantDesde")?.value || ""
+  const hasta = document.getElementById(esGlobal ? "filtroActividadGlobalHasta" : "filtroActividadTenantHasta")?.value || ""
+  const tenantId = esGlobal ? (document.getElementById("filtroActividadGlobalTenant")?.value || "") : ""
+  const rows = filtrarLogsActividad(base, { texto, desde, hasta, tenantId })
+
+  if(!rows.length){
+    alert("No hay logs para exportar.")
+    return
+  }
+
+  const escape = (v)=>`"${String(v ?? "").replace(/"/g, '""')}"`
+  const headers = esGlobal
+    ? ["fecha","accion","usuario","rol","tenant_id","tenant_nombre","ruta","detalle"]
+    : ["fecha","accion","usuario","rol","tenant_id","ruta","detalle"]
+  const lines = [headers.join(",")]
+  rows.forEach(item=>{
+    const values = esGlobal
+      ? [item.fecha, item.accion, item.usuario, item.rol, item.tenantId, item.tenantNombre, item.ruta, JSON.stringify(item.detalle || {})]
+      : [item.fecha, item.accion, item.usuario, item.rol, item.tenantId, item.ruta, JSON.stringify(item.detalle || {})]
+    lines.push(values.map(escape).join(","))
+  })
+
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  const sufijo = esGlobal ? "global" : (tenantActivoId || "tenant")
+  a.href = url
+  a.download = `asistia_logs_${sufijo}_${new Date().toISOString().slice(0,10)}.csv`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
 }
 
 function normalizarRolUsuario(rol){
@@ -3377,18 +3835,28 @@ function obtenerInstitucionLuiz(tenantId){
 }
 
 function mostrarVistaLuizLabs(vista){
-  const next = vista === "usuarios" ? "usuarios" : "instituciones"
+  let next = "instituciones"
+  if(vista === "usuarios") next = "usuarios"
+  if(vista === "logs") next = "logs"
   vistaLuizLabsActual = next
 
   const navInst = document.getElementById("luizNavInstituciones")
   const navUsers = document.getElementById("luizNavUsuarios")
+  const navLogs = document.getElementById("luizNavLogs")
   if(navInst) navInst.classList.toggle("active", next === "instituciones")
   if(navUsers) navUsers.classList.toggle("active", next === "usuarios")
+  if(navLogs) navLogs.classList.toggle("active", next === "logs")
 
   const bloqueInst = document.getElementById("luizBloqueInstituciones")
   const bloqueUsers = document.getElementById("luizBloqueUsuarios")
+  const bloqueLogs = document.getElementById("luizBloqueLogs")
   if(bloqueInst) bloqueInst.style.display = next === "instituciones" ? "block" : "none"
   if(bloqueUsers) bloqueUsers.style.display = next === "usuarios" ? "block" : "none"
+  if(bloqueLogs) bloqueLogs.style.display = next === "logs" ? "block" : "none"
+  if(next === "logs"){
+    poblarFiltroTenantLogsGlobal()
+    cargarActividadGlobal()
+  }
 }
 
 function renderPanelLuizLabs(){
@@ -3399,6 +3867,7 @@ function renderPanelLuizLabs(){
   const tenantPrevio = elTenant?.value || ""
   if(!tablaInst || !tablaUsers || !tablaGlobal) return
   mostrarVistaLuizLabs(vistaLuizLabsActual)
+  poblarFiltroTenantLogsGlobal()
 
   if(elTenant){
     const institucionesActivas = institucionesLuiz.filter(i=>i.estado === "activo")
@@ -3652,12 +4121,18 @@ async function crearInstitucionLuizLabs(){
     `Usuario admin: ${usuario}\n` +
     `Contraseña temporal: ${password}`
   )
+  registrarActividad("institucion_creada", {
+    institucion: nombre,
+    slug,
+    adminGenerado: usuario
+  }, { tenantId: slug })
 }
 
 function editarInstitucionLuizLabs(id){
   if(!puedeEntrarPanelLuizLabs()) return
   const inst = institucionesLuiz.find(x=>x.id === id)
   if(!inst) return
+  const nombreAnterior = inst.nombre || ""
   const nuevoNombre = prompt("Nuevo nombre de institución:", inst.nombre || "")
   if(nuevoNombre == null) return
   const limpio = String(nuevoNombre).trim()
@@ -3671,6 +4146,11 @@ function editarInstitucionLuizLabs(id){
   renderTenantSelector()
   aplicarTenantEnUI()
   renderPanelLuizLabs()
+  registrarActividad("institucion_editada", {
+    slug: inst.slug,
+    nombreAnterior,
+    nombreNuevo: limpio
+  }, { tenantId: inst.slug })
 }
 
 function toggleEstadoInstitucionLuizLabs(id){
@@ -3682,6 +4162,10 @@ function toggleEstadoInstitucionLuizLabs(id){
   guardarLuizLabsEnStorage()
   renderTenantSelector()
   renderPanelLuizLabs()
+  registrarActividad("institucion_estado_actualizado", {
+    slug: inst.slug,
+    estado: inst.estado
+  }, { tenantId: inst.slug })
 }
 
 function ingresarInstitucionLuizLabs(slug){
@@ -3695,6 +4179,10 @@ function ingresarInstitucionLuizLabs(slug){
     alert("La institución está inactiva. Actívala antes de ingresar.")
     return
   }
+  registrarActividad("institucion_ingresar_desde_luizlabs", {
+    slug,
+    nombre: inst.nombre
+  }, { tenantId: slug })
   window.location.href = obtenerRutaTenant(slug)
 }
 
@@ -3707,6 +4195,7 @@ async function copiarEnlaceInstitucionLuizLabs(slug){
     if(navigator.clipboard?.writeText){
       await navigator.clipboard.writeText(url)
       alert(`Enlace copiado:\n${url}`)
+      registrarActividad("institucion_enlace_copiado", { slug, url }, { tenantId: slug })
       return
     }
   }catch(e){
@@ -3716,6 +4205,7 @@ async function copiarEnlaceInstitucionLuizLabs(slug){
   const soporte = window.prompt("Copia este enlace:", url)
   if(soporte !== null){
     alert("Enlace listo para copiar.")
+    registrarActividad("institucion_enlace_copiado", { slug, url }, { tenantId: slug })
   }
 }
 
@@ -3740,6 +4230,8 @@ function eliminarInstitucionLuizLabs(id){
     `Esta acción también eliminará su usuario admin asociado.`
   )
   if(!ok) return
+  const slugEliminado = inst.slug
+  const nombreEliminado = inst.nombre
 
   institucionesLuiz.splice(idx, 1)
   usuariosAdminLuiz = usuariosAdminLuiz.filter(u=>u.tenantId !== inst.slug)
@@ -3752,6 +4244,10 @@ function eliminarInstitucionLuizLabs(id){
   guardarLuizLabsEnStorage()
   renderTenantSelector()
   renderPanelLuizLabs()
+  registrarActividad("institucion_eliminada", {
+    slug: slugEliminado,
+    nombre: nombreEliminado
+  }, { tenantId: slugEliminado })
 }
 
 function regenerarClaveUsuarioAdminLuiz(idx){
@@ -3767,6 +4263,10 @@ function regenerarClaveUsuarioAdminLuiz(idx){
   user.password = nuevaClave
   guardarLuizLabsEnStorage()
   renderPanelLuizLabs()
+  registrarActividad("usuario_clave_regenerada", {
+    usuario: user.usuario,
+    tipo: esUsuarioGlobalAsistIA(user) ? "global" : "institucional"
+  }, { tenantId: user.tenantId || "" })
   alert(
     `Credencial actualizada.\n\n` +
     `Usuario: ${user.usuario}\n` +
@@ -3786,6 +4286,11 @@ function toggleEstadoUsuarioAdminLuiz(idx){
   user.estado = user.estado === "activo" ? "inactivo" : "activo"
   guardarLuizLabsEnStorage()
   renderPanelLuizLabs()
+  registrarActividad("usuario_estado_actualizado", {
+    usuario: user.usuario,
+    estado: user.estado,
+    tipo: "institucional"
+  }, { tenantId: user.tenantId || "" })
 }
 
 function eliminarUsuarioAdminLuiz(idx){
@@ -3799,9 +4304,15 @@ function eliminarUsuarioAdminLuiz(idx){
   }
   const ok = confirm(`¿Eliminar usuario admin "${user.usuario}"?`)
   if(!ok) return
+  const userEliminado = user.usuario
+  const tenantUser = user.tenantId || ""
   usuariosAdminLuiz.splice(idx, 1)
   guardarLuizLabsEnStorage()
   renderPanelLuizLabs()
+  registrarActividad("usuario_eliminado", {
+    usuario: userEliminado,
+    tipo: "institucional"
+  }, { tenantId: tenantUser })
 }
 
 function limpiarUsuarioGlobalLuizForm(){
@@ -3863,6 +4374,10 @@ function toggleEstadoUsuarioGlobalLuiz(idx){
   user.estado = user.estado === "activo" ? "inactivo" : "activo"
   guardarLuizLabsEnStorage()
   renderPanelLuizLabs()
+  registrarActividad("usuario_global_estado_actualizado", {
+    usuario: user.usuario,
+    estado: user.estado
+  })
 }
 
 function eliminarUsuarioGlobalLuiz(idx){
@@ -3875,9 +4390,11 @@ function eliminarUsuarioGlobalLuiz(idx){
   }
   const ok = confirm(`¿Eliminar usuario global "${user.usuario}"?`)
   if(!ok) return
+  const usuarioEliminado = user.usuario
   usuariosAdminLuiz.splice(idx, 1)
   guardarLuizLabsEnStorage()
   renderPanelLuizLabs()
+  registrarActividad("usuario_global_eliminado", { usuario: usuarioEliminado })
 }
 
 function guardarUsuarioGlobalLuiz(){
@@ -3904,6 +4421,7 @@ function guardarUsuarioGlobalLuiz(){
     return
   }
 
+  let accion = "usuario_global_creado"
   if(editUsuarioGlobalLuizIndex >= 0){
     const actual = usuariosAdminLuiz[editUsuarioGlobalLuizIndex]
     if(!actual || !esUsuarioGlobalAsistIA(actual)){
@@ -3921,6 +4439,7 @@ function guardarUsuarioGlobalLuiz(){
     actual.tenantId = ""
     if(!actual.fecha_creacion) actual.fecha_creacion = new Date().toISOString()
     if(!actual.estado) actual.estado = "activo"
+    accion = "usuario_global_editado"
   }else{
     const existe = usuariosAdminLuiz.some(u=>String(u.usuario || "").toLowerCase() === usuario)
     if(existe){
@@ -3940,6 +4459,7 @@ function guardarUsuarioGlobalLuiz(){
   guardarLuizLabsEnStorage()
   renderPanelLuizLabs()
   limpiarUsuarioGlobalLuizForm()
+  registrarActividad(accion, { usuario, rol })
 }
 
 function limpiarUsuarioAdminLuizForm(){
@@ -4028,6 +4548,7 @@ function guardarUsuarioAdminLuiz(){
     return
   }
 
+  let accion = "usuario_admin_luiz_creado"
   if(editUsuarioLuizIndex >= 0){
     const actual = usuariosAdminLuiz[editUsuarioLuizIndex]
     if(!actual){
@@ -4052,6 +4573,7 @@ function guardarUsuarioAdminLuiz(){
     actual.password = password
     if(!actual.fecha_creacion) actual.fecha_creacion = new Date().toISOString()
     if(!actual.estado) actual.estado = "activo"
+    accion = "usuario_admin_luiz_editado"
   }else{
     const existe = usuariosAdminLuiz.some(u=>u.usuario === usuario)
     if(existe){
@@ -4071,6 +4593,11 @@ function guardarUsuarioAdminLuiz(){
   guardarLuizLabsEnStorage()
   renderPanelLuizLabs()
   limpiarUsuarioAdminLuizForm()
+  registrarActividad(accion, {
+    usuario,
+    rol,
+    tenantId
+  }, { tenantId })
 }
 
 function esModoAdminMovilLimitado(){
@@ -4093,12 +4620,14 @@ function aplicarRestriccionesPanelPorContexto(){
   const limitado = esModoAdminMovilLimitado()
   const navConfig = document.getElementById("navConfig")
   const navUsuarios = document.getElementById("navUsuarios")
+  const navActividad = document.getElementById("navActividad")
   const adminMobileNotice = document.getElementById("adminMobileNotice")
   const btnInstitucion = document.getElementById("btnInstitucion")
   const btnVolverLuizLabs = document.getElementById("btnVolverLuizLabs")
 
   if(navConfig) navConfig.style.display = limitado ? "none" : ""
   if(navUsuarios) navUsuarios.style.display = limitado ? "none" : ""
+  if(navActividad) navActividad.style.display = limitado ? "none" : ""
   if(adminMobileNotice) adminMobileNotice.style.display = limitado ? "block" : "none"
 
   if(btnInstitucion){
@@ -4899,6 +5428,7 @@ async function guardarUsuarioAdmin(){
     alert("El rol superusuario es global y no se gestiona en este módulo institucional.")
     return
   }
+  let accion = "usuario_admin_institucional_creado"
   if(editUsuarioIndex >= 0){
     const original = usuariosAdmin[editUsuarioIndex]
     if(!original?.id){
@@ -4913,6 +5443,7 @@ async function guardarUsuarioAdmin(){
       alert(`No se pudo actualizar: ${error.message}`)
       return
     }
+    accion = "usuario_admin_institucional_editado"
   }else{
     if(SYSTEM_USERS.some(s => s.usuario === usuario)){
       alert("Ese usuario es del sistema y ya existe")
@@ -4934,6 +5465,7 @@ async function guardarUsuarioAdmin(){
 
   await cargarUsuariosAdminDesdeSupabase()
   limpiarUsuarioAdmin()
+  registrarActividad(accion, { usuario, rol }, { tenantId: tenantActivoId })
 }
 
 function editarUsuarioAdmin(idx){
@@ -4960,6 +5492,10 @@ async function eliminarUsuarioAdmin(idx){
     return
   }
   await cargarUsuariosAdminDesdeSupabase()
+  registrarActividad("usuario_admin_institucional_desactivado", {
+    usuario: u.usuario || "",
+    id: u.id
+  }, { tenantId: tenantActivoId })
 }
 
 async function cargarExcelAspirantes(){
@@ -5023,6 +5559,9 @@ async function cargarExcelAspirantes(){
 
   msgCargaAspirantes.innerText = `Carga exitosa: ${payload.length} aspirantes procesados.`
   await cargarAspirantesCargados()
+  registrarActividad("aspirantes_carga_excel", {
+    total: payload.length
+  }, { tenantId: tenantActivoId })
 }
 
 async function cargarAspirantesCargados(){
@@ -5195,6 +5734,9 @@ async function cargarExcelUbosSedes(){
 
   msgCargaUbosSedes.innerText = `Carga exitosa: ${payload.length} UBO(s) procesadas.`
   await cargarUbos()
+  registrarActividad("gps_carga_coordenadas", {
+    totalUbos: payload.length
+  }, { tenantId: tenantActivoId })
 }
 
 async function cargarSedesUbo(){
@@ -5644,6 +6186,11 @@ function loginAccesoAdminInstitucional(){
     tenantId: tenant.id,
     origen: "tenant_route"
   })
+  registrarActividad("login_admin_institucional", {
+    via: "acceso_administrativo_ruta",
+    usuario: resultado.usuario,
+    rol: resultado.rol
+  }, { tenantId: tenant.id, usuario: resultado.usuario, rol: resultado.rol })
 
   cerrarAccesoAdminInstitucional()
   mostrarVista("reportes")
@@ -5693,6 +6240,11 @@ function login(){
         tenantId: "",
         origen: "staff_root"
       })
+      registrarActividad("login_admin", {
+        via: "root",
+        usuario: resultado.usuario,
+        rol: resultado.rol
+      }, { usuario: resultado.usuario, rol: resultado.rol, tenantId: "" })
       mostrarSelectorStaff = false
       loginMsg.innerText = ""
       aplicarLayout()
@@ -5707,6 +6259,11 @@ function login(){
       tenantId: tenantActivoId,
       origen: "tenant_route"
     })
+    registrarActividad("login_admin", {
+      via: "tenant_login",
+      usuario: resultado.usuario,
+      rol: resultado.rol
+    }, { usuario: resultado.usuario, rol: resultado.rol, tenantId: tenantActivoId })
     loginScreen.style.display="none"
     vistaDesktop.style.display="block"
     mostrarVista("reportes")
@@ -5745,7 +6302,17 @@ function verCriterio(tipo){
 }
 
 function logout(){
-  const origenSesion = obtenerSesionAdminActiva().origen || ""
+  const sesionPrev = obtenerSesionAdminActiva()
+  const origenSesion = sesionPrev.origen || ""
+  if(sesionPrev?.autenticado){
+    registrarActividad("logout_admin", {
+      origen: origenSesion
+    }, {
+      usuario: sesionPrev.usuario,
+      rol: sesionPrev.rol,
+      tenantId: sesionPrev.tenantId || tenantActivoId || ""
+    })
+  }
   cerrarTutorial()
   limpiarSesionAdminActiva()
 
@@ -6613,6 +7180,9 @@ async function retirarAspirante(dni){
   }else{
     alert("Aspirante retirado correctamente")
     buscarAspirantes() // 🔥 refresca lista
+    registrarActividad("aspirante_retirado", {
+      dni: String(dni || "").trim()
+    }, { tenantId: tenantActivoId })
   }
 
 }
@@ -6626,6 +7196,7 @@ function mostrarVista(vista){
   document.getElementById("vistaDashboard").style.display="none"
   document.getElementById("vistaConfig").style.display="none"
   document.getElementById("vistaUsuarios").style.display="none"
+  document.getElementById("vistaActividad").style.display="none"
   document.querySelectorAll(".nav-item")
     .forEach(el => el.classList.remove("active"))
   marcarNavActiva(vista)
@@ -6650,6 +7221,11 @@ function mostrarVista(vista){
   if(vista==="usuarios"){
     document.getElementById("vistaUsuarios").style.display="block"
     renderUsuariosAdmin()
+  }
+
+  if(vista==="actividad"){
+    document.getElementById("vistaActividad").style.display="block"
+    cargarActividadTenant()
   }
 
   vistaAdminActual = vista
@@ -6815,6 +7391,10 @@ async function guardarCurso(){
         nombre_curso: (cursoNombre.value || "").toUpperCase()
       }
       alert("Curso guardado (falta columna nombre_curso en Supabase).")
+      registrarActividad("configuracion_curso_guardada", {
+        nombreCurso: (cursoNombre.value || "").toUpperCase(),
+        gpsActivo: !!toggleGPS.checked
+      }, { tenantId: tenantActivoId })
       return
     }
     alert("Error al guardar configuración de curso")
@@ -6827,6 +7407,10 @@ async function guardarCurso(){
     nombre_curso: (cursoNombre.value || "").toUpperCase()
   }
   alert("Curso guardado")
+  registrarActividad("configuracion_curso_guardada", {
+    nombreCurso: (cursoNombre.value || "").toUpperCase(),
+    gpsActivo: !!toggleGPS.checked
+  }, { tenantId: tenantActivoId })
 }
 
 function actualizarOpcionesSeccionSede(){
@@ -6880,6 +7464,7 @@ async function guardarSeccionCurso(){
     return
   }
 
+  const accion = editSeccionCursoIndex >= 0 ? "seccion_curso_editada" : "seccion_curso_creada"
   const item = {
     seccion: seccionValor,
     modalidad: secCursoModalidad.value,
@@ -6962,6 +7547,12 @@ async function guardarSeccionCurso(){
   renderSeccionesCurso()
   actualizarOpcionesSeccionSede()
   limpiarFormSeccionCurso()
+  registrarActividad(accion, {
+    seccion: item.seccion,
+    modalidad: item.modalidad,
+    horaInicio: item.hora_inicio,
+    dias: item.dias
+  }, { tenantId: tenantActivoId })
 }
 
 function editarSeccionCurso(idx){
@@ -6998,6 +7589,9 @@ async function eliminarSeccionCurso(idx){
   guardarEstructuraCursoLocal()
   renderSeccionesCurso()
   actualizarOpcionesSeccionSede()
+  registrarActividad("seccion_curso_eliminada", {
+    seccion: String(seccion || "")
+  }, { tenantId: tenantActivoId })
 }
 
 function renderSeccionesCurso(){
@@ -7072,6 +7666,7 @@ async function guardarSedeUbo(){
     return
   }
 
+  const accion = editSedeUboIndex >= 0 ? "sede_ubo_editada" : "sede_ubo_creada"
   const seccionesObjetivo = esTodasSecciones ? seccionesDisponibles : [seccionValor]
   const uboValor = uboSecUbo.value
   const modalidadValor = uboSecModalidad.value
@@ -7183,6 +7778,13 @@ async function guardarSedeUbo(){
   if(erroresGuardado > 0){
     alert(`Se aplicó parcialmente. ${erroresGuardado} sección(es) no pudieron guardarse.`)
   }
+  registrarActividad(accion, {
+    secciones: seccionesObjetivo,
+    ubo: uboValor,
+    modalidad: modalidadValor,
+    horaInicio: horaValor,
+    todosDias
+  }, { tenantId: tenantActivoId })
 }
 
 function editarSedeUbo(idx){
@@ -7221,6 +7823,9 @@ async function eliminarSedeUbo(idx){
 
   guardarEstructuraCursoLocal()
   renderSedesUbo()
+  registrarActividad("sede_ubo_eliminada", {
+    seccion: String(seccion || "")
+  }, { tenantId: tenantActivoId })
 }
 
 function renderSedesUbo(){
@@ -7387,6 +7992,9 @@ async function reactivar(dni){
     .eq("dni", dni))
 
   cargarRetirados()
+  registrarActividad("aspirante_reactivado", {
+    dni: String(dni || "").trim()
+  }, { tenantId: tenantActivoId })
 }
 
 loginPass?.addEventListener("keydown", (e)=>{
