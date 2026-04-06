@@ -7689,7 +7689,7 @@ async function resolverCredencialesAdmin(usuario, clave, contexto = {}){
     return { valido: false, motivo: "clave_incorrecta" }
   }
 
-  if(userLocal && (authResultado.ok || !userLocal?.authUserId && String(userLocal.clave || "") === clave)){
+  if(userLocal && (authResultado.ok || (!requiereJwt && !userLocal?.authUserId && String(userLocal.clave || "") === clave))){
     const perfilLocal = String(perfilesUsuariosLocales?.[String(userLocal.usuario || "").toLowerCase()] || "administrador")
     const perfilDataLocal = obtenerPerfilPorId(perfilLocal)
     const rolLocal = normalizarRolUsuario(userLocal.rol)
