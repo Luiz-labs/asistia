@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>Cargando... - asistIA</title>
+  <title>ESBAS Panel de Asistencia - XXIV CD</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,7 +22,7 @@
       <button id="btnSalirTenant" class="secondary" onclick="logout()">Salir</button>
     </div>
     <div class="tenant-title">
-      <h1 class="brand-main">asist<span style="color: #6366f1;">IA</span></h1>
+      <h1 class="brand-main">asistIA</h1>
       <p class="tenant-subtitle">Control Inteligente de Asistencia</p>
     </div>
     <p class="tenant-caption">Selecciona la institución para continuar</p>
@@ -89,7 +89,7 @@
 
     <div id="loginPoweredBy" class="login-powered">
       <span>Powered by</span>
-      <span class="login-powered-wordmark">asist<span style="color: #6366f1;">IA</span></span>
+      <span class="login-powered-wordmark">asistIA</span>
     </div>
 
     <!-- FOOTER -->
@@ -109,7 +109,7 @@
     <div class="mobile-qr-brandline">
       <img id="tenantLogoMovilInicio" class="mobile-qr-logo" src="/asistIA_logo.png" alt="asistIA">
       <div class="mobile-qr-brandcopy">
-        <h1 class="mobile-asistia-wordmark">asist<span style="color: #6366f1;">IA</span></h1>
+        <h1 class="mobile-asistia-wordmark">asistIA</h1>
         <p class="mobile-qr-title">Asistencia Aspirantes</p>
         <p class="mobile-qr-subtitle">Escaneo QR</p>
       </div>
@@ -129,7 +129,7 @@
       <img id="tenantLogoMovil" class="mobile-qr-logo tenant-dynamic-logo" src="/asistIA_logo.png"
         alt="Logo institucional">
       <div class="mobile-qr-brandcopy">
-        <h1 class="mobile-asistia-wordmark">asist<span style="color: #6366f1;">IA</span></h1>
+        <h1 class="mobile-asistia-wordmark">asistIA</h1>
         <p class="mobile-qr-title">Asistencia Aspirantes</p>
         <p class="mobile-qr-subtitle">Escaneo QR</p>
       </div>
@@ -314,29 +314,29 @@
 
           <div id="dashboardKpiCapture">
             <!-- KPIs -->
-            <div class="dashboard-flex-row">
+            <div style="display:flex; gap:15px; margin-bottom:20px;">
 
-              <div class="card" style="text-align:center;">
+              <div class="card" style="flex:1; text-align:center;">
                 <h3 id="kpiTotal">0</h3>
                 <p>Total Activos</p>
               </div>
 
-              <div class="card" style="text-align:center;">
+              <div class="card" style="flex:1; text-align:center;">
                 <h3 id="kpiAsistencia">0%</h3>
                 <p>% Asistencia</p>
               </div>
 
-              <div class="card" style="text-align:center;">
+              <div class="card" style="flex:1; text-align:center;">
                 <h3 id="kpiInasistencia">0</h3>
                 <p>Inasistencias</p>
               </div>
 
-              <div class="card" style="text-align:center;">
+              <div class="card" style="flex:1; text-align:center;">
                 <h3 id="kpiCobertura">0%</h3>
                 <p>% Cobertura</p>
               </div>
 
-              <div id="kpiDispCard" class="card" style="text-align:center; cursor:pointer;"
+              <div id="kpiDispCard" class="card" style="flex:1; text-align:center; cursor:pointer;"
                 onclick="verAlertasDispositivo()">
                 <h3 id="kpiDispNoHabitual">0</h3>
                 <p>Alertas Dispositivo</p>
@@ -345,19 +345,19 @@
             </div>
 
             <!-- SEMÁFORO -->
-            <div class="dashboard-flex-row">
+            <div style="display:flex; gap:15px; margin-bottom:20px;">
 
-              <div class="card" style="text-align:center; cursor:pointer;" onclick="verDetalle('verde')">
+              <div class="card" style="flex:1; text-align:center; cursor:pointer;" onclick="verDetalle('verde')">
                 <h3 id="verdeCount">0</h3>
                 <p>🟢 Verde</p>
               </div>
 
-              <div class="card" style="text-align:center; cursor:pointer;" onclick="verDetalle('amarillo')">
+              <div class="card" style="flex:1; text-align:center; cursor:pointer;" onclick="verDetalle('amarillo')">
                 <h3 id="amarilloCount">0</h3>
                 <p>🟡 Amarillo</p>
               </div>
 
-              <div class="card" style="text-align:center; cursor:pointer;" onclick="verDetalle('rojo')">
+              <div class="card" style="flex:1; text-align:center; cursor:pointer;" onclick="verDetalle('rojo')">
                 <h3 id="rojoCount">0</h3>
                 <p>🔴 Rojo</p>
               </div>
@@ -368,12 +368,12 @@
           <p id="semaforoInfo" style="margin:-6px 2px 14px;color:#5f6f8f;font-size:13px;">
             Semáforo: criterio de puntualidad por aspirante en el rango seleccionado.
           </p>
-          <div class="dashboard-flex-row is-compact">
-            <div class="card" style="text-align:center;">
+          <div style="display:flex; gap:15px; margin:0 0 14px;">
+            <div class="card" style="flex:1; text-align:center;">
               <h3 id="kpiRojoTardanza">0</h3>
               <p>Rojo por tardanza</p>
             </div>
-            <div class="card" style="text-align:center;">
+            <div class="card" style="flex:1; text-align:center;">
               <h3 id="kpiRojoFueraDia">0</h3>
               <p>Rojo por fuera de día</p>
             </div>
@@ -813,7 +813,7 @@
           <div class="card" style="margin-bottom:14px;">
             <h2 style="margin-bottom:10px;">Nueva institución</h2>
             <div class="filtros luiz-inst-create-row">
-              <input id="luizInstNombre" placeholder="Nombre de institución">
+              <input id="luizInstNombre" placeholder="Nombre de institución" style="min-width:260px;">
               <input id="luizInstLogoFile" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
               <button onclick="crearInstitucionLuizLabs()">Crear institución</button>
             </div>
