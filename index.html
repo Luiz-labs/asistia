@@ -615,8 +615,15 @@
               </div>
             </div>
 
-            <div class="course-module">
-              <h4>Crear Secciones</h4>
+            <div class="course-module" id="courseModuleSecciones">
+              <h4>Secciones del curso</h4>
+              <p class="hint course-module-hint">Crea una sección nueva o usa <strong>Modificar</strong> en la tabla para
+                editarla.</p>
+              <div id="courseSecEditBanner" class="course-edit-banner" hidden>
+                <span class="course-edit-badge">Modo edición</span>
+                <span class="course-edit-banner-text">Estás editando: <strong id="courseSecEditLabel"></strong></span>
+              </div>
+              <p id="msgCursoSeccion" class="course-inline-msg" role="status" aria-live="polite"></p>
               <div class="config-grid">
                 <div>
                   <label for="secCursoNombre">Sección</label>
@@ -648,8 +655,9 @@
                 </div>
               </div>
               <div class="course-actions">
-                <button onclick="guardarSeccionCurso()">CREAR SECCIÓN</button>
-                <button class="secondary" onclick="limpiarFormSeccionCurso()">Limpiar</button>
+                <button type="button" id="btnSecCursoPrimary" onclick="guardarSeccionCurso()">CREAR SECCIÓN</button>
+                <button type="button" class="secondary" id="btnSecCursoCancel"
+                  onclick="cancelarEdicionSeccionCurso()">Limpiar formulario</button>
               </div>
               <div class="table-wrap">
                 <table>
@@ -667,8 +675,15 @@
               </div>
             </div>
 
-            <div class="course-module">
-              <h4>UBOs Sede Por Sección</h4>
+            <div class="course-module" id="courseModuleSedeUbo">
+              <h4>UBOs sede por sección</h4>
+              <p class="hint course-module-hint">Define la UBO sede por sección o usa <strong>Modificar</strong> para
+                editar un registro existente.</p>
+              <div id="courseSedeEditBanner" class="course-edit-banner" hidden>
+                <span class="course-edit-badge">Modo edición</span>
+                <span class="course-edit-banner-text">Estás editando sede: <strong id="courseSedeEditLabel"></strong></span>
+              </div>
+              <p id="msgCursoSede" class="course-inline-msg" role="status" aria-live="polite"></p>
               <div class="config-grid">
                 <div>
                   <label for="uboSecNombre">Sección</label>
@@ -711,8 +726,9 @@
                 </div>
               </div>
               <div class="course-actions">
-                <button onclick="guardarSedeUbo()">CREAR SEDE UBO</button>
-                <button class="secondary" onclick="limpiarFormSedeUbo()">Limpiar</button>
+                <button type="button" id="btnSedePrimary" onclick="guardarSedeUbo()">CREAR SEDE UBO</button>
+                <button type="button" class="secondary" id="btnSedeCancel"
+                  onclick="cancelarEdicionSedeUbo()">Limpiar formulario</button>
               </div>
               <div class="table-wrap">
                 <table>
@@ -732,9 +748,14 @@
             </div>
 
             <div class="config-actions course-footer-actions">
-              <p class="hint">Acciones globales del curso</p>
-              <button onclick="guardarCurso()">Guardar Curso</button>
-              <button class="secondary" onclick="limpiarCurso()">Limpiar Todo</button>
+              <p class="hint course-footer-hint">Guarda nombre, fechas, radio y enlaces de UBO por sección (A/B/C). Las
+                secciones y sedes se gestionan arriba.</p>
+              <p id="msgCursoFooter" class="course-inline-msg" role="status" aria-live="polite"></p>
+              <div class="course-footer-actions-row">
+                <button type="button" onclick="guardarCurso()">Guardar curso</button>
+                <button type="button" class="btn-danger-outline" id="btnVaciarSeccionesSedes"
+                  onclick="confirmarLimpiarListasCurso()">Vaciar secciones y sedes…</button>
+              </div>
             </div>
 
           </div>

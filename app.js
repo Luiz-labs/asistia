@@ -4314,7 +4314,105 @@ async function cargarSedesCursoDesdeSupabase() {
 
 function guardarEstructuraCursoLocal() { }
 
+const CURSO_MSG_CLEAR_MS = 9000
+let cursoModuloMsgTimers = {}
+
+function mostrarMsgCursoModulo(elId, texto, tipo = "") {
+    const el = typeof elId === "string" ? document.getElementById(elId) : elId
+    if (!el) return
+    if (cursoModuloMsgTimers[el.id]) {
+        clearTimeout(cursoModuloMsgTimers[el.id])
+        cursoModuloMsgTimers[el.id] = null
+    }
+    el.textContent = texto || ""
+    el.className = "course-inline-msg"
+    if (texto && tipo) {
+        el.classList.add(`course-inline-msg--${tipo}`)
+    }
+    if (texto && tipo && tipo !== "error") {
+        cursoModuloMsgTimers[el.id] = setTimeout(() => {
+            el.textContent = ""
+            el.className = "course-inline-msg"
+        }, CURSO_MSG_CLEAR_MS)
+    }
+}
+
+function actualizarUIModoEdicionSeccion() {
+    const btn = document.getElementById("btnSecCursoPrimary")
+    const btnCancel = document.getElementById("btnSecCursoCancel")
+    const banner = document.getElementById("courseSecEditBanner")
+    const label = document.getElementById("courseSecEditLabel")
+    const module = document.getElementById("courseModuleSecciones")
+    const editing = editSeccionCursoIndex >= 0
+    if (btn) btn.textContent = editing ? "GUARDAR CAMBIOS" : "CREAR SECCIÓN"
+    if (btnCancel) btnCancel.textContent = editing ? "Cancelar edición" : "Limpiar formulario"
+    if (banner) banner.hidden = !editing
+    if (label && editing) {
+        const item = cursoSecciones[editSeccionCursoIndex]
+        label.textContent = item ? String(item.seccion || "").trim() || "—" : "—"
+    }
+    if (module) module.classList.toggle("course-module--editing", editing)
+}
+
+function actualizarUIModoEdicionSede() {
+    const btn = document.getElementById("btnSedePrimary")
+    const btnCancel = document.getElementById("btnSedeCancel")
+    const banner = document.getElementById("courseSedeEditBanner")
+    const label = document.getElementById("courseSedeEditLabel")
+    const module = document.getElementById("courseModuleSedeUbo")
+    const editing = editSedeUboIndex >= 0
+    if (btn) btn.textContent = editing ? "GUARDAR CAMBIOS" : "CREAR SEDE UBO"
+    if (btnCancel) btnCancel.textContent = editing ? "Cancelar edición" : "Limpiar formulario"
+    if (banner) banner.hidden = !editing
+    if (label && editing) {
+        const item = cursoSedesUbo[editSedeUboIndex]
+        if (item) {
+            label.textContent = `Sección ${String(item.seccion || "").trim()} · UBO ${String(item.ubo || "").trim()}`
+        } else {
+            label.textContent = "—"
+        }
+    }
+    if (module) module.classList.toggle("course-module--editing", editing)
+}
+
+function cancelarEdicionSeccionCurso() {
+    const wasEditing = editSeccionCursoIndex >= 0
+    limpiarFormSeccionCurso()
+    if (wasEditing) {
+        mostrarMsgCursoModulo("msgCursoSeccion", "Edición cancelada.", "info")
+    } else {
+        mostrarMsgCursoModulo("msgCursoSeccion", "Formulario limpiado.", "info")
+    }
+}
+
+function cancelarEdicionSedeUbo() {
+    const wasEditing = editSedeUboIndex >= 0
+    limpiarFormSedeUbo()
+    if (wasEditing) {
+        mostrarMsgCursoModulo("msgCursoSede", "Edición cancelada.", "info")
+    } else {
+        mostrarMsgCursoModulo("msgCursoSede", "Formulario limpiado.", "info")
+    }
+}
+
+function confirmarLimpiarListasCurso() {
+    const ok = confirm(
+        "¿Eliminar todas las secciones y sedes UBO del curso?\n\n" +
+        "Se borrarán en el servidor las filas de secciones y de sedes UBO (curso actual). " +
+        "La configuración general del curso (nombre, fechas, radio) no se elimina en base de datos; " +
+        "después de vaciar, la pantalla se sincronizará con el servidor para que coincida cache y formulario.\n\n" +
+        "Esta operación no se puede deshacer."
+    )
+    if (!ok) {
+        mostrarMsgCursoModulo("msgCursoFooter", "Operación cancelada.", "info")
+        return
+    }
+    void limpiarCurso()
+}
+
 async function aplicarCursoEnUI(cfg) {
+    editSeccionCursoIndex = -1
+    editSedeUboIndex = -1
     if (cfg) {
         cursoNombre.value = String(cfg.nombre_curso || "").toUpperCase()
         cursoInicio.value = cfg.fecha_inicio || ""
@@ -4349,6 +4447,8 @@ async function aplicarCursoEnUI(cfg) {
     actualizarOpcionesSeccionSede()
     cargarFiltroSeccionDashboard()
     renderSedesUbo()
+    actualizarUIModoEdicionSeccion()
+    actualizarUIModoEdicionSede()
 }
 
 async function cargarConfigCurso() {
@@ -6061,6 +6161,10 @@ window.addEventListener("scroll", () => {
 }, true)
 
 async function guardarCurso() {
+    if (!haySupabase()) {
+        mostrarMsgCursoModulo("msgCursoFooter", "Sin conexión a Supabase. No se puede guardar la configuración del curso.", "error")
+        return
+    }
     const mapSedes = {}
     cursoSedesUbo.forEach(x => {
         mapSedes[x.seccion] = x.ubo
@@ -6102,7 +6206,7 @@ async function guardarCurso() {
                 .select()
                 .single()
             if (errorSinNombre) {
-                alert("Error al guardar configuración de curso")
+                mostrarMsgCursoModulo("msgCursoFooter", "No se pudo guardar la configuración del curso. Revisa la consola.", "error")
                 console.error(errorSinNombre)
                 return
             }
@@ -6110,14 +6214,18 @@ async function guardarCurso() {
                 ...(dataSinNombre || {}),
                 nombre_curso: (cursoNombre.value || "").toUpperCase()
             }
-            alert("Curso guardado (falta columna nombre_curso en Supabase).")
+            mostrarMsgCursoModulo(
+                "msgCursoFooter",
+                "Configuración guardada. Aviso: en Supabase falta la columna nombre_curso; el nombre se conserva en esta sesión.",
+                "warning"
+            )
             registrarActividad("configuracion_curso_guardada", {
                 nombreCurso: (cursoNombre.value || "").toUpperCase(),
                 gpsActivo: !!toggleGPS.checked
             }, { tenantId: tenantActivoId })
             return
         }
-        alert("Error al guardar configuración de curso")
+        mostrarMsgCursoModulo("msgCursoFooter", "No se pudo guardar la configuración del curso. Revisa la consola o la conexión.", "error")
         console.error(error)
         return
     }
@@ -6126,7 +6234,7 @@ async function guardarCurso() {
         ...(data || {}),
         nombre_curso: (cursoNombre.value || "").toUpperCase()
     }
-    alert("Curso guardado")
+    mostrarMsgCursoModulo("msgCursoFooter", "Configuración del curso guardada correctamente.", "ok")
     registrarActividad("configuracion_curso_guardada", {
         nombreCurso: (cursoNombre.value || "").toUpperCase(),
         gpsActivo: !!toggleGPS.checked
@@ -6152,6 +6260,7 @@ function limpiarFormSeccionCurso() {
     secCursoHora.value = ""
     marcarValoresMultiSelect("secCursoDiasSelect", [])
     editSeccionCursoIndex = -1
+    actualizarUIModoEdicionSeccion()
 }
 
 function limpiarFormSedeUbo() {
@@ -6163,28 +6272,34 @@ function limpiarFormSedeUbo() {
     marcarValoresMultiSelect("uboSecDiasSelect", [])
     actualizarEstadoDiasSede()
     editSedeUboIndex = -1
+    actualizarUIModoEdicionSede()
 }
 
 async function guardarSeccionCurso() {
+    if (!haySupabase()) {
+        mostrarMsgCursoModulo("msgCursoSeccion", "Sin conexión a Supabase. No se puede guardar la sección.", "error")
+        return
+    }
     const seccionValor = String(secCursoNombre.value || "").trim().toUpperCase()
     const dias = obtenerValoresMultiSelect("secCursoDiasSelect")
+    const fueEdicion = editSeccionCursoIndex >= 0
 
     if (!seccionValor) {
-        alert("Define el nombre/código de la sección")
+        mostrarMsgCursoModulo("msgCursoSeccion", "Define el nombre o código de la sección.", "error")
         return
     }
 
     if (!secCursoHora.value) {
-        alert("Define una hora de inicio para la sección")
+        mostrarMsgCursoModulo("msgCursoSeccion", "Indica la hora de inicio de la sección.", "error")
         return
     }
 
     if (!dias.length) {
-        alert("Selecciona al menos un día para la sección")
+        mostrarMsgCursoModulo("msgCursoSeccion", "Selecciona al menos un día para la sección.", "error")
         return
     }
 
-    const accion = editSeccionCursoIndex >= 0 ? "seccion_curso_editada" : "seccion_curso_creada"
+    const accion = fueEdicion ? "seccion_curso_editada" : "seccion_curso_creada"
     const item = {
         seccion: seccionValor,
         modalidad: secCursoModalidad.value,
@@ -6250,17 +6365,32 @@ async function guardarSeccionCurso() {
         if (error) {
             if (!esTablaNoExiste(error)) {
                 console.warn("No se pudo guardar curso_secciones:", error.message)
+                mostrarMsgCursoModulo(
+                    "msgCursoSeccion",
+                    `No se pudo guardar en el servidor: ${error.message || "error desconocido"}`,
+                    "error"
+                )
             }
         } else {
             persistioEnDb = true
         }
     } catch (e) {
         console.warn("No se pudo persistir sección en Supabase:", e)
+        mostrarMsgCursoModulo(
+            "msgCursoSeccion",
+            "No se pudo guardar la sección. Revisa la conexión o los permisos de Supabase.",
+            "error"
+        )
     }
 
     if (persistioEnDb) {
         const seccionesDb = await cargarSeccionesCursoDesdeSupabase()
         if (Array.isArray(seccionesDb)) cursoSecciones = seccionesDb
+        mostrarMsgCursoModulo(
+            "msgCursoSeccion",
+            fueEdicion ? "Cambios guardados correctamente." : "Sección creada correctamente.",
+            "ok"
+        )
     }
 
     guardarEstructuraCursoLocal()
@@ -6283,11 +6413,18 @@ function editarSeccionCurso(idx) {
     secCursoHora.value = item.hora_inicio
     marcarValoresMultiSelect("secCursoDiasSelect", item.dias || [])
     editSeccionCursoIndex = idx
+    mostrarMsgCursoModulo("msgCursoSeccion", "", "")
+    actualizarUIModoEdicionSeccion()
 }
 
 async function eliminarSeccionCurso(idx) {
     if (!confirm("¿Eliminar esta sección?")) return
     const seccion = cursoSecciones[idx]?.seccion
+    if (editSeccionCursoIndex === idx) {
+        limpiarFormSeccionCurso()
+    } else if (editSeccionCursoIndex > idx) {
+        editSeccionCursoIndex--
+    }
     cursoSecciones.splice(idx, 1)
 
     try {
@@ -6309,6 +6446,9 @@ async function eliminarSeccionCurso(idx) {
     guardarEstructuraCursoLocal()
     renderSeccionesCurso()
     actualizarOpcionesSeccionSede()
+    if (editSeccionCursoIndex >= 0) {
+        actualizarUIModoEdicionSeccion()
+    }
     registrarActividad("seccion_curso_eliminada", {
         seccion: String(seccion || "")
     }, { tenantId: tenantActivoId })
@@ -6343,6 +6483,10 @@ function renderSeccionesCurso() {
 }
 
 async function guardarSedeUbo() {
+    if (!haySupabase()) {
+        mostrarMsgCursoModulo("msgCursoSede", "Sin conexión a Supabase. No se puede guardar la sede UBO.", "error")
+        return
+    }
     const seccionValor = String(uboSecNombre.value || "").trim().toUpperCase()
     const esTodasSecciones = seccionValor === "__ALL__"
     const seccionesDisponibles = Array.from(new Set((cursoSecciones || [])
@@ -6350,43 +6494,48 @@ async function guardarSedeUbo() {
         .filter(Boolean)))
     const todosDias = !!uboSecTodosDias.checked
     const dias = todosDias ? [] : obtenerValoresMultiSelect("uboSecDiasSelect")
+    const fueEdicionSede = editSedeUboIndex >= 0
 
     if (!seccionValor) {
-        alert("Selecciona una sección existente")
+        mostrarMsgCursoModulo("msgCursoSede", "Selecciona una sección existente.", "error")
         return
     }
 
     if (editSedeUboIndex >= 0 && esTodasSecciones) {
-        alert("Para aplicar a todas las secciones, guarda como nuevo registro (sin editar uno existente).")
+        mostrarMsgCursoModulo(
+            "msgCursoSede",
+            "Para aplicar a todas las secciones, cancela la edición y crea un registro nuevo.",
+            "error"
+        )
         return
     }
 
     if (esTodasSecciones && !seccionesDisponibles.length) {
-        alert("No hay secciones creadas para aplicar esta configuración.")
+        mostrarMsgCursoModulo("msgCursoSede", "No hay secciones creadas para aplicar esta configuración.", "error")
         return
     }
 
     if (!esTodasSecciones && !seccionesDisponibles.includes(seccionValor)) {
-        alert("La sección seleccionada no existe. Créala primero.")
+        mostrarMsgCursoModulo("msgCursoSede", "La sección seleccionada no existe. Créala primero en el bloque superior.", "error")
         return
     }
 
     if (!uboSecUbo.value) {
-        alert("Selecciona una UBO sede")
+        mostrarMsgCursoModulo("msgCursoSede", "Selecciona una UBO sede.", "error")
         return
     }
 
     if (!uboSecHora.value) {
-        alert("Define una hora de inicio para la sede UBO")
+        mostrarMsgCursoModulo("msgCursoSede", "Indica la hora de inicio para la sede UBO.", "error")
         return
     }
 
     if (!todosDias && !dias.length) {
-        alert("Selecciona al menos un día o activa la opción 'Todos'")
+        mostrarMsgCursoModulo("msgCursoSede", "Selecciona al menos un día o activa la opción «Todos».", "error")
         return
     }
 
-    const accion = editSedeUboIndex >= 0 ? "sede_ubo_editada" : "sede_ubo_creada"
+    const accion = fueEdicionSede ? "sede_ubo_editada" : "sede_ubo_creada"
     const seccionesObjetivo = esTodasSecciones ? seccionesDisponibles : [seccionValor]
     const uboValor = uboSecUbo.value
     const modalidadValor = uboSecModalidad.value
@@ -6485,6 +6634,11 @@ async function guardarSedeUbo() {
         }
     } catch (e) {
         console.warn("No se pudo persistir sede UBO en Supabase:", e)
+        mostrarMsgCursoModulo(
+            "msgCursoSede",
+            "No se pudo guardar la sede UBO. Revisa la conexión o los permisos de Supabase.",
+            "error"
+        )
     }
 
     if (persistioEnDb) {
@@ -6496,7 +6650,17 @@ async function guardarSedeUbo() {
     renderSedesUbo()
     limpiarFormSedeUbo()
     if (erroresGuardado > 0) {
-        alert(`Se aplicó parcialmente. ${erroresGuardado} sección(es) no pudieron guardarse.`)
+        mostrarMsgCursoModulo(
+            "msgCursoSede",
+            `Se aplicó solo en parte: ${erroresGuardado} sección(es) no pudieron guardarse en el servidor.`,
+            "error"
+        )
+    } else if (persistioEnDb) {
+        mostrarMsgCursoModulo(
+            "msgCursoSede",
+            fueEdicionSede ? "Cambios en sede UBO guardados correctamente." : "Sede UBO registrada correctamente.",
+            "ok"
+        )
     }
     registrarActividad(accion, {
         secciones: seccionesObjetivo,
@@ -6518,11 +6682,18 @@ function editarSedeUbo(idx) {
     marcarValoresMultiSelect("uboSecDiasSelect", item.dias || [])
     actualizarEstadoDiasSede()
     editSedeUboIndex = idx
+    mostrarMsgCursoModulo("msgCursoSede", "", "")
+    actualizarUIModoEdicionSede()
 }
 
 async function eliminarSedeUbo(idx) {
     if (!confirm("¿Eliminar esta sede UBO?")) return
     const seccion = cursoSedesUbo[idx]?.seccion
+    if (editSedeUboIndex === idx) {
+        limpiarFormSedeUbo()
+    } else if (editSedeUboIndex > idx) {
+        editSedeUboIndex--
+    }
     cursoSedesUbo.splice(idx, 1)
 
     try {
@@ -6543,6 +6714,9 @@ async function eliminarSedeUbo(idx) {
 
     guardarEstructuraCursoLocal()
     renderSedesUbo()
+    if (editSedeUboIndex >= 0) {
+        actualizarUIModoEdicionSede()
+    }
     registrarActividad("sede_ubo_eliminada", {
         seccion: String(seccion || "")
     }, { tenantId: tenantActivoId })
@@ -6618,37 +6792,71 @@ function limpiarRetiro() {
 }
 
 async function limpiarCurso() {
-    cursoNombre.value = ""
-    cursoInicio.value = ""
-    cursoFin.value = ""
-    cursoRadio.value = "50"
-    toggleGPS.checked = false
-    cursoSecciones = []
-    cursoSedesUbo = []
+    if (!haySupabase()) {
+        mostrarMsgCursoModulo(
+            "msgCursoFooter",
+            "Sin conexión a Supabase. No se puede completar la operación.",
+            "error"
+        )
+        return
+    }
 
     try {
         const { error } = await supabaseClient.from("curso_secciones").delete().eq("curso_id", 1)
         if (error && !esTablaNoExiste(error)) {
             console.warn("No se pudo limpiar curso_secciones:", error.message)
+            mostrarMsgCursoModulo(
+                "msgCursoFooter",
+                "Error al eliminar en servidor. Intente nuevamente.",
+                "error"
+            )
+            return
         }
     } catch (e) {
         console.warn("No se pudo limpiar curso_secciones:", e)
+        mostrarMsgCursoModulo(
+            "msgCursoFooter",
+            "Error al eliminar en servidor. Intente nuevamente.",
+            "error"
+        )
+        return
     }
 
     try {
         const { error } = await supabaseClient.from("curso_sedes_ubo").delete().eq("curso_id", 1)
         if (error && !esTablaNoExiste(error)) {
             console.warn("No se pudo limpiar curso_sedes_ubo:", error.message)
+            mostrarMsgCursoModulo(
+                "msgCursoFooter",
+                "Error al eliminar en servidor. Intente nuevamente.",
+                "error"
+            )
+            await cargarConfigCurso()
+            limpiarFormSeccionCurso()
+            limpiarFormSedeUbo()
+            return
         }
     } catch (e) {
         console.warn("No se pudo limpiar curso_sedes_ubo:", e)
+        mostrarMsgCursoModulo(
+            "msgCursoFooter",
+            "Error al eliminar en servidor. Intente nuevamente.",
+            "error"
+        )
+        await cargarConfigCurso()
+        limpiarFormSeccionCurso()
+        limpiarFormSedeUbo()
+        return
     }
 
-    renderSeccionesCurso()
-    renderSedesUbo()
-    actualizarOpcionesSeccionSede()
+    await cargarConfigCurso()
     limpiarFormSeccionCurso()
     limpiarFormSedeUbo()
+    mostrarMsgCursoModulo(
+        "msgCursoFooter",
+        "Secciones y sedes eliminadas correctamente.",
+        "ok"
+    )
 }
 
 async function cargarRetirados() {
