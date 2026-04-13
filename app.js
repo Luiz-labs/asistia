@@ -3188,15 +3188,17 @@ function volverSeleccionCliente() {
 
 function withTenantScope(query) {
     if (!MULTITENANT_MODE || !tenantActivoId || !tenantScopeBackendReady) return query
-    if (esTenantConDatosLegacy(tenantActivoId)) {
-        return query.or(`tenant_id.eq.${tenantActivoId},tenant_id.is.null`)
+    const tid = String(tenantActivoId).trim().toLowerCase()
+    if (esTenantConDatosLegacy(tid)) {
+        return query.or(`tenant_id.eq.${tid},tenant_id.is.null`)
     }
-    return query.eq("tenant_id", tenantActivoId)
+    return query.eq("tenant_id", tid)
 }
 
 function withTenantPayload(payload) {
     if (!MULTITENANT_MODE || !tenantActivoId) return payload
-    return Object.assign({}, payload, { tenant_id: tenantActivoId })
+    const tid = String(tenantActivoId).trim().toLowerCase()
+    return Object.assign({}, payload, { tenant_id: tid })
 }
 
 function withTenantPayloadList(items) {
@@ -6196,7 +6198,7 @@ async function guardarCurso() {
 
     const { error, data } = await supabaseClient
         .from("curso_configuracion")
-        .upsert(payload, { onConflict: "id" })
+        .upsert(payload, { onConflict: "tenant_id" })
         .select()
         .single()
 
@@ -6211,7 +6213,7 @@ async function guardarCurso() {
             })
             const { error: errorSinNombre, data: dataSinNombre } = await supabaseClient
                 .from("curso_configuracion")
-                .upsert(payloadSinNombre, { onConflict: "id" })
+                .upsert(payloadSinNombre, { onConflict: "tenant_id" })
                 .select()
                 .single()
             if (errorSinNombre) {
@@ -6317,15 +6319,10 @@ async function guardarSeccionCurso() {
     }
     const oldSeccion = editSeccionCursoIndex >= 0 ? cursoSecciones[editSeccionCursoIndex]?.seccion : null
 
-    if (editSeccionCursoIndex >= 0) {
-        cursoSecciones[editSeccionCursoIndex] = item
-    } else {
+    if (editSeccionCursoIndex < 0) {
         const existing = cursoSecciones.findIndex(x => x.seccion === item.seccion)
         if (existing >= 0) {
             if (!confirm(`La Sección ${item.seccion} ya existe. ¿Deseas reemplazarla?`)) return
-            cursoSecciones[existing] = item
-        } else {
-            cursoSecciones.push(item)
         }
     }
 
@@ -6390,6 +6387,12 @@ async function guardarSeccionCurso() {
     if (persistioEnDb) {
         const seccionesDb = await cargarSeccionesCursoDesdeSupabase()
         if (Array.isArray(seccionesDb)) cursoSecciones = seccionesDb
+
+        guardarEstructuraCursoLocal()
+        renderSeccionesCurso()
+        actualizarOpcionesSeccionSede()
+        limpiarFormSeccionCurso()
+
         mostrarMsgCursoModulo(
             "msgCursoSeccion",
             fueEdicion ? "Cambios guardados correctamente." : "Sección creada correctamente.",
@@ -6397,10 +6400,8 @@ async function guardarSeccionCurso() {
         )
     }
 
-    guardarEstructuraCursoLocal()
-    renderSeccionesCurso()
-    actualizarOpcionesSeccionSede()
-    limpiarFormSeccionCurso()
+    // Ya no hacemos render() afuera incondicionalmente,
+    // garantizando que si falló no mostremos falsos positivos.
     registrarActividad(accion, {
         seccion: item.seccion,
         modalidad: item.modalidad,
@@ -6564,20 +6565,6 @@ async function guardarSedeUbo() {
         }
     }
 
-    if (editSedeUboIndex >= 0 && oldSeccion) {
-        cursoSedesUbo = cursoSedesUbo.filter((_, idx) => idx !== editSedeUboIndex)
-    }
-
-    seccionesObjetivo.forEach(sec => {
-        const item = { seccion: sec, ...itemBase }
-        const existing = cursoSedesUbo.findIndex(x => String(x.seccion || "").toUpperCase() === sec)
-        if (existing >= 0) {
-            cursoSedesUbo[existing] = item
-        } else {
-            cursoSedesUbo.push(item)
-        }
-    })
-
     let persistioEnDb = false
     let erroresGuardado = 0
     try {
@@ -6643,11 +6630,11 @@ async function guardarSedeUbo() {
     if (persistioEnDb) {
         const sedesDb = await cargarSedesCursoDesdeSupabase()
         if (Array.isArray(sedesDb)) cursoSedesUbo = sedesDb
-    }
 
-    guardarEstructuraCursoLocal()
-    renderSedesUbo()
-    limpiarFormSedeUbo()
+        guardarEstructuraCursoLocal()
+        renderSedesUbo()
+        limpiarFormSedeUbo()
+    }
     if (erroresGuardado > 0) {
         mostrarMsgCursoModulo(
             "msgCursoSede",
