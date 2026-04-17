@@ -12,6 +12,134 @@ const supabaseClient = window.supabase?.createClient
         }
     })
     : null
+
+window.currentProfile = null;
+
+const ROLE_PERMISSIONS = {
+    superusuario: {
+        usersView: true,
+        usersManage: true,
+        settingsView: true,
+        settingsManage: true,
+        attendanceView: true,
+        attendanceManage: true,
+        aspirantsView: true,
+        aspirantsManage: true,
+        reportsView: true,
+        courseConfigView: true,
+        courseConfigManage: true
+    },
+    administrador: {
+        usersView: false,
+        usersManage: false,
+        settingsView: true,
+        settingsManage: true,
+        attendanceView: true,
+        attendanceManage: true,
+        aspirantsView: true,
+        aspirantsManage: true,
+        reportsView: true,
+        courseConfigView: true,
+        courseConfigManage: true
+    },
+    asistente: {
+        usersView: false,
+        usersManage: false,
+        settingsView: false,
+        settingsManage: false,
+        attendanceView: true,
+        attendanceManage: false,
+        aspirantsView: true,
+        aspirantsManage: false,
+        reportsView: false,
+        courseConfigView: false,
+        courseConfigManage: false
+    }
+};
+
+function can(permission) {
+    const role = window.currentProfile?.role || 'asistente';
+    return !!ROLE_PERMISSIONS[role]?.[permission];
+}
+
+async function loadCurrentProfile() {
+    try {
+        if (!supabaseClient) {
+            window.currentProfile = null;
+            return;
+        }
+
+        const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+        if (authError || !authData?.user?.id) {
+            window.currentProfile = null;
+            return;
+        }
+
+        const userId = authData.user.id;
+        const { data: profileData, error: profileError } = await supabaseClient
+            .from('profiles')
+            .select('id, email, full_name, role, tenant_id, is_active')
+            .eq('id', userId)
+            .single();
+
+        if (profileError || !profileData) {
+            window.currentProfile = null;
+            return;
+        }
+
+        if (profileData.is_active === false) {
+            await supabaseClient.auth.signOut();
+            window.currentProfile = null;
+            throw new Error("Perfil inactivo.");
+        }
+
+        window.currentProfile = profileData;
+    } catch (err) {
+        console.error("Error cargando perfil:", err);
+        window.currentProfile = null;
+    }
+}
+
+function applyRolePermissions() {
+    const elements = document.querySelectorAll('[data-permission]');
+    elements.forEach(el => {
+        const permission = el.getAttribute('data-permission');
+        if (!can(permission)) {
+            el.style.display = 'none';
+        } else {
+            el.style.display = '';
+        }
+    });
+}
+
+function toggleByPermission(permission, elementId, displayStyle = 'block') {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    if (!can(permission)) {
+        el.style.display = 'none';
+    } else {
+        el.style.display = displayStyle;
+    }
+}
+
+function renderCurrentUserInfo() {
+    const nameEl = document.getElementById('currentUserName');
+    const roleEl = document.getElementById('currentUserRole');
+    if (window.currentProfile) {
+        if (nameEl) nameEl.textContent = window.currentProfile.full_name;
+        if (roleEl) roleEl.textContent = window.currentProfile.role;
+    } else {
+        if (nameEl) nameEl.textContent = '';
+        if (roleEl) roleEl.textContent = '';
+    }
+}
+
+async function bootstrapAuthorizedApp() {
+    await loadCurrentProfile();
+    applyRolePermissions();
+    renderCurrentUserInfo();
+}
+
 let adminAutenticado = false
 let dniMovil = ""
 let resizeTimer
@@ -4716,6 +4844,13 @@ window.onload = async () => {
         console.error("Error aplicando layout final:", e)
     }
 
+    if (supabaseClient) {
+        const { data: authData } = await supabaseClient.auth.getUser();
+        if (authData?.user) {
+            await bootstrapAuthorizedApp();
+        }
+    }
+
 }
 
 async function autenticarAdminConSupabaseAuth(usuario, clave) {
@@ -4988,6 +5123,8 @@ async function loginAccesoAdminInstitucional() {
     mostrarVista("reportes")
     cargarDatos()
     aplicarLayout()
+
+    await bootstrapAuthorizedApp();
 }
 
 async function login() {
@@ -5054,6 +5191,7 @@ async function login() {
             loginMsg.innerText = ""
             aplicarLayout()
             renderTenantSelector()
+            await bootstrapAuthorizedApp();
             return
         }
 
@@ -5074,6 +5212,7 @@ async function login() {
         vistaDesktop.style.display = "block"
         mostrarVista("reportes")
         cargarDatos()
+        await bootstrapAuthorizedApp();
     } else {
         loginMsg.innerText = resultado.motivo === "perfil_inactivo"
             ? "Perfil inactivo. Contacta a Luiz Labs."
