@@ -3492,8 +3492,18 @@ function obtenerCursoTokenDesdeURL() {
     }
 }
 
-async function resolverCursoDesdeURL() {
-    const token = obtenerCursoTokenDesdeURL()
+function obtenerCursoTokenDesdeTextoQR(raw) {
+    const text = String(raw || "").trim()
+    if (!text) return ""
+    try {
+        const url = new URL(text)
+        return String(url.searchParams.get("curso") || "").trim()
+    } catch (e) {
+        return text
+    }
+}
+
+async function resolverCursoPorToken(token) {
     cursoQRValido = false
     if (!token || !haySupabase()) return false
     if (soporteCursosSupabase === false) return false
@@ -3535,10 +3545,23 @@ async function resolverCursoDesdeURL() {
         console.log("Curso detectado por QR:", cursoActualId)
         return true
     } catch (e) {
-        console.warn("Error resolviendo curso desde URL:", e?.message || e)
+        console.warn("Error resolviendo curso por token:", e?.message || e)
         cursoQRValido = false
         return false
     }
+}
+
+async function resolverCursoDesdeURL() {
+    const token = obtenerCursoTokenDesdeURL()
+    if (!token) {
+        cursoQRValido = false
+        return false
+    }
+    const ok = await resolverCursoPorToken(token)
+    if (!ok) {
+        console.warn("No se pudo resolver curso desde URL.")
+    }
+    return ok
 }
 
 async function asegurarUsuariosAdminPrevioLogin(usuario) {
@@ -5573,7 +5596,7 @@ function iniciarEscaneo() {
         })
 }
 
-function scanQR() {
+async function scanQR() {
     if (!scanningActivo) return
 
     const ctx = canvas.getContext("2d")
@@ -5588,13 +5611,24 @@ function scanQR() {
 
         if (code) {
             cerrarScanner()
+            console.log("QR detectado:", code.data)
+
+            const tokenQR = obtenerCursoTokenDesdeTextoQR(code.data)
+            const cursoValido = await resolverCursoPorToken(tokenQR)
+
+            if (!cursoValido || !cursoQRValido) {
+                setMensaje("⚠ Acceso no válido. Escanee el código QR oficial del curso.", "error")
+                vistaMovil.style.display = "block"
+                formulario.style.display = "none"
+                mostrarPasoMovil(dniMovil ? "scan" : "ingreso")
+                aplicarVisibilidadAccesoAdminInstitucional()
+                return
+            }
 
             renderSeccionesMovil()
             vistaMovil.style.display = "none"
             formulario.style.display = "block"
             aplicarVisibilidadAccesoAdminInstitucional()
-
-            console.log("QR detectado:", code.data) // 🔥 debug
 
             return
         }
