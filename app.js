@@ -3691,6 +3691,18 @@ function setMensaje(texto, tipo = "") {
     if (tipo) mensaje.classList.add(tipo)
 }
 
+function esDomingoLima(fecha = new Date()) {
+    try {
+        const weekday = new Intl.DateTimeFormat("en-US", {
+            timeZone: "America/Lima",
+            weekday: "long"
+        }).format(fecha)
+        return String(weekday || "").toLowerCase() === "sunday"
+    } catch (e) {
+        return fecha.getDay() === 0
+    }
+}
+
 function obtenerValoresMultiSelect(selectId) {
     const select = document.getElementById(selectId)
     if (!select) return []
@@ -3930,6 +3942,8 @@ function exportarReportesExcel() {
         DNI: r.dni || "",
         Nombre: r.nombre || "",
         UBO: r.ubo || "",
+        Jornada: r.jornada || "SECCION",
+        Seccion: r.seccion || "-",
         Fecha: r.fecha || "",
         Hora: r.hora || "",
         Alerta: r.alerta || ""
@@ -5469,6 +5483,14 @@ function renderSeccionesMovil() {
     // Limpiamos previo
     container.innerHTML = ""
 
+    if (esDomingoLima()) {
+        container.innerHTML = `
+            <p style="font-size:14px;color:#555;margin-bottom:4px;font-weight:700;text-transform:uppercase;">Jornada dominical general</p>
+            <p style="font-size:13px;color:#777;margin-bottom:12px;">Hoy no es necesario elegir sección. El registro se guardará como jornada general.</p>
+        `
+        return
+    }
+
     if (!cursoSecciones || cursoSecciones.length === 0) {
         container.innerHTML = `<p style="color:#666;font-size:14px;padding:10px;">No hay secciones configuradas para este curso.</p>`
         return
@@ -5608,6 +5630,8 @@ async function guardarAsistencia() {
     const now = new Date()
     const fechaHoy = now.toISOString().slice(0, 10)
     const horaHoy = now.toTimeString().slice(0, 8)
+    const esDomingo = esDomingoLima(now)
+    const seccionRegistro = esDomingo ? "GENERAL" : seccion
 
     if (!dniRegistro) {
         setMensaje("⚠ DNI no válido", "error")
@@ -5632,7 +5656,7 @@ async function guardarAsistencia() {
         return
     }
 
-    if (!seccion) {
+    if (!seccionRegistro) {
         setMensaje("⚠ Selecciona una sección", "error")
         return
     }
@@ -5652,10 +5676,10 @@ async function guardarAsistencia() {
 
         const radio = Number(cursoConfigCache?.radio_m || 50)
 
-        const sedesAsignadas = cursoSedesUbo.filter(s => String(s.seccion).toUpperCase() === String(seccion).toUpperCase() && s.ubo)
+        const sedesAsignadas = cursoSedesUbo.filter(s => String(s.seccion).toUpperCase() === String(seccionRegistro).toUpperCase() && s.ubo)
 
         if (sedesAsignadas.length === 0) {
-            setMensaje(`⚠ No hay UBO sede configurada para Sección ${seccion}`, "error")
+            setMensaje(`⚠ No hay UBO sede configurada para Sección ${seccionRegistro}`, "error")
             return
         }
 
@@ -5709,7 +5733,7 @@ async function guardarAsistencia() {
                 dni: dniRegistro,
                 nombre: nombreCompleto,
                 ubo: uboValor,
-                seccion,
+                seccion: seccionRegistro,
                 tipo: "fuera_rango_gps",
                 detalle: `Fuera de rango (${Math.round(menorDistancia)}m de UBO ${uboMasCercano}, radio ${radio}m)`,
                 device_id: deviceId,
@@ -5737,7 +5761,7 @@ async function guardarAsistencia() {
     const { data, error } = await supabaseClient.rpc('rpc_registrar_asistencia', {
         p_dni: dniRegistro,
         p_tenant_id: tenantActivoId,
-        p_seccion: seccion,
+        p_seccion: seccionRegistro,
         p_latitud: lat,
         p_longitud: lng,
         p_device_id: deviceId,
@@ -5816,6 +5840,8 @@ function renderTabla(data) {
         <th>DNI</th>
         <th>Nombre</th>
         <th>UBO</th>
+        <th>Jornada</th>
+        <th>Sección</th>
         <th>Fecha</th>
         <th>Hora</th>
         <th>Alerta</th>
@@ -5831,6 +5857,8 @@ function renderTabla(data) {
             dni: r.dni || "",
             nombre: r.nombre || "",
             ubo: r.ubo || "",
+            jornada: r.tipo_jornada || "SECCION",
+            seccion: r.seccion || "-",
             fecha: r.fecha || "",
             hora: r.hora || "",
             alerta: hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta"
@@ -5841,6 +5869,8 @@ function renderTabla(data) {
         <td>${r.dni}</td>
         <td>${r.nombre}</td>
         <td>${r.ubo}</td>
+        <td>${r.tipo_jornada || "SECCION"}</td>
+        <td>${r.seccion || "-"}</td>
         <td>${r.fecha}</td>
         <td>${r.hora}</td>
         <td>
