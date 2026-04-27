@@ -3694,6 +3694,7 @@ function aplicarRangoMesActualEnFiltros() {
 }
 
 function mostrarPasoMovil(paso) {
+    if (estaInputDniMovilActivo()) return
     const elIngreso = document.getElementById("mobileStepIngreso")
     const elScan = document.getElementById("mobileStepScan")
     if (elIngreso) elIngreso.style.display = paso === "ingreso" ? "block" : "none"
@@ -3712,6 +3713,11 @@ function setMensaje(texto, tipo = "") {
     mensaje.innerText = texto || ""
     if (!texto) return
     if (tipo) mensaje.classList.add(tipo)
+}
+
+function estaInputDniMovilActivo() {
+    const activeId = String(document.activeElement?.id || "")
+    return activeId === "mobileDni" || activeId === "mobileDniInicio"
 }
 
 function esDomingoLima(fecha = new Date()) {
@@ -4858,6 +4864,10 @@ function cerrarScanner() {
 }
 
 function aplicarLayout() {
+    if (estaInputDniMovilActivo()) {
+        actualizarBotonesVista()
+        return
+    }
     const elTenant = document.getElementById("tenantScreen")
     const elLogin = document.getElementById("loginScreen")
     const elDesktop = document.getElementById("vistaDesktop")
@@ -4868,8 +4878,7 @@ function aplicarLayout() {
     const elBtnInstitucion = document.getElementById("btnInstitucion")
     const elBtnVolverLuizLabs = document.getElementById("btnVolverLuizLabs")
     const vista = getVistaActiva()
-    const activeId = String(document.activeElement?.id || "")
-    const inputDniMovilEnUso = activeId === "mobileDni" || activeId === "mobileDniInicio"
+    const inputDniMovilEnUso = estaInputDniMovilActivo()
 
     // --- Lógica de Title Dinámico ---
     if (!accesoDirectoInstitucion) {
@@ -7442,11 +7451,13 @@ secCursoNombre?.addEventListener("input", () => {
 })
 
 window.addEventListener("resize", () => {
+    if (estaInputDniMovilActivo()) return
     clearTimeout(resizeTimer)
     resizeTimer = setTimeout(aplicarLayout, 160)
 })
 
 window.addEventListener("orientationchange", () => {
+    if (estaInputDniMovilActivo()) return
     clearTimeout(resizeTimer)
     resizeTimer = setTimeout(aplicarLayout, 120)
 })
