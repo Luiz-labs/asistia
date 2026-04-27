@@ -5614,10 +5614,6 @@ async function scanQR() {
             const cursoValido = await resolverCursoPorToken(tokenQR)
             console.log("Curso válido:", cursoValido)
             console.log("cursoQRValido:", cursoQRValido)
-            setMensaje(
-                `DEBUG QR raw: ${String(code.data || "")}\nDEBUG token: ${tokenQR || "(vacío)"}\nDEBUG tenant: ${tenantActivoId || "-"}\nDEBUG cursoValido: ${cursoValido}\nDEBUG cursoQRValido: ${cursoQRValido}`,
-                cursoValido ? "warning" : "error"
-            )
 
             if (!cursoValido || !cursoQRValido) {
                 setMensaje("⚠ Acceso no válido. Escanee el código QR oficial del curso.", "error")
@@ -5628,6 +5624,7 @@ async function scanQR() {
                 return
             }
 
+            setMensaje("", "")
             renderSeccionesMovil()
             vistaMovil.style.display = "none"
             formulario.style.display = "block"
