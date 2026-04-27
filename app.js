@@ -228,7 +228,11 @@ let editPerfilLuizIndex = -1
 let soporteLuizLabsSupabase = null
 let soporteActividadLogsSupabase = null
 let soporteUsuariosLuizSupabase = null
+let soporteCursosSupabase = null
 let syncLuizLabsEnCurso = null
+let cursoActualId = 1
+let cursoBaseActual = null
+let validacionCursoAspirante = { dni: "", permitido: true, legacy: false, bloqueado: false }
 const SYSTEM_USERS = []
 const tutorialSteps = [
     {
@@ -3375,6 +3379,7 @@ async function actualizarTenantScopeBackendReady() {
         "asistencias",
         "asistencia_alertas",
         "aspirantes",
+        "cursos",
         "ubos_sedes",
         "curso_configuracion",
         "curso_secciones",
@@ -3398,6 +3403,133 @@ async function actualizarTenantScopeBackendReady() {
 
     tenantScopeBackendReady = checks.every(Boolean)
     return tenantScopeBackendReady
+}
+
+function normalizarCursoBaseSupabase(row) {
+    return {
+        id: Number(row?.id || 1) || 1,
+        nombre: String(row?.nombre || "").trim(),
+        tenant_id: String(row?.tenant_id || "").trim().toLowerCase(),
+        estado: String(row?.estado || "activo").trim().toLowerCase(),
+        fecha_inicio: row?.fecha_inicio || null,
+        fecha_fin: row?.fecha_fin || null
+    }
+}
+
+async function cargarCursoBaseDesdeSupabase() {
+    if (!haySupabase()) return null
+    if (soporteCursosSupabase === false) return null
+
+    let q = withTenantScope(
+        supabaseClient
+            .from("cursos")
+            .select("id,nombre,tenant_id,estado,fecha_inicio,fecha_fin")
+    )
+
+    const { data, error } = await q
+        .eq("estado", "activo")
+        .order("id", { ascending: true })
+        .limit(1)
+
+    if (error) {
+        if (esTablaNoExiste(error)) {
+            soporteCursosSupabase = false
+            return null
+        }
+        console.warn("No se pudo cargar curso base desde cursos:", error.message)
+        return null
+    }
+
+    soporteCursosSupabase = true
+    const row = Array.isArray(data) ? data[0] : null
+    if (!row) return null
+
+    cursoBaseActual = normalizarCursoBaseSupabase(row)
+    cursoActualId = cursoBaseActual.id || 1
+    return cursoBaseActual
+}
+
+async function guardarCursoBaseEnSupabase(payload = {}) {
+    if (!haySupabase()) return false
+    if (soporteCursosSupabase === false) return false
+
+    const payloadCurso = withTenantPayload({
+        id: Number(payload.id || cursoActualId || 1) || 1,
+        nombre: String(payload.nombre || "").trim() || null,
+        fecha_inicio: payload.fecha_inicio || null,
+        fecha_fin: payload.fecha_fin || null,
+        estado: "activo"
+    })
+
+    const { data, error } = await supabaseClient
+        .from("cursos")
+        .upsert(payloadCurso, { onConflict: "tenant_id,id" })
+        .select("id,nombre,tenant_id,estado,fecha_inicio,fecha_fin")
+        .single()
+
+    if (error) {
+        if (esTablaNoExiste(error)) {
+            soporteCursosSupabase = false
+            return false
+        }
+        console.warn("No se pudo guardar curso base en cursos:", error.message)
+        return false
+    }
+
+    soporteCursosSupabase = true
+    cursoBaseActual = normalizarCursoBaseSupabase(data || payloadCurso)
+    cursoActualId = cursoBaseActual.id || 1
+    return true
+}
+
+function obtenerCursoTokenDesdeURL() {
+    try {
+        const params = new URLSearchParams(window.location.search || "")
+        return String(params.get("curso") || "").trim()
+    } catch (e) {
+        return ""
+    }
+}
+
+async function resolverCursoDesdeURL() {
+    const token = obtenerCursoTokenDesdeURL()
+    if (!token || !haySupabase()) return false
+    if (soporteCursosSupabase === false) return false
+
+    try {
+        let q = supabaseClient
+            .from("cursos")
+            .select("id,tenant_id,estado")
+            .eq("qr_token", token)
+            .eq("estado", "activo")
+            .limit(1)
+
+        if (tenantActivoId) {
+            q = q.eq("tenant_id", String(tenantActivoId || "").trim().toLowerCase())
+        }
+
+        const { data, error } = await q
+
+        if (error) {
+            if (esTablaNoExiste(error)) {
+                soporteCursosSupabase = false
+                return false
+            }
+            console.warn("No se pudo resolver curso desde URL:", error.message)
+            return false
+        }
+
+        soporteCursosSupabase = true
+        const row = Array.isArray(data) ? data[0] : null
+        if (!row?.id) return false
+
+        cursoActualId = Number(row.id || 1) || 1
+        console.log("Curso detectado por QR:", cursoActualId)
+        return true
+    } catch (e) {
+        console.warn("Error resolviendo curso desde URL:", e?.message || e)
+        return false
+    }
 }
 
 async function asegurarUsuariosAdminPrevioLogin(usuario) {
@@ -4410,6 +4542,7 @@ async function cargarSedesUbo() {
 
 async function cargarSeccionesCursoDesdeSupabase() {
     let q = withTenantScope(supabaseClient.from("curso_secciones").select("*"))
+    q = q.eq("curso_id", cursoActualId || 1)
     const { data, error } = await q
         .order("seccion", { ascending: true })
 
@@ -4429,6 +4562,7 @@ async function cargarSeccionesCursoDesdeSupabase() {
 
 async function cargarSedesCursoDesdeSupabase() {
     let q = withTenantScope(supabaseClient.from("curso_sedes_ubo").select("*"))
+    q = q.eq("curso_id", cursoActualId || 1)
     const { data, error } = await q
         .order("seccion", { ascending: true })
 
@@ -4588,18 +4722,35 @@ async function aplicarCursoEnUI(cfg) {
 }
 
 async function cargarConfigCurso() {
+    const cursoBase = await cargarCursoBaseDesdeSupabase()
     let q = withTenantScope(supabaseClient.from("curso_configuracion").select("*"))
     const { data, error } = await q
         .maybeSingle()
 
     if (error) {
         console.warn("No se pudo cargar curso_configuracion:", error.message)
-        cursoConfigCache = null
-        await aplicarCursoEnUI(null)
+        cursoConfigCache = cursoBase ? {
+            nombre_curso: cursoBase.nombre || "",
+            fecha_inicio: cursoBase.fecha_inicio || null,
+            fecha_fin: cursoBase.fecha_fin || null,
+            radio_m: 50,
+            gps_activo: false
+        } : null
+        await aplicarCursoEnUI(cursoConfigCache)
         return
     }
 
-    cursoConfigCache = data || null
+    cursoConfigCache = data
+        ? Object.assign({}, data, {
+            nombre_curso: data.nombre_curso || cursoBase?.nombre || ""
+        })
+        : (cursoBase ? {
+            nombre_curso: cursoBase.nombre || "",
+            fecha_inicio: cursoBase.fecha_inicio || null,
+            fecha_fin: cursoBase.fecha_fin || null,
+            radio_m: 50,
+            gps_activo: false
+        } : null)
     await aplicarCursoEnUI(cursoConfigCache)
 }
 
@@ -4801,6 +4952,7 @@ window.onload = async () => {
     cargarSesionAdminDesdeStorage()
     aplicarAccesoDesdeRuta()
     await actualizarTenantScopeBackendReady()
+    await resolverCursoDesdeURL()
 
     try {
         aplicarLayout()
@@ -5462,6 +5614,14 @@ async function guardarAsistencia() {
         return
     }
 
+    if (
+        validacionCursoAspirante?.dni === dniRegistro &&
+        validacionCursoAspirante?.bloqueado
+    ) {
+        setMensaje("⚠ El aspirante no pertenece al curso de este QR.", "error")
+        return
+    }
+
     if (!nombresValor || !apellidosValor) {
         setMensaje("⚠ Completa nombres y apellidos", "error")
         return
@@ -5581,7 +5741,8 @@ async function guardarAsistencia() {
         p_latitud: lat,
         p_longitud: lng,
         p_device_id: deviceId,
-        p_timestamp_local: new Date().toISOString()
+        p_timestamp_local: new Date().toISOString(),
+        p_curso_id: cursoActualId || 1
     });
 
     if (error) {
@@ -6318,7 +6479,7 @@ async function guardarCurso() {
     })
 
     const payload = withTenantPayload({
-        id: 1,
+        id: cursoActualId || 1,
         nombre_curso: (cursoNombre.value || "").toUpperCase() || null,
         fecha_inicio: cursoInicio.value || null,
         fecha_fin: cursoFin.value || null,
@@ -6335,7 +6496,7 @@ async function guardarCurso() {
     if (error) {
         if (/nombre_curso/i.test(String(error.message || ""))) {
             const payloadSinNombre = withTenantPayload({
-                id: 1,
+                id: cursoActualId || 1,
                 fecha_inicio: cursoInicio.value || null,
                 fecha_fin: cursoFin.value || null,
                 radio_m: Number(cursoRadio.value || 50),
@@ -6364,6 +6525,12 @@ async function guardarCurso() {
                 nombreCurso: (cursoNombre.value || "").toUpperCase(),
                 gpsActivo: !!toggleGPS.checked
             }, { tenantId: tenantActivoId })
+            await guardarCursoBaseEnSupabase({
+                id: cursoActualId || 1,
+                nombre: (cursoNombre.value || "").toUpperCase(),
+                fecha_inicio: cursoInicio.value || null,
+                fecha_fin: cursoFin.value || null
+            })
             return
         }
         mostrarMsgCursoModulo("msgCursoFooter", "No se pudo guardar la configuración del curso. Revisa la consola o la conexión.", "error")
@@ -6375,6 +6542,12 @@ async function guardarCurso() {
         ...(data || {}),
         nombre_curso: (cursoNombre.value || "").toUpperCase()
     }
+    await guardarCursoBaseEnSupabase({
+        id: cursoActualId || 1,
+        nombre: (cursoNombre.value || "").toUpperCase(),
+        fecha_inicio: cursoInicio.value || null,
+        fecha_fin: cursoFin.value || null
+    })
     mostrarMsgCursoModulo("msgCursoFooter", "Configuración del curso guardada correctamente.", "ok")
     registrarActividad("configuracion_curso_guardada", {
         nombreCurso: (cursoNombre.value || "").toUpperCase(),
@@ -6460,18 +6633,20 @@ async function guardarSeccionCurso() {
     try {
         if (oldSeccion && oldSeccion !== item.seccion) {
             let q = withTenantScope(supabaseClient.from("curso_secciones").delete())
-            await q.eq("seccion", oldSeccion)
+            await q.eq("curso_id", cursoActualId || 1)
+                .eq("seccion", oldSeccion)
         }
 
         let qAct = withTenantScope(supabaseClient.from("curso_secciones").delete())
         const { error: errorDeleteActual } = await qAct
+            .eq("curso_id", cursoActualId || 1)
             .eq("seccion", item.seccion)
         if (errorDeleteActual && !esTablaNoExiste(errorDeleteActual)) {
             throw errorDeleteActual
         }
 
         const payloadSeccion = withTenantPayload({
-            curso_id: 1,
+            curso_id: cursoActualId || 1,
             seccion: item.seccion,
             modalidad: item.modalidad,
             hora_inicio: item.hora_inicio,
@@ -6486,7 +6661,7 @@ async function guardarSeccionCurso() {
             ({ error } = await supabaseClient
                 .from("curso_secciones")
                 .insert([withTenantPayload({
-                    curso_id: 1,
+                    curso_id: cursoActualId || 1,
                     seccion: item.seccion,
                     modalidad: item.modalidad,
                     hora_inicio: item.hora_inicio
@@ -6566,6 +6741,7 @@ async function eliminarSeccionCurso(idx) {
         if (seccion) {
             let qDel = withTenantScope(supabaseClient.from("curso_secciones").delete())
             const { error } = await qDel
+                .eq("curso_id", cursoActualId || 1)
                 .eq("seccion", seccion)
 
             if (error && !esTablaNoExiste(error)) {
@@ -6700,21 +6876,21 @@ async function guardarSedeUbo() {
     try {
         if (oldSeccion && !seccionesObjetivo.includes(oldSeccion)) {
             let qSede = withTenantScope(supabaseClient.from("curso_sedes_ubo").delete())
-            await qSede.eq("curso_id", 1)
+            await qSede.eq("curso_id", cursoActualId || 1)
                 .eq("seccion", oldSeccion)
         }
 
         for (const sec of seccionesObjetivo) {
             let qActSede = withTenantScope(supabaseClient.from("curso_sedes_ubo").delete())
             const { error: errorDeleteActual } = await qActSede
-                .eq("curso_id", 1)
+                .eq("curso_id", cursoActualId || 1)
                 .eq("seccion", sec)
             if (errorDeleteActual && !esTablaNoExiste(errorDeleteActual)) {
                 throw errorDeleteActual
             }
 
             const payloadSede = withTenantPayload({
-                curso_id: 1,
+                curso_id: cursoActualId || 1,
                 seccion: sec,
                 ubo: uboValor,
                 modalidad: modalidadValor,
@@ -6731,7 +6907,7 @@ async function guardarSedeUbo() {
                 ({ error } = await supabaseClient
                     .from("curso_sedes_ubo")
                     .insert([withTenantPayload({
-                        curso_id: 1,
+                        curso_id: cursoActualId || 1,
                         seccion: sec,
                         ubo: uboValor,
                         modalidad: modalidadValor,
@@ -6816,6 +6992,7 @@ async function eliminarSedeUbo(idx) {
         if (seccion) {
             let qDelSede = withTenantScope(supabaseClient.from("curso_sedes_ubo").delete())
             const { error } = await qDelSede
+                .eq("curso_id", cursoActualId || 1)
                 .eq("seccion", seccion)
 
             if (error && !esTablaNoExiste(error)) {
@@ -6917,7 +7094,9 @@ async function limpiarCurso() {
 
     try {
         let qClrSec = withTenantScope(supabaseClient.from("curso_secciones").delete())
-        const { error } = await qClrSec.neq("seccion", "DUMMY_HACK_DELETE_ALL")
+        const { error } = await qClrSec
+            .eq("curso_id", cursoActualId || 1)
+            .neq("seccion", "DUMMY_HACK_DELETE_ALL")
         if (error && !esTablaNoExiste(error)) {
             console.warn("No se pudo limpiar curso_secciones:", error.message)
             mostrarMsgCursoModulo(
@@ -6939,7 +7118,9 @@ async function limpiarCurso() {
 
     try {
         let qClrSede = withTenantScope(supabaseClient.from("curso_sedes_ubo").delete())
-        const { error } = await qClrSede.neq("seccion", "DUMMY_HACK_DELETE_ALL")
+        const { error } = await qClrSede
+            .eq("curso_id", cursoActualId || 1)
+            .neq("seccion", "DUMMY_HACK_DELETE_ALL")
         if (error && !esTablaNoExiste(error)) {
             console.warn("No se pudo limpiar curso_sedes_ubo:", error.message)
             mostrarMsgCursoModulo(
@@ -7068,14 +7249,39 @@ async function procesarAutocompletadoDni(dniValue) {
         debounceTimerAutocompletar = setTimeout(async () => {
             if (!haySupabase() || !tenantActivoId) return;
             try {
+                const cursoEsperado = Number(cursoActualId || 1) || 1
                 const { data, error } = await supabaseClient
                     .from('aspirantes')
-                    .select('nombres, apellidos, ubo')
+                    .select('nombres, apellidos, ubo, curso_id')
                     .eq('dni', dniLimpio)
                     .eq('tenant_id', tenantActivoId)
                     .single();
 
                 if (data && !error) {
+                    const cursoAspirante = data.curso_id == null ? null : Number(data.curso_id)
+
+                    if (cursoAspirante != null && cursoAspirante !== cursoEsperado) {
+                        validacionCursoAspirante = {
+                            dni: dniLimpio,
+                            permitido: false,
+                            legacy: false,
+                            bloqueado: true
+                        }
+                        limpiarCamposAspirante(false);
+                        setMensaje("⚠ El aspirante no pertenece al curso de este QR.", "error");
+                        return;
+                    }
+
+                    if (cursoAspirante == null) {
+                        console.warn("Aspirante sin curso_id; compatibilidad legacy aplicada para DNI:", dniLimpio)
+                    }
+
+                    validacionCursoAspirante = {
+                        dni: dniLimpio,
+                        permitido: true,
+                        legacy: cursoAspirante == null,
+                        bloqueado: false
+                    }
                     nombres.value = data.nombres || "";
                     apellidos.value = data.apellidos || "";
                     ubo.value = data.ubo || "";
@@ -7104,7 +7310,7 @@ async function procesarAutocompletadoDni(dniValue) {
     }
 }
 
-function limpiarCamposAspirante() {
+function limpiarCamposAspirante(resetValidacion = true) {
     nombres.value = "";
     apellidos.value = "";
     ubo.value = "";
@@ -7117,6 +7323,10 @@ function limpiarCamposAspirante() {
     nombres.style.backgroundColor = "";
     apellidos.style.backgroundColor = "";
     ubo.style.backgroundColor = "";
+
+    if (resetValidacion) {
+        validacionCursoAspirante = { dni: "", permitido: true, legacy: false, bloqueado: false }
+    }
 }
 
 mobileDni?.addEventListener("input", () => {
