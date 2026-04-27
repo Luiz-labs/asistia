@@ -3514,7 +3514,6 @@ async function resolverCursoPorToken(token) {
 
     try {
         const tenantLimpio = String(tenantActivoId || "").trim().replace(/\/$/, "")
-        console.log("Tenant limpio:", tenantLimpio)
         const { data, error } = await supabaseClient.rpc("rpc_validar_curso_qr", {
             p_qr_token: token,
             p_tenant_id: tenantLimpio
@@ -3533,7 +3532,6 @@ async function resolverCursoPorToken(token) {
 
         cursoActualId = Number(data.curso_id || 1) || 1
         cursoQRValido = true
-        console.log("Curso detectado por QR:", cursoActualId)
         return true
     } catch (e) {
         console.warn("Error resolviendo curso por token:", e?.message || e)
@@ -5615,14 +5613,9 @@ async function scanQR() {
 
         if (code) {
             cerrarScanner()
-            console.log("QR raw:", code.data)
 
             const tokenQR = obtenerCursoTokenDesdeTextoQR(code.data) || obtenerCursoTokenDesdeURL()
-            console.log("Token extraído:", tokenQR)
-            console.log("Tenant activo:", tenantActivoId)
             const cursoValido = await resolverCursoPorToken(tokenQR)
-            console.log("Curso válido:", cursoValido)
-            console.log("cursoQRValido:", cursoQRValido)
 
             if (!cursoValido || !cursoQRValido) {
                 setMensaje("⚠ Acceso no válido. Escanee el código QR oficial del curso.", "error")
