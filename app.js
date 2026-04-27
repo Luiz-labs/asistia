@@ -3515,38 +3515,23 @@ async function resolverCursoPorToken(token) {
     try {
         const tenantLimpio = String(tenantActivoId || "").trim().replace(/\/$/, "")
         console.log("Tenant limpio:", tenantLimpio)
-        let q = supabaseClient
-            .from("cursos")
-            .select("id,tenant_id,estado")
-            .eq("qr_token", token)
-            .eq("estado", "activo")
-            .limit(1)
-
-        if (tenantLimpio) {
-            q = q.ilike("tenant_id", tenantLimpio)
-        }
-
-        const { data, error } = await q
+        const { data, error } = await supabaseClient.rpc("rpc_validar_curso_qr", {
+            p_qr_token: token,
+            p_tenant_id: tenantLimpio
+        })
 
         if (error) {
-            if (esTablaNoExiste(error)) {
-                soporteCursosSupabase = false
-                cursoQRValido = false
-                return false
-            }
-            console.warn("No se pudo resolver curso desde URL:", error.message)
+            console.warn("No se pudo validar curso por RPC:", error.message)
             cursoQRValido = false
             return false
         }
 
-        soporteCursosSupabase = true
-        const row = Array.isArray(data) ? data[0] : null
-        if (!row?.id) {
+        if (!data?.success) {
             cursoQRValido = false
             return false
         }
 
-        cursoActualId = Number(row.id || 1) || 1
+        cursoActualId = Number(data.curso_id || 1) || 1
         cursoQRValido = true
         console.log("Curso detectado por QR:", cursoActualId)
         return true
