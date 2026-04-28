@@ -2115,6 +2115,7 @@ select {
     border-radius: 14px;
     border-color: rgba(229, 229, 234, 0.9);
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    padding: 12px;
   }
 
   #vistaDesktop h2,
@@ -2147,6 +2148,7 @@ select {
   .sidebar {
     width: 100%;
     min-width: 0;
+    padding: 12px 10px;
     border-right: none;
     border-bottom: 1px solid var(--line);
     display: flex;
@@ -2182,6 +2184,9 @@ select {
     border-radius: 10px;
     font-weight: 600;
     letter-spacing: -0.1px;
+    height: 34px;
+    padding: 0 9px;
+    font-size: 12px;
   }
 
   /* Header más compacto y legible en móvil */
@@ -2321,6 +2326,54 @@ select {
     padding: 14px;
   }
 
+  #vistaDesktop>div:nth-child(2)>div:last-child,
+  #vistaLuizLabs>div:nth-child(2)>div:last-child {
+    padding: 12px !important;
+  }
+
+  #vistaDesktop .config-card,
+  #vistaLuizLabs .config-card,
+  #vistaUsuarios .config-card {
+    padding: 14px 12px;
+  }
+
+  #vistaDesktop .table-wrap,
+  #vistaLuizLabs .table-wrap,
+  #vistaDesktop #tabla,
+  #vistaLuizLabs #tabla,
+  .user-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #vistaDesktop .table-wrap table,
+  #vistaLuizLabs .table-wrap table,
+  #vistaDesktop #tabla table,
+  #vistaLuizLabs #tabla table {
+    min-width: 640px;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  #vistaDesktop .table-wrap th,
+  #vistaDesktop .table-wrap td,
+  #vistaLuizLabs .table-wrap th,
+  #vistaLuizLabs .table-wrap td,
+  #vistaDesktop #tabla th,
+  #vistaDesktop #tabla td,
+  #vistaLuizLabs #tabla th,
+  #vistaLuizLabs #tabla td {
+    padding: 8px 7px;
+    font-size: 12px;
+  }
+
+  #vistaDesktop .table-wrap th,
+  #vistaLuizLabs .table-wrap th,
+  #vistaDesktop #tabla th,
+  #vistaLuizLabs #tabla th {
+    font-size: 11px;
+  }
+
   #vistaDashboard .dashboard-flex-row {
     gap: 10px;
   }
@@ -2367,6 +2420,15 @@ select {
   #vistaDesktop button,
   #vistaLuizLabs button {
     box-shadow: 0 6px 14px rgba(15, 88, 216, 0.12);
+  }
+
+  #vistaDesktop button.secondary,
+  #vistaLuizLabs button.secondary,
+  #vistaDesktop .table-actions button,
+  #vistaLuizLabs .table-actions button,
+  #vistaDesktop .icon-btn,
+  #vistaLuizLabs .icon-btn {
+    min-width: 0;
   }
 
   .config-row select,
