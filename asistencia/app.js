@@ -426,7 +426,11 @@ async function guardarAsistencia() {
     const nombresValor = String(nombres.value || "").trim()
     const apellidosValor = String(apellidos.value || "").trim()
     const uboValor = String(ubo.value || "").replace(/\D/g, "")
-    const seccionRegistro = esDomingoLima(new Date()) ? "GENERAL" : seccion
+    const esDomingo = esDomingoLima(new Date())
+    const sinSeccionesConfiguradas = !Array.isArray(cursoSecciones) || cursoSecciones.length === 0
+    const seccionRegistro = esDomingo
+        ? "GENERAL"
+        : (sinSeccionesConfiguradas ? "GENERAL" : seccion)
 
     if (!dniRegistro) {
         setMensaje("⚠ DNI no válido", "error")
