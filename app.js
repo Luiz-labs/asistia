@@ -5945,13 +5945,22 @@ async function cargarDatos() {
     }
 
     const { data } = await q
+        .order("fecha", { ascending: false })
+        .order("hora", { ascending: false })
     const scopedData = filtrarDataTenantActivo(data)
     renderTabla((scopedData || []).filter(d => d.estado !== "retirado"))
     await cargarAlertasReporte()
 }
 
 function renderTabla(data) {
-    const activos = (data || []).filter(r => r.estado !== "retirado")
+    const activos = (data || [])
+        .filter(r => r.estado !== "retirado")
+        .slice()
+        .sort((a, b) => {
+            const aKey = `${a.fecha || ""} ${a.hora || ""}`
+            const bKey = `${b.fecha || ""} ${b.hora || ""}`
+            return bKey.localeCompare(aKey)
+        })
     const hayFiltroUbo = !!String(filtroUbo?.value || "").trim()
     const clavesAlerta = obtenerClavesAlertaDispositivo(activos)
     cacheReportes = []
@@ -6029,6 +6038,13 @@ function renderTabla(data) {
     tabla.innerHTML = html
 }
 
+function obtenerEtiquetaTipoAlerta(tipo) {
+    const normalizado = String(tipo || "").trim().toLowerCase()
+    if (normalizado === "dni_en_otro_dispositivo") return "Dispositivo no habitual"
+    if (normalizado === "fuera_rango_gps") return "Fuera de rango GPS"
+    return normalizado ? normalizado.replace(/_/g, " ") : "-"
+}
+
 async function cargarAlertasReporte() {
     let q = withTenantScope(supabaseClient
         .from("asistencia_alertas")
@@ -6064,6 +6080,21 @@ async function cargarAlertasReporte() {
         return
     }
 
+    const alertasUnicas = []
+    const claves = new Set()
+    ;(scopedData || []).forEach(r => {
+        const key = [
+            r.fecha || "",
+            r.hora || "",
+            r.dni || "",
+            r.tipo || "",
+            r.detalle || ""
+        ].join("|")
+        if (claves.has(key)) return
+        claves.add(key)
+        alertasUnicas.push(r)
+    })
+
     let html = `
   <table>
     <thead>
@@ -6081,7 +6112,7 @@ async function cargarAlertasReporte() {
     <tbody>
   `
 
-    scopedData.forEach(r => {
+    alertasUnicas.forEach(r => {
         html += `
       <tr>
         <td>${r.fecha || ""}</td>
@@ -6090,7 +6121,7 @@ async function cargarAlertasReporte() {
         <td>${r.nombre || ""}</td>
         <td>${r.ubo || ""}</td>
         <td>${r.seccion || ""}</td>
-        <td>${r.tipo || ""}</td>
+        <td>${obtenerEtiquetaTipoAlerta(r.tipo)}</td>
         <td>${r.detalle || ""}</td>
       </tr>
     `
