@@ -2512,12 +2512,12 @@ function ingresarInstitucionLuizLabs(slug) {
         slug,
         nombre: inst.nombre
     }, { tenantId: slug })
-    window.location.href = obtenerRutaTenant(slug)
+    window.location.href = obtenerRutaTenantBackoffice(slug)
 }
 
 async function copiarEnlaceInstitucionLuizLabs(slug) {
     if (!puedeEntrarPanelLuizLabs()) return
-    const ruta = obtenerRutaTenant(slug)
+    const ruta = obtenerRutaTenantBackoffice(slug)
     const url = `${window.location.origin}${ruta}`
 
     try {
@@ -3156,6 +3156,11 @@ function obtenerRutaTenant(id) {
     return clean ? `/${clean}/` : "/"
 }
 
+function obtenerRutaTenantBackoffice(id) {
+    const clean = String(id || "").trim().replace(/^\/+|\/+$/g, "")
+    return clean ? `/${clean}/backoffice/` : "/"
+}
+
 function resolverAccesoDesdeRuta() {
     const path = normalizarPathname(window.location.pathname)
     if (path !== "/") {
@@ -3182,6 +3187,17 @@ function redirigirRutaPublicaLegadaCurso() {
 
     const destino = `/${slug}/asistencia/${window.location.search || ""}`
     window.location.replace(destino)
+    return true
+}
+
+function redirigirRutaBackofficeLegada() {
+    const path = normalizarPathname(window.location.pathname)
+    if (path === "/" || /\/asistencia\/|\/backoffice\//i.test(path)) return false
+
+    const slug = path.replace(/^\/|\/$/g, "")
+    if (!slug || !TENANTS[slug]) return false
+
+    window.location.replace(obtenerRutaTenantBackoffice(slug))
     return true
 }
 
@@ -3324,7 +3340,7 @@ function seleccionarCliente(id) {
     if (esModoStaff && haySesionAdminActiva()) {
         actualizarSesionAdmin({ tenantId: tenant.id, origen: "staff_root" })
     }
-    window.location.href = obtenerRutaTenant(id)
+    window.location.href = obtenerRutaTenantBackoffice(id)
 }
 
 function volverSeleccionCliente() {
@@ -5041,6 +5057,7 @@ function actualizarEstadoChecks() {
 
 window.onload = async () => {
     if (redirigirRutaPublicaLegadaCurso()) return
+    if (redirigirRutaBackofficeLegada()) return
     enlazarIdsGlobales()
     await cargarLuizLabsDesdeStorage()
     renderTenantSelector()
