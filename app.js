@@ -2347,6 +2347,7 @@ function esRutaInstitucionalValidaActiva() {
 }
 
 function puedeMostrarAccesoAdminInstitucional() {
+    if (!esModoStaff) return false
     const formularioVisible = document.getElementById("formulario")?.style?.display === "block"
     return esRutaInstitucionalValidaActiva() &&
         !haySesionAdminActiva() &&
@@ -4972,6 +4973,20 @@ function aplicarLayout() {
                 mostrarVista("reportes")
             }
         } else {
+            if (!esModoStaff) {
+                cerrarScanner()
+                if (elTenant) elTenant.style.display = "none"
+                if (elLogin) elLogin.style.display = "flex"
+                if (elDesktop) elDesktop.style.display = "none"
+                if (elLuizLabs) elLuizLabs.style.display = "none"
+                if (elMovilInicio) elMovilInicio.style.display = "none"
+                if (elMovil) elMovil.style.display = "none"
+                if (elFormulario) elFormulario.style.display = "none"
+                mostrarPasoMovil("ingreso")
+                actualizarBotonesVista()
+                aplicarVisibilidadAccesoAdminInstitucional()
+                return
+            }
             if (puedeEntrarPanelLuizLabs()) {
                 if (elTenant) elTenant.style.display = "none"
                 if (elLogin) elLogin.style.display = "none"
