@@ -205,16 +205,20 @@ async function cargarConfigCurso() {
     ;({ data: dataSecciones, error: errorSecciones } = await withTenantScope(
         supabaseClient
             .from("curso_secciones")
-            .select("*")
+            .select("seccion, modalidad, dias, hora_inicio, curso_id, tenant_id")
             .eq("curso_id", cursoActualId || 1)
             .order("seccion", { ascending: true })
     ))
+
+    if (errorSecciones) {
+        console.warn("No se pudo cargar curso_secciones:", errorSecciones.message || errorSecciones)
+    }
 
     if (errorSecciones && /curso_id/i.test(String(errorSecciones.message || ""))) {
         const fallback = await withTenantScope(
             supabaseClient
                 .from("curso_secciones")
-                .select("*")
+                .select("seccion, modalidad, dias, hora_inicio, tenant_id")
                 .order("seccion", { ascending: true })
         )
         dataSecciones = fallback.data || []
