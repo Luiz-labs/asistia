@@ -4,9 +4,9 @@
 /esbas-24/asistencia/*     /asistencia/index.html   200
 
 # asistencia multi-tenant
-/:tenant/asistencia        /asistencia/index.html   200
-/:tenant/asistencia/       /asistencia/index.html   200
-/:tenant/asistencia/*      /asistencia/index.html   200
+/*/asistencia              /asistencia/index.html   200
+/*/asistencia/             /asistencia/index.html   200
+/*/asistencia/*            /asistencia/index.html   200
 
 # fallback SPA principal
 /*                         /index.html              200
