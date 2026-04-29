@@ -128,21 +128,17 @@ function renderCurrentUserInfo() {
         { name: 'currentUserNameLuiz', role: 'currentUserRoleLuiz' }
     ];
     
-    if (window.currentProfile) {
-        ids.forEach(set => {
-            const nameEl = document.getElementById(set.name);
-            const roleEl = document.getElementById(set.role);
-            if (nameEl) nameEl.textContent = window.currentProfile.full_name;
-            if (roleEl) roleEl.textContent = window.currentProfile.role;
-        });
-    } else {
-        ids.forEach(set => {
-            const nameEl = document.getElementById(set.name);
-            const roleEl = document.getElementById(set.role);
-            if (nameEl) nameEl.textContent = '';
-            if (roleEl) roleEl.textContent = '';
-        });
-    }
+    const sesion = obtenerSesionAdminActiva();
+    const profile = window.currentProfile;
+    const nombre = profile?.full_name?.trim() || sesion?.usuario || "";
+    const rol = profile?.role || sesion?.rol || "";
+
+    ids.forEach(set => {
+        const nameEl = document.getElementById(set.name);
+        const roleEl = document.getElementById(set.role);
+        if (nameEl) nameEl.textContent = nombre;
+        if (roleEl) roleEl.textContent = obtenerNombreRolUI(rol);
+    });
 }
 
 async function bootstrapAuthorizedApp() {
@@ -168,10 +164,6 @@ let cacheDashboard = []
 let cacheRiesgoUbo = []
 let vistaAdminActual = "reportes"
 let vistaLuizLabsActual = "instituciones"
-const TUTORIAL_STORAGE_KEY = "asistia_tutorial_visto"
-let tutorialActivo = false
-let tutorialPasoActual = 0
-let tutorialTargetResaltado = null
 const VISTA_MODO_KEY = "vistaModoManual"
 const ADMIN_SESSION_KEY = "asistia_admin_session_v1"
 const LUIZLABS_STORE_KEY = "asistia_luizlabs_v1"
@@ -282,78 +274,6 @@ let cursoQRValido = false
 let validacionCursoAspirante = { dni: "", permitido: true, legacy: false, bloqueado: false }
 let inputDniFocusLockUntil = 0
 const SYSTEM_USERS = []
-const tutorialSteps = [
-    {
-        target: "#vistaDesktop [data-account-btn]",
-        titulo: "Cuenta",
-        descripcion: `Aquí puedes ver tu sesión activa:
-
-• Usuario con el que ingresaste
-• Rol (Administrador o Superusuario)
-• Institución en la que estás trabajando
-
-Esto te ayuda a evitar errores y saber en qué entorno estás operando.`
-    },
-    {
-        target: "#vistaReportes",
-        vista: "reportes",
-        titulo: "Reportes",
-        descripcion: `Aquí puedes consultar asistencias registradas.
-
-Puedes:
-• Filtrar por UBO
-• Seleccionar rango de fechas
-• Aplicar o limpiar filtros
-• Ver todos los registros
-• Exportar resultados a Excel
-
-También verás alertas de marcación en la parte inferior.`
-    },
-    {
-        target: "#vistaDashboard",
-        vista: "dashboard",
-        titulo: "Dashboard",
-        descripcion: `Aquí ves un resumen general del sistema.
-
-Puedes analizar:
-• Total de activos
-• Asistencia e inasistencia
-• Cobertura
-• Alertas de dispositivo
-• Semáforo de puntualidad
-• Riesgo por UBO
-
-El semáforo usa la primera marcación del último día y la compara con la hora de inicio/días de la sección.`
-    },
-    {
-        target: "#vistaConfig",
-        vista: "config",
-        titulo: "Configuración",
-        descripcion: `Aquí administras la operación del sistema.
-
-Puedes:
-• Cargar coordenadas GPS de UBO
-• Cargar aspirantes desde Excel
-• Retirar o reactivar aspirantes
-• Configurar curso, secciones y sedes
-
-Este módulo define cómo funciona todo el control de asistencia.`
-    },
-    {
-        target: "#vistaUsuarios",
-        vista: "usuarios",
-        titulo: "Usuarios",
-        descripcion: `Aquí gestionas accesos administrativos.
-
-Puedes:
-• Crear usuarios
-• Editarlos
-• Desactivarlos
-• Asignar roles
-
-Solo administras usuarios de esta institución.`
-    }
-]
 
 // SECTION_TO_UBO_FIELD legacy definition removed
 
@@ -1316,7 +1236,8 @@ function renderCuentaModalDetalle() {
 
     const sesion = obtenerSesionAdminActiva()
     const usuario = String(sesion.usuario || "").trim() || "-"
-    const nombre = window.currentProfile?.full_name || "Usuario AsistIA"
+    const profile = window.currentProfile
+    const nombre = profile?.full_name?.trim() || usuario
     const rolUI = obtenerNombreRolUI(sesion.rol)
     const tenantUI = obtenerNombreTenantUI(sesion.tenantId)
     const perfilUI = esSuperusuarioActivo()
@@ -1329,7 +1250,7 @@ function renderCuentaModalDetalle() {
             ${nombre.charAt(0).toUpperCase()}
         </div>
         <h4 style="margin:0; font-size: 16px; color: #1d1d1f;">${nombre}</h4>
-        <p style="margin:2px 0 0; font-size: 13px; color: #86868b;">${usuario}</p>
+        ${nombre !== usuario ? `<p style="margin:2px 0 0; font-size: 13px; color: #86868b;">${usuario}</p>` : ""}
     </div>
 
     <div class="cuenta-row">
@@ -1381,179 +1302,17 @@ function renderInfoSesionHeader() {
     }
 }
 
+function loginExitoso(sesion) {
+    if (!sesion) return
+    adminAutenticado = true
+    guardarSesionAdminEnStorage(sesion)
+    renderAdminView()
+}
+
 function actualizarInfoSesionHeader() {
     renderInfoSesionHeader()
 }
 
-function esTutorialModoMovil() {
-    return window.innerWidth <= 760 || getVistaActiva() === "mobile"
-}
-
-function limpiarResalteTutorial() {
-    if (tutorialTargetResaltado) {
-        tutorialTargetResaltado.classList.remove("tutorial-spotlight-target")
-        tutorialTargetResaltado = null
-    }
-}
-
-function obtenerTargetTutorial(step) {
-    if (!step?.target) return null
-    return document.querySelector(step.target)
-}
-
-function puedeIniciarTutorial() {
-    return !esModoStaff &&
-        haySesionAdminActiva() &&
-        puedeEntrarPanelAdmin() &&
-        usuarioPuedeVerVista("reportes") &&
-        usuarioPuedeVerVista("dashboard") &&
-        usuarioPuedeVerVista("config") &&
-        usuarioPuedeVerVista("usuarios")
-}
-
-function renderTooltipTutorial(step, index) {
-    const tooltip = document.getElementById("tutorialTooltip")
-    if (!tooltip) return
-
-    tooltip.innerHTML = `
-    <div class="tutorial-tooltip-title">${step.titulo}</div>
-    <div class="tutorial-tooltip-desc">${step.descripcion}</div>
-    <div class="tutorial-tooltip-foot">
-      <span class="tutorial-tooltip-step">Paso ${index + 1} de ${tutorialSteps.length}</span>
-      <div class="tutorial-tooltip-actions">
-        <button class="secondary" data-tutorial-prev ${index === 0 ? "disabled" : ""}>Anterior</button>
-        <button class="secondary" data-tutorial-skip>Omitir</button>
-        <button data-tutorial-next>${index === tutorialSteps.length - 1 ? "Finalizar" : "Siguiente"}</button>
-      </div>
-    </div>
-  `
-
-    tooltip.querySelector("[data-tutorial-prev]")?.addEventListener("click", anteriorPaso)
-    tooltip.querySelector("[data-tutorial-next]")?.addEventListener("click", siguientePaso)
-    tooltip.querySelector("[data-tutorial-skip]")?.addEventListener("click", finalizarTutorial)
-}
-
-function posicionarTooltipTutorial(target) {
-    const tooltip = document.getElementById("tutorialTooltip")
-    if (!tooltip) return
-
-    const margin = 12
-    const isMovil = esTutorialModoMovil()
-    const tw = tooltip.offsetWidth || 340
-    const th = tooltip.offsetHeight || 220
-
-    if (isMovil || !target) {
-        const top = Math.max(margin, (window.innerHeight - th) / 2)
-        const left = Math.max(margin, (window.innerWidth - tw) / 2)
-        tooltip.style.top = `${top}px`
-        tooltip.style.left = `${left}px`
-        return
-    }
-
-    const rect = target.getBoundingClientRect()
-    const preferTop = rect.bottom + margin + th > window.innerHeight
-    let top = preferTop ? rect.top - th - margin : rect.bottom + margin
-    let left = rect.left + (rect.width / 2) - (tw / 2)
-
-    top = Math.max(margin, Math.min(top, window.innerHeight - th - margin))
-    left = Math.max(margin, Math.min(left, window.innerWidth - tw - margin))
-
-    tooltip.style.top = `${top}px`
-    tooltip.style.left = `${left}px`
-}
-
-function mostrarPaso(index) {
-    if (!tutorialActivo) return
-
-    if (index < 0) index = 0
-    if (index >= tutorialSteps.length) {
-        finalizarTutorial()
-        return
-    }
-
-    tutorialPasoActual = index
-    const step = tutorialSteps[index]
-
-    if (step?.vista) {
-        mostrarVista(step.vista)
-    }
-
-    window.setTimeout(() => {
-        if (!tutorialActivo) return
-        const overlay = document.getElementById("tutorialOverlay")
-        const tooltip = document.getElementById("tutorialTooltip")
-        if (!overlay || !tooltip) return
-
-        const target = obtenerTargetTutorial(step)
-        const isMovil = esTutorialModoMovil()
-
-        limpiarResalteTutorial()
-        if (target && !isMovil) {
-            target.scrollIntoView({ behavior: "smooth", block: "center" })
-            target.classList.add("tutorial-spotlight-target")
-            tutorialTargetResaltado = target
-        }
-
-        renderTooltipTutorial(step, index)
-        overlay.style.display = "block"
-        overlay.setAttribute("aria-hidden", "false")
-        tooltip.style.display = "block"
-        tooltip.setAttribute("aria-hidden", "false")
-        posicionarTooltipTutorial(target)
-    }, 180)
-}
-
-function iniciarTutorial(forzado = false) {
-    if (tutorialActivo) return
-    if (!puedeIniciarTutorial()) {
-        if (forzado) {
-            alert("El tutorial está disponible dentro del panel administrativo institucional.")
-        }
-        return
-    }
-    if (!forzado && localStorage.getItem(TUTORIAL_STORAGE_KEY) === "true") {
-        return
-    }
-    tutorialActivo = true
-    tutorialPasoActual = 0
-    mostrarPaso(0)
-}
-
-function siguientePaso() {
-    mostrarPaso(tutorialPasoActual + 1)
-}
-
-function anteriorPaso() {
-    mostrarPaso(tutorialPasoActual - 1)
-}
-
-function cerrarTutorial() {
-    tutorialActivo = false
-    limpiarResalteTutorial()
-    const overlay = document.getElementById("tutorialOverlay")
-    const tooltip = document.getElementById("tutorialTooltip")
-    if (overlay) {
-        overlay.style.display = "none"
-        overlay.setAttribute("aria-hidden", "true")
-    }
-    if (tooltip) {
-        tooltip.style.display = "none"
-        tooltip.setAttribute("aria-hidden", "true")
-        tooltip.innerHTML = ""
-    }
-}
-
-function finalizarTutorial() {
-    localStorage.setItem(TUTORIAL_STORAGE_KEY, "true")
-    cerrarTutorial()
-}
-
-function evaluarInicioTutorialAutomatico() {
-    if (tutorialActivo) return
-    if (localStorage.getItem(TUTORIAL_STORAGE_KEY) === "true") return
-    if (!puedeIniciarTutorial()) return
-    iniciarTutorial(false)
-}
 
 function esTenantConDatosLegacy(tenantId) {
     return String(tenantId || "") === "esbas-24"
