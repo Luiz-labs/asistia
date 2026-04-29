@@ -332,15 +332,52 @@ function normalizarCorreoProvisionAdmin(usuario, correo = "") {
     return usuarioLimpio ? `${usuarioLimpio}@asistia.local` : ""
 }
 
+function resetEstadoSesionAdminUI() {
+    cerrarTutorial()
+    limpiarSesionAdminActiva()
+
+    mostrarSelectorStaff = false
+    dniMovil = ""
+    seccion = ""
+    if (loginMsg) loginMsg.innerText = ""
+    if (loginUser) loginUser.value = ""
+    if (loginPass) loginPass.value = ""
+    if (mobileDni) mobileDni.value = ""
+    if (mobileDniInicio) mobileDniInicio.value = ""
+    sessionStorage.removeItem(VISTA_MODO_KEY)
+    localStorage.removeItem(VISTA_MODO_KEY)
+}
+
+async function asegurarSesionSupabaseValida() {
+    if (!haySupabase()) return false
+
+    const { data: sessionWrap, error: sessionError } = await supabaseClient.auth.getSession()
+    const session = sessionWrap?.session || null
+    if (!sessionError && session?.access_token) {
+        return true
+    }
+
+    try {
+        await supabaseClient.auth.signOut()
+    } catch (_) { }
+
+    resetEstadoSesionAdminUI()
+    alert("Tu sesión expiró. Vuelve a iniciar sesión para continuar.")
+
+    const accesoRuta = resolverAccesoDesdeRuta()
+    const tenantDestino = String(accesoRuta?.tenantId || tenantActivoId || obtenerSesionAdminActiva()?.tenantId || "").trim()
+    const destino = accesoRuta?.staff ? "/" : obtenerRutaTenantBackoffice(tenantDestino)
+    window.location.replace(destino)
+    return false
+}
+
 async function provisionarUsuarioAdminSeguro(payload = {}) {
     if (!haySupabase()) {
         throw new Error("Supabase no está disponible.")
     }
-
-    const { data: sessionWrap, error: sessionError } = await supabaseClient.auth.getSession()
-    const session = sessionWrap?.session || null
-    if (sessionError || !session?.access_token) {
-        throw new Error("Necesitas una sesión válida para provisionar usuarios.")
+    const sesionValida = await asegurarSesionSupabaseValida()
+    if (!sesionValida) {
+        throw new Error("SESSION_EXPIRED")
     }
 
     const body = {
@@ -2994,6 +3031,7 @@ function editarUsuarioAdminLuiz(idx) {
 
 async function guardarUsuarioAdminLuiz() {
     if (!puedeEntrarPanelLuizLabs()) return
+    if (!await asegurarSesionSupabaseValida()) return
     const nombres = String(luizUserNombres?.value || "").trim()
     const apellidos = String(luizUserApellidos?.value || "").trim()
     const dni = String(luizUserDni?.value || "").replace(/\D/g, "")
@@ -3103,6 +3141,7 @@ async function guardarUsuarioAdminLuiz() {
             activo: true
         })
     } catch (error) {
+        if (error?.message === "SESSION_EXPIRED") return
         alert(`No se pudo provisionar usuario: ${error.message}`)
         return
     }
@@ -4297,6 +4336,7 @@ function cancelarEdicionUsuarioAdmin() {
 }
 
 async function guardarUsuarioAdmin() {
+    if (!await asegurarSesionSupabaseValida()) return
     const nombres = (userNombres?.value || "").trim()
     const apellidos = (userApellidos?.value || "").trim()
     const dni = String(userDni?.value || "").replace(/\D/g, "")
@@ -4374,6 +4414,7 @@ async function guardarUsuarioAdmin() {
             activo: true
         })
     } catch (error) {
+        if (error?.message === "SESSION_EXPIRED") return
         alert(`No se pudo provisionar usuario: ${error.message}`)
         return
     }
@@ -5624,19 +5665,7 @@ function logout() {
             tenantId: sesionPrev.tenantId || tenantActivoId || ""
         })
     }
-    cerrarTutorial()
-    limpiarSesionAdminActiva()
-
-    mostrarSelectorStaff = false
-    dniMovil = ""
-    seccion = ""
-    if (loginMsg) loginMsg.innerText = ""
-    if (loginUser) loginUser.value = ""
-    if (loginPass) loginPass.value = ""
-    if (mobileDni) mobileDni.value = ""
-    if (mobileDniInicio) mobileDniInicio.value = ""
-    sessionStorage.removeItem(VISTA_MODO_KEY)
-    localStorage.removeItem(VISTA_MODO_KEY)
+    resetEstadoSesionAdminUI()
 
     if (accesoDirectoInstitucion && origenSesion === "staff_root") {
         window.location.href = "/"
