@@ -3096,20 +3096,28 @@ body {
   grid-column: span 4; /* Default: 3 columns per row (4/12) */
 }
 
-/* Field Width Classes */
-.field-sm { grid-column: span 3; } /* 4 per row */
-.field-md { grid-column: span 4; } /* 3 per row */
-.field-lg { grid-column: span 6; } /* 2 per row */
-.field-xl { grid-column: span 8; } /* Large field */
+/* Granular Grid Span Classes */
+.col-2 { grid-column: span 2; }
+.col-3 { grid-column: span 3; }
+.col-4 { grid-column: span 4; }
+.col-5 { grid-column: span 5; }
+.col-6 { grid-column: span 6; }
+.col-12 { grid-column: span 12; }
+
+/* Backward Compatibility & General Widths */
+.field-sm { grid-column: span 3; }
+.field-md { grid-column: span 4; }
+.field-lg { grid-column: span 6; }
+.field-xl { grid-column: span 8; }
 .field-full { grid-column: span 12; }
 
 @media (max-width: 900px) {
   .form-group { grid-column: span 6; }
-  .field-sm, .field-md, .field-lg, .field-xl { grid-column: span 6; }
+  .col-2, .col-3, .col-4, .col-5, .col-6, .field-sm, .field-md, .field-lg, .field-xl { grid-column: span 6; }
 }
 
 @media (max-width: 600px) {
-  .form-group, .field-sm, .field-md, .field-lg, .field-xl, .field-full { grid-column: span 12; }
+  .form-group, .col-2, .col-3, .col-4, .col-5, .col-6, .col-12, .field-sm, .field-md, .field-lg, .field-xl, .field-full { grid-column: span 12; }
   .form-actions-bar {
     flex-direction: column-reverse;
   }
@@ -3146,11 +3154,11 @@ body {
 }
 
 .form-group input, .form-group select {
-  height: 38px !important;
-  padding: 0 12px !important;
+  height: 40px !important;
+  padding: 0 14px !important;
   background: #f5f5f7 !important;
   border: 1px solid #e5e5ea !important;
-  border-radius: 10px !important;
+  border-radius: 12px !important;
   font-size: 14px !important;
   transition: all 0.2s ease !important;
 }
@@ -3173,9 +3181,9 @@ body {
 }
 
 .form-actions-bar button {
-  height: 42px !important;
-  padding: 0 22px !important;
-  border-radius: 14px !important;
+  height: 40px !important;
+  padding: 0 18px !important;
+  border-radius: 12px !important;
   font-size: 14px !important;
   font-weight: 600 !important;
   cursor: pointer;
