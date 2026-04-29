@@ -1247,15 +1247,14 @@ function poblarPerfilesInstitucionales() {
     const el = document.getElementById("userPerfil")
     if (!el) return
     const prev = el.value || ""
-    let html = `<option value="administrador">Administrador</option>`
-        ; (perfilesLuiz || [])
-            .filter(p => p.estado === "activo")
-            .sort((a, b) => String(a.nombre || "").localeCompare(String(b.nombre || "")))
-            .forEach(p => {
-                html += `<option value="${p.id}">${p.nombre}</option>`
-            })
+    const perfilesActivos = (perfilesLuiz || [])
+        .filter(p => p.estado === "activo")
+        .sort((a, b) => String(a.nombre || "").localeCompare(String(b.nombre || "")))
+    const html = perfilesActivos
+        .map(p => `<option value="${p.id}">${p.nombre}</option>`)
+        .join("")
     el.innerHTML = html
-    el.value = (perfilesLuiz || []).some(p => p.id === prev && p.estado === "activo") ? prev : "administrador"
+    el.value = perfilesActivos.some(p => p.id === prev) ? prev : "administrador"
 }
 
 function actualizarBotonCuentaSidebar() {
