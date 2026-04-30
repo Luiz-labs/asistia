@@ -3382,9 +3382,10 @@ function aplicarTenantEnUI() {
         tenantSubtituloLogin.innerText = linea
         tenantSubtituloLogin.style.display = esModoStaff ? "none" : "block"
     }
-    if (tenantCursoLogin) {
-        tenantCursoLogin.innerText = curso
-        tenantCursoLogin.style.display = "none"
+    const tenantCursoLoginEl = document.getElementById("tenantCursoLogin")
+    if (tenantCursoLoginEl) {
+        tenantCursoLoginEl.innerText = curso
+        tenantCursoLoginEl.style.display = "none"
     }
     if (tenantCardTituloLogin) tenantCardTituloLogin.innerText = tituloCard
 
@@ -5210,7 +5211,6 @@ function aplicarLayout() {
     actualizarBotonesVista()
     aplicarVisibilidadAccesoAdminInstitucional()
     actualizarInfoSesionHeader()
-    evaluarInicioTutorialAutomatico()
 }
 
 function actualizarEstadoChecks() {
@@ -6790,22 +6790,13 @@ document.addEventListener("keydown", e => {
         cerrarModal()
         cerrarCuentaModal()
         cerrarAccesoAdminInstitucional()
-        if (tutorialActivo && typeof cerrarTutorial === "function") {
-            cerrarTutorial()
-        }
     }
 })
 
 window.addEventListener("resize", () => {
-    if (!tutorialActivo) return
-    const step = tutorialSteps[tutorialPasoActual]
-    posicionarTooltipTutorial(obtenerTargetTutorial(step))
 })
 
 window.addEventListener("scroll", () => {
-    if (!tutorialActivo) return
-    const step = tutorialSteps[tutorialPasoActual]
-    posicionarTooltipTutorial(obtenerTargetTutorial(step))
 }, true)
 
 async function guardarCurso() {
