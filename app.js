@@ -314,7 +314,7 @@ function normalizarCorreoProvisionAdmin(usuario, correo = "") {
 
 function resetEstadoSesionAdminUI() {
     cerrarCuentaModal()
-    cerrarTutorial()
+    if (typeof cerrarTutorial === "function") cerrarTutorial()
     limpiarSesionAdminActiva()
 
     mostrarSelectorStaff = false
@@ -6790,7 +6790,7 @@ document.addEventListener("keydown", e => {
         cerrarModal()
         cerrarCuentaModal()
         cerrarAccesoAdminInstitucional()
-        if (tutorialActivo) {
+        if (tutorialActivo && typeof cerrarTutorial === "function") {
             cerrarTutorial()
         }
     }
