@@ -778,17 +778,21 @@
         </div>
 
         <div id="vistaActividad" class="app-section" style="display:none;">
-          <h2>Actividad</h2>
-          <div class="card config-card section-card-tight">
-            <h3>Logs institucionales</h3>
-            <p id="logsTenantRangeLabel" class="hint">Mostrando mes actual.</p>
-            <div class="config-row">
+          <div class="card config-card section-card-tight section-card-activity">
+            <div class="section-head">
+              <h2 class="section-heading">Actividad</h2>
+              <p class="section-subtitle">Seguimiento de acciones institucionales y exportación operativa.</p>
+            </div>
+            <div class="logs-toolbar">
+              <p id="logsTenantRangeLabel" class="hint section-range-label">Mostrando mes actual.</p>
+              <div class="config-row logs-filter-bar">
               <input id="filtroActividadTenantTexto" placeholder="Buscar acción/usuario/ruta">
               <input id="filtroActividadTenantDesde" type="date">
               <input id="filtroActividadTenantHasta" type="date">
               <button onclick="cargarActividadTenant()">Filtrar</button>
               <button class="secondary" onclick="limpiarActividadTenant()">Limpiar</button>
               <button class="secondary" onclick="exportarActividadCSV('tenant')">Exportar CSV</button>
+            </div>
             </div>
             <div class="table-wrap user-table-wrap">
               <table>
@@ -879,8 +883,9 @@
         </div>
 
         <div id="luizBloqueUsuarios" class="app-section" style="display:none;">
-          <div class="card section-card-lg">
-            <h2 class="user-module-title">
+          <div class="card section-card-lg user-module-shell">
+            <div class="section-head section-head-compact">
+              <h2 class="user-module-title">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -889,8 +894,22 @@
                 </path>
               </svg>
               Gestión de usuarios asistIA
-            </h2>
-            <p class="user-module-subtitle">Administra accesos globales y usuarios por institución</p>
+              </h2>
+              <p class="user-module-subtitle">Administra accesos globales y usuarios por institución</p>
+            </div>
+
+            <details class="module-accordion" open>
+              <summary class="module-accordion-summary">
+                <div class="module-accordion-copy">
+                  <h3>Usuarios globales</h3>
+                  <p>Cuentas con acceso administrativo al sistema.</p>
+                </div>
+                <div class="module-accordion-meta">
+                  <div id="contadorGlobal" class="user-counter">Mostrando 0 usuarios globales</div>
+                  <span class="module-accordion-icon" aria-hidden="true"></span>
+                </div>
+              </summary>
+              <div class="module-accordion-body">
             <div id="formUsuarioGlobalLuiz" class="user-form-card">
               <div class="form-header">
                 <h3 id="tituloFormUsuarioGlobal">Usuarios globales <span id="badgeEditUsuarioGlobal" class="edit-badge"
@@ -968,9 +987,9 @@
             </div>
 
             <!-- BUSCADOR Y CONTADOR GLOBAL -->
-            <div class="user-search-bar">
-              <div class="search-input-wrapper">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              <div class="user-search-bar">
+                <div class="search-input-wrapper">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="11" cy="11" r="8"></circle>
                   <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -978,7 +997,6 @@
                 <input type="text" id="inputBusquedaGlobal" placeholder="Buscar usuario o nombre..."
                   onkeyup="renderPanelLuizLabs()">
               </div>
-              <div id="contadorGlobal" class="user-counter">Mostrando 0 usuarios globales</div>
             </div>
 
             <div class="user-table-card">
@@ -995,19 +1013,21 @@
                 <tbody id="tablaUsuariosGlobalLuiz"></tbody>
               </table>
             </div>
-          </div>
+              </div>
+            </details>
 
-          <div class="card">
-            <h2 class="user-module-title">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="7" height="7"></rect>
-                <rect x="14" y="3" width="7" height="7"></rect>
-                <rect x="14" y="14" width="7" height="7"></rect>
-                <rect x="3" y="14" width="7" height="7"></rect>
-              </svg>
-              Usuarios admin por institución
-            </h2>
+            <details class="module-accordion">
+              <summary class="module-accordion-summary">
+                <div class="module-accordion-copy">
+                  <h3>Usuarios admin por institución</h3>
+                  <p>Accesos administrativos vinculados a cada institución.</p>
+                </div>
+                <div class="module-accordion-meta">
+                  <div id="contadorAdminLuiz" class="user-counter">Mostrando 0 usuarios</div>
+                  <span class="module-accordion-icon" aria-hidden="true"></span>
+                </div>
+              </summary>
+              <div class="module-accordion-body">
             <div id="formUsuarioAdminLuiz" class="user-form-card">
               <div class="form-header">
                 <h3 id="tituloFormUsuarioAdminLuiz">Usuarios admin por institución <span id="badgeEditUsuarioAdminLuiz"
@@ -1111,7 +1131,6 @@
                   <option value="staff">Staff</option>
                 </select>
               </div>
-              <div id="contadorAdminLuiz" class="user-counter">Mostrando 0 usuarios</div>
             </div>
 
             <div class="user-table-card">
@@ -1129,12 +1148,17 @@
                 <tbody id="tablaUsuariosAdminLuiz"></tbody>
               </table>
             </div>
+              </div>
+            </details>
           </div>
         </div>
 
         <div id="luizBloquePerfiles" class="app-section" style="display:none;">
           <div class="card section-card-tight">
-            <h2 class="section-heading">Perfiles de acceso</h2>
+            <div class="section-head section-head-compact">
+              <h2 class="section-heading">Perfiles de acceso</h2>
+              <p class="section-subtitle">Define permisos visibles por módulo con controles más compactos.</p>
+            </div>
             <div class="config-grid section-grid-spaced">
               <div>
                 <label for="luizPerfilNombre">Nombre del perfil</label>
@@ -1172,10 +1196,14 @@
         </div>
 
         <div id="luizBloqueLogs" class="app-section" style="display:none;">
-          <div class="card">
-            <h2 class="section-heading">Logs globales asistIA</h2>
-            <p id="logsGlobalRangeLabel" class="hint">Mostrando mes actual.</p>
-            <div class="config-row">
+          <div class="card section-card-activity">
+            <div class="section-head">
+              <h2 class="section-heading">Logs globales asistIA</h2>
+              <p class="section-subtitle">Auditoría operativa centralizada por institución, usuario y rango.</p>
+            </div>
+            <div class="logs-toolbar">
+            <p id="logsGlobalRangeLabel" class="hint section-range-label">Mostrando mes actual.</p>
+            <div class="config-row logs-filter-bar">
               <select id="filtroActividadGlobalTenant"></select>
               <input id="filtroActividadGlobalTexto" placeholder="Buscar acción/usuario/ruta">
               <input id="filtroActividadGlobalDesde" type="date">
@@ -1183,6 +1211,7 @@
               <button onclick="cargarActividadGlobal()">Filtrar</button>
               <button class="secondary" onclick="limpiarActividadGlobal()">Limpiar</button>
               <button class="secondary" onclick="exportarActividadCSV('global')">Exportar CSV</button>
+            </div>
             </div>
             <div class="table-wrap user-table-wrap">
               <table class="luiz-users-table">
