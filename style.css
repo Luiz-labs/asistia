@@ -11,6 +11,10 @@
   --brand-softer: #eff6ff;
   --brand-line: #bfdbfe;
   --shadow: 0 12px 30px rgba(15, 23, 42, 0.06), 0 2px 8px rgba(15, 23, 42, 0.04);
+  --app-content-max: 1360px;
+  --app-content-pad-y: 24px;
+  --app-content-pad-x: 32px;
+  --app-content-pad-mobile: 16px;
 }
 
 * {
@@ -66,8 +70,132 @@ h2 {
   min-width: 0;
 }
 
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.panel-brand-logo {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+}
+
 #vistaDesktop .header {
   min-height: 64px;
+}
+
+.app-shell {
+  display: flex;
+  min-height: calc(100dvh - 64px);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.app-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--app-content-pad-y) var(--app-content-pad-x);
+}
+
+.app-section {
+  width: min(100%, var(--app-content-max));
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.app-section .card,
+.app-section .user-form-card,
+.app-section .user-table-card,
+.app-section .table-wrap,
+.app-section #tabla {
+  max-width: 100%;
+}
+
+.app-section .table-wrap,
+.app-section #tabla,
+.app-section .user-table-card {
+  overflow-x: auto;
+}
+
+.section-card {
+  margin-bottom: 20px;
+}
+
+.section-card-tight {
+  margin-bottom: 14px;
+}
+
+.section-card-lg {
+  margin-bottom: 24px;
+}
+
+.section-heading,
+.section-subtitle {
+  margin-bottom: 10px;
+}
+
+.section-note {
+  margin-top: 10px;
+  color: #5f6f8f;
+  font-size: 13px;
+}
+
+.section-note-compact {
+  margin: -6px 2px 14px;
+}
+
+.section-link-spaced {
+  margin: -8px 0 16px;
+}
+
+.section-grid-spaced {
+  margin-bottom: 10px;
+}
+
+.section-actions-spaced {
+  margin-bottom: 10px;
+}
+
+.config-row-topspaced {
+  margin-top: 10px;
+}
+
+.filter-select-sm {
+  width: 160px;
+}
+
+.filter-select-md {
+  width: 170px;
+}
+
+.kpi-card {
+  text-align: center;
+}
+
+.kpi-card-clickable {
+  cursor: pointer;
+}
+
+.table-empty-copy {
+  color: #607092;
+}
+
+.th-actions {
+  text-align: right;
+}
+
+.profile-permissions-grid {
+  margin-top: 4px;
+  margin-bottom: 10px;
+}
+
+#adminMobileNotice {
+  width: min(100%, var(--app-content-max));
+  margin: 0 auto 14px;
 }
 
 #vistaDesktop .header>div:first-child,
@@ -2461,9 +2589,8 @@ select {
     padding: 16px 10px;
   }
 
-  #vistaDesktop>div:nth-child(2)>div:last-child,
-  #vistaLuizLabs>div:nth-child(2)>div:last-child {
-    padding: 14px;
+  .app-main {
+    padding: 18px 20px;
   }
 
   .login-powered {
@@ -2474,6 +2601,12 @@ select {
 
   .login-powered-wordmark {
     font-size: 19px;
+  }
+
+  .filter-select-sm,
+  .filter-select-md {
+    width: 100%;
+    max-width: 100%;
   }
 }
 
@@ -2707,8 +2840,7 @@ select {
     padding: 14px;
   }
 
-  #vistaDesktop>div:nth-child(2)>div:last-child,
-  #vistaLuizLabs>div:nth-child(2)>div:last-child {
+  .app-main {
     padding: 12px !important;
   }
 
@@ -2917,6 +3049,9 @@ body {
 #vistaLuizLabs {
   max-width: 100%;
   overflow-x: clip;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Pantallas principales */
@@ -3292,7 +3427,7 @@ body {
   font-size: 13px;
   color: #86868b;
   border-top: 1px solid #f0f0f2;
-  margin-top: 20px;
+  margin-top: auto;
 }
 
 .icon-btn-with-text {

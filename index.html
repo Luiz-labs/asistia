@@ -62,12 +62,10 @@
 
     </div>
 
-    <div id="loginPoweredBy" class="login-powered">
+  <div id="loginPoweredBy" class="login-powered">
       <span>Powered by</span>
       <span class="login-powered-wordmark">asist<span style="color: #2563eb;">IA</span></span>
     </div>
-
-  </div>
 
   </div>
 
@@ -194,8 +192,8 @@
   <div id="vistaDesktop" style="display:none;">
 
     <div class="header">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <img id="tenantLogoPanel" class="tenant-dynamic-logo" src="/asistIA_logo.png" style="width:28px;height:28px;">
+      <div class="header-brand">
+        <img id="tenantLogoPanel" class="tenant-dynamic-logo panel-brand-logo" src="/asistIA_logo.png">
         <strong id="tenantPanelTitulo">ESBAS Panel Administrativo</strong>
       </div>
       <div class="header-actions">
@@ -213,7 +211,7 @@
       </div>
     </div>
 
-    <div style="display:flex;min-height:calc(100vh - 60px);">
+    <div class="app-shell">
 
       <div class="sidebar">
         <p id="navReportes" class="nav-item active" data-view="reportes" data-permission="reportsView"
@@ -227,20 +225,20 @@
         <p id="navActividad" class="nav-item" data-view="actividad" onclick="mostrarVista('actividad')">🧾 Actividad</p>
       </div>
 
-      <div style="flex:1;padding:20px;">
+      <div class="app-main">
         <div id="adminMobileNotice" class="card"
           style="display:none;margin-bottom:14px;background:#fff8e8;border-color:#f2ddad;color:#8a5a00;">
           Tu cuenta tiene permisos administrativos.<br>
           Para una mejor experiencia, el panel completo se muestra en la vista preparada para administración.
         </div>
 
-        <div id="vistaDashboard" style="display:none;">
+        <div id="vistaDashboard" class="app-section" style="display:none;">
 
           <h2>Dashboard</h2>
 
-          <div class="card" style="margin-bottom:15px;">
+          <div class="card section-card section-card-tight">
 
-            <h3 style="margin-bottom:10px;">Filtros</h3>
+            <h3 class="section-subtitle">Filtros</h3>
 
             <div class="filtros">
 
@@ -252,11 +250,11 @@
                 <input type="date" id="dashHasta">
               </div>
 
-              <select id="dashUbo" style="width:170px;">
+              <select id="dashUbo" class="filter-select-md">
                 <option value="">Todas las UBO</option>
               </select>
 
-              <select id="dashSeccion" style="width:170px;">
+              <select id="dashSeccion" class="filter-select-md">
                 <option value="">Todas las Secciones</option>
               </select>
 
@@ -273,27 +271,27 @@
             <!-- KPIs -->
             <div class="dashboard-flex-row">
 
-              <div class="card" style="text-align:center;">
+              <div class="card kpi-card">
                 <h3 id="kpiTotal">0</h3>
                 <p>Total Activos</p>
               </div>
 
-              <div class="card" style="text-align:center;">
+              <div class="card kpi-card">
                 <h3 id="kpiAsistencia">0%</h3>
                 <p>% Asistencia</p>
               </div>
 
-              <div class="card" style="text-align:center;">
+              <div class="card kpi-card">
                 <h3 id="kpiInasistencia">0</h3>
                 <p>Inasistencias</p>
               </div>
 
-              <div class="card" style="text-align:center;">
+              <div class="card kpi-card">
                 <h3 id="kpiCobertura">0%</h3>
                 <p>% Cobertura</p>
               </div>
 
-              <div id="kpiDispCard" class="card" style="text-align:center; cursor:pointer;"
+              <div id="kpiDispCard" class="card kpi-card kpi-card-clickable"
                 onclick="verAlertasDispositivo()">
                 <h3 id="kpiDispNoHabitual">0</h3>
                 <p>Alertas Dispositivo</p>
@@ -304,17 +302,17 @@
             <!-- SEMÁFORO -->
             <div class="dashboard-flex-row">
 
-              <div class="card" style="text-align:center; cursor:pointer;" onclick="verDetalle('verde')">
+              <div class="card kpi-card kpi-card-clickable" onclick="verDetalle('verde')">
                 <h3 id="verdeCount">0</h3>
                 <p>🟢 Verde</p>
               </div>
 
-              <div class="card" style="text-align:center; cursor:pointer;" onclick="verDetalle('amarillo')">
+              <div class="card kpi-card kpi-card-clickable" onclick="verDetalle('amarillo')">
                 <h3 id="amarilloCount">0</h3>
                 <p>🟡 Amarillo</p>
               </div>
 
-              <div class="card" style="text-align:center; cursor:pointer;" onclick="verDetalle('rojo')">
+              <div class="card kpi-card kpi-card-clickable" onclick="verDetalle('rojo')">
                 <h3 id="rojoCount">0</h3>
                 <p>🔴 Rojo</p>
               </div>
@@ -322,26 +320,26 @@
             </div>
           </div>
 
-          <p id="semaforoInfo" style="margin:-6px 2px 14px;color:#5f6f8f;font-size:13px;">
+          <p id="semaforoInfo" class="section-note section-note-compact">
             Semáforo: criterio de puntualidad por aspirante en el rango seleccionado.
           </p>
           <div class="dashboard-flex-row is-compact">
-            <div class="card" style="text-align:center;">
+            <div class="card kpi-card">
               <h3 id="kpiRojoTardanza">0</h3>
               <p>Rojo por tardanza</p>
             </div>
-            <div class="card" style="text-align:center;">
+            <div class="card kpi-card">
               <h3 id="kpiRojoFueraDia">0</h3>
               <p>Rojo por fuera de día</p>
             </div>
           </div>
-          <button class="btn-link" onclick="verCriterio('semaforo')" style="margin:-8px 0 16px;">Ver criterio</button>
+          <button class="btn-link section-link-spaced" onclick="verCriterio('semaforo')">Ver criterio</button>
 
           <!-- TOP RIESGO UBO -->
           <div class="card">
             <h3>⚠ Riesgo por UBO</h3>
             <div id="topUbo"></div>
-            <p id="riesgoInfo" style="margin-top:10px;color:#5f6f8f;font-size:13px;">
+            <p id="riesgoInfo" class="section-note">
               Riesgo UBO: cantidad de aspirantes en estado rojo por UBO.
             </p>
             <button class="btn-link" onclick="verCriterio('riesgo')">Ver criterio</button>
@@ -349,17 +347,17 @@
 
         </div>
 
-        <div id="vistaReportes">
+        <div id="vistaReportes" class="app-section">
 
           <h2>Reportes</h2>
           <!-- CARD FILTROS -->
-          <div class="card" style="margin-bottom:20px;">
+          <div class="card section-card">
 
-            <h3 style="margin-bottom:10px;">Filtros</h3>
+            <h3 class="section-subtitle">Filtros</h3>
 
             <div class="filtros">
 
-              <select id="filtroUbo" style="width:160px;"></select>
+              <select id="filtroUbo" class="filter-select-sm"></select>
 
               <div class="input-date">
                 <input type="date" id="fechaDesde">
@@ -382,14 +380,14 @@
           <div id="tabla" class="card"></div>
 
           <div id="tablaAlertas" class="card">
-            <h3 style="margin-bottom:10px;">Alertas de Marcación</h3>
-            <div id="tablaAlertasContenido" style="color:#607092;">Sin alertas registradas.</div>
+            <h3 class="section-subtitle">Alertas de Marcación</h3>
+            <div id="tablaAlertasContenido" class="table-empty-copy">Sin alertas registradas.</div>
           </div>
 
 
         </div>
 
-        <div id="vistaUsuarios" style="display:none;">
+        <div id="vistaUsuarios" class="app-section" style="display:none;">
           <h2 class="user-module-title">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -510,16 +508,15 @@
                   <th>Nombre completo</th>
                   <th>Perfil</th>
                   <th>Estado</th>
-                  <th style="text-align:right;">Acciones</th>
+                  <th class="th-actions">Acciones</th>
                 </tr>
               </thead>
               <tbody id="tablaUsuariosAdmin"></tbody>
             </table>
           </div>
         </div>
-      </div>
 
-      <div id="vistaConfig" style="display:none;">
+        <div id="vistaConfig" class="app-section" style="display:none;">
 
         <h2>Configuración</h2>
 
@@ -532,7 +529,7 @@
             <input type="checkbox" id="toggleGPS">
             Activar validación GPS (Proximamente)
           </label>
-          <div class="config-row file-upload-row" style="margin-top:10px;">
+          <div class="config-row file-upload-row config-row-topspaced">
             <input type="file" id="archivoUbosSedes" accept=".xlsx,.xls,.csv">
             <button onclick="cargarExcelUbosSedes()">Subir Coordenadas</button>
             <button class="secondary" onclick="cargarUbos()">Refrescar UBOs</button>
@@ -544,7 +541,7 @@
           <h3>Carga de Aspirantes (Excel / SQL)</h3>
           <div class="hint">Archivo requerido con columnas: <strong>apellidos, nombres, dni, ubo</strong>. El listado
             integra datos desde <strong>aspirantes</strong> y registros en <strong>asistencias</strong>.</div>
-          <div class="config-row file-upload-row" style="margin-top:10px;">
+          <div class="config-row file-upload-row config-row-topspaced">
             <input type="file" id="archivoAspirantes" accept=".xlsx,.xls,.csv">
             <button onclick="cargarExcelAspirantes()">Subir Archivo</button>
             <button class="secondary" onclick="cargarAspirantesCargados()">Refrescar Listado</button>
@@ -779,35 +776,36 @@
 
 
 
-      </div>
+        </div>
 
-      <div id="vistaActividad" style="display:none;">
-        <h2>Actividad</h2>
-        <div class="card config-card" style="margin-bottom:14px;">
-          <h3>Logs institucionales</h3>
-          <p id="logsTenantRangeLabel" class="hint">Mostrando mes actual.</p>
-          <div class="config-row">
-            <input id="filtroActividadTenantTexto" placeholder="Buscar acción/usuario/ruta">
-            <input id="filtroActividadTenantDesde" type="date">
-            <input id="filtroActividadTenantHasta" type="date">
-            <button onclick="cargarActividadTenant()">Filtrar</button>
-            <button class="secondary" onclick="limpiarActividadTenant()">Limpiar</button>
-            <button class="secondary" onclick="exportarActividadCSV('tenant')">Exportar CSV</button>
-          </div>
-          <div class="table-wrap user-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Acción</th>
-                  <th>Usuario</th>
-                  <th>Dispositivo</th>
-                  <th>Rol</th>
-                  <th>Detalle</th>
-                </tr>
-              </thead>
-              <tbody id="tablaActividadTenant"></tbody>
-            </table>
+        <div id="vistaActividad" class="app-section" style="display:none;">
+          <h2>Actividad</h2>
+          <div class="card config-card section-card-tight">
+            <h3>Logs institucionales</h3>
+            <p id="logsTenantRangeLabel" class="hint">Mostrando mes actual.</p>
+            <div class="config-row">
+              <input id="filtroActividadTenantTexto" placeholder="Buscar acción/usuario/ruta">
+              <input id="filtroActividadTenantDesde" type="date">
+              <input id="filtroActividadTenantHasta" type="date">
+              <button onclick="cargarActividadTenant()">Filtrar</button>
+              <button class="secondary" onclick="limpiarActividadTenant()">Limpiar</button>
+              <button class="secondary" onclick="exportarActividadCSV('tenant')">Exportar CSV</button>
+            </div>
+            <div class="table-wrap user-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Acción</th>
+                    <th>Usuario</th>
+                    <th>Dispositivo</th>
+                    <th>Rol</th>
+                    <th>Detalle</th>
+                  </tr>
+                </thead>
+                <tbody id="tablaActividadTenant"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -818,13 +816,10 @@
 
   </div>
 
-
-  </div>
-
   <div id="vistaLuizLabs" style="display:none;">
     <div class="header">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <img src="/asistIA_logo.png" style="width:28px;">
+      <div class="header-brand">
+        <img src="/asistIA_logo.png" class="panel-brand-logo">
         <strong>asistIA - Gestión de Instituciones</strong>
       </div>
       <div class="header-actions">
@@ -839,7 +834,7 @@
       </div>
     </div>
 
-    <div style="display:flex;min-height:calc(100vh - 60px);">
+    <div class="app-shell">
       <div class="sidebar">
         <p id="luizNavInstituciones" class="nav-item active" onclick="mostrarVistaLuizLabs('instituciones')">🏢
           Instituciones</p>
@@ -848,12 +843,12 @@
         <p id="luizNavLogs" class="nav-item" onclick="mostrarVistaLuizLabs('logs')">🧾 Logs</p>
       </div>
 
-      <div style="flex:1;padding:20px;">
-        <div id="luizBloqueInstituciones">
-          <div class="card" style="margin-bottom:14px;">
-            <h2 style="margin-bottom:10px;">Nueva institución</h2>
+      <div class="app-main">
+        <div id="luizBloqueInstituciones" class="app-section">
+          <div class="card section-card-tight">
+            <h2 class="section-heading">Nueva institución</h2>
             <div class="filtros luiz-inst-create-row">
-              <input id="luizInstNombre" placeholder="Nombre de institución" style="min-width:260px;">
+              <input id="luizInstNombre" placeholder="Nombre de institución">
               <input id="luizInstLogoFile" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
               <button onclick="crearInstitucionLuizLabs()">Crear institución</button>
             </div>
@@ -861,8 +856,8 @@
             </p>
           </div>
 
-          <div class="card" style="margin-bottom:14px;">
-            <h2 style="margin-bottom:10px;">Instituciones</h2>
+          <div class="card section-card-tight">
+            <h2 class="section-heading">Instituciones</h2>
             <div class="table-wrap">
               <table class="luiz-inst-table">
                 <thead>
@@ -880,8 +875,8 @@
           </div>
         </div>
 
-        <div id="luizBloqueUsuarios" style="display:none;">
-          <div class="card" style="margin-bottom:24px;">
+        <div id="luizBloqueUsuarios" class="app-section" style="display:none;">
+          <div class="card section-card-lg">
             <h2 class="user-module-title">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
@@ -991,7 +986,7 @@
                     <th>Nombre</th>
                     <th>Rol</th>
                     <th>Estado</th>
-                    <th style="text-align:right;">Acciones</th>
+                    <th class="th-actions">Acciones</th>
                   </tr>
                 </thead>
                 <tbody id="tablaUsuariosGlobalLuiz"></tbody>
@@ -1125,7 +1120,7 @@
                     <th>Institución</th>
                     <th>Perfil</th>
                     <th>Estado</th>
-                    <th style="text-align:right;">Acciones</th>
+                    <th class="th-actions">Acciones</th>
                   </tr>
                 </thead>
                 <tbody id="tablaUsuariosAdminLuiz"></tbody>
@@ -1134,10 +1129,10 @@
           </div>
         </div>
 
-        <div id="luizBloquePerfiles" style="display:none;">
-          <div class="card" style="margin-bottom:14px;">
-            <h2 style="margin-bottom:10px;">Perfiles de acceso</h2>
-            <div class="config-grid" style="margin-bottom:10px;">
+        <div id="luizBloquePerfiles" class="app-section" style="display:none;">
+          <div class="card section-card-tight">
+            <h2 class="section-heading">Perfiles de acceso</h2>
+            <div class="config-grid section-grid-spaced">
               <div>
                 <label for="luizPerfilNombre">Nombre del perfil</label>
                 <input id="luizPerfilNombre" placeholder="Ejemplo: Staff Noche">
@@ -1150,8 +1145,8 @@
                 </select>
               </div>
             </div>
-            <div id="luizPerfilPermisos" class="dias" style="margin-top:4px;margin-bottom:10px;"></div>
-            <div class="table-actions" style="margin-bottom:10px;">
+            <div id="luizPerfilPermisos" class="dias profile-permissions-grid"></div>
+            <div class="table-actions section-actions-spaced">
               <button onclick="guardarPerfilLuiz()">Guardar perfil</button>
               <button class="secondary" onclick="cancelarEdicionPerfilLuiz()">Cancelar edición</button>
               <button class="secondary" onclick="limpiarPerfilLuizForm()">Limpiar</button>
@@ -1173,9 +1168,9 @@
           </div>
         </div>
 
-        <div id="luizBloqueLogs" style="display:none;">
+        <div id="luizBloqueLogs" class="app-section" style="display:none;">
           <div class="card">
-            <h2 style="margin-bottom:10px;">Logs globales asistIA</h2>
+            <h2 class="section-heading">Logs globales asistIA</h2>
             <p id="logsGlobalRangeLabel" class="hint">Mostrando mes actual.</p>
             <div class="config-row">
               <select id="filtroActividadGlobalTenant"></select>
