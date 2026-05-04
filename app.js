@@ -156,8 +156,10 @@ function enlazarAccionesCuentaHeader() {
 }
 
 async function bootstrapAuthorizedApp() {
+    sincronizarPermisosPanelInstitucional()
     await loadCurrentProfile();
     applyRolePermissions();
+    aplicarRestriccionesPanelPorContexto()
     renderCurrentUserInfo();
 }
 
@@ -239,6 +241,7 @@ let institucionesLuiz = []
 let usuariosAdminLuiz = []
 let perfilesLuiz = []
 let perfilesUsuariosLocales = {}
+let permisosPanelInstitucionalResueltos = false
 let editUsuarioAdminLuizIndex = null
 let editUsuarioGlobalLuizIndex = null
 let editPerfilLuizIndex = -1
@@ -1041,6 +1044,7 @@ function cargarSesionAdminDesdeStorage() {
         const raw = sessionStorage.getItem(ADMIN_SESSION_KEY)
         if (!raw) {
             sesionAdminActiva = crearSesionAdminVacia()
+            permisosPanelInstitucionalResueltos = false
             sincronizarEstadoLegacyAdmin()
             return sesionAdminActiva
         }
@@ -1048,7 +1052,9 @@ function cargarSesionAdminDesdeStorage() {
     } catch (e) {
         console.warn("No se pudo leer sesión admin:", e)
         sesionAdminActiva = crearSesionAdminVacia()
+        permisosPanelInstitucionalResueltos = false
     }
+    sincronizarPermisosPanelInstitucional()
     sincronizarEstadoLegacyAdmin()
     return sesionAdminActiva
 }
@@ -1060,6 +1066,7 @@ function sincronizarEstadoLegacyAdmin() {
 function setSesionAdminActiva(sesion) {
     sesionAdminActiva = normalizarSesionAdmin(sesion)
     guardarSesionAdminEnStorage()
+    sincronizarPermisosPanelInstitucional()
     sincronizarEstadoLegacyAdmin()
     actualizarInfoSesionHeader()
     return sesionAdminActiva
@@ -1072,6 +1079,7 @@ function actualizarSesionAdmin(parcial) {
 
 function limpiarSesionAdminActiva() {
     sesionAdminActiva = crearSesionAdminVacia()
+    permisosPanelInstitucionalResueltos = false
     guardarSesionAdminEnStorage()
     sincronizarEstadoLegacyAdmin()
     actualizarInfoSesionHeader()
@@ -1173,24 +1181,73 @@ function obtenerPerfilPorId(perfilId) {
     return (perfilesLuiz || []).find(p => String(p.id || "").toLowerCase() === id) || null
 }
 
+function resolverPerfilActivoId() {
+    if (!haySesionAdminActiva() || esSuperusuarioActivo()) return ""
+    const sesion = obtenerSesionAdminActiva()
+    const usuario = String(sesion.usuario || "").trim().toLowerCase()
+    if (!usuario) return ""
+
+    const perfilMapeado = normalizarPerfilId(perfilesUsuariosLocales?.[usuario] || "")
+    if (perfilMapeado && obtenerPerfilPorId(perfilMapeado)) {
+        return perfilMapeado
+    }
+
+    const userLuiz = (usuariosAdminLuiz || []).find(u => String(u.usuario || "").toLowerCase() === usuario)
+    const perfilUsuario = normalizarPerfilId(userLuiz?.perfilId || "")
+    if (perfilUsuario && obtenerPerfilPorId(perfilUsuario)) {
+        return perfilUsuario
+    }
+
+    const perfilSesion = normalizarPerfilId(sesion.perfilId || "")
+    if (perfilSesion && obtenerPerfilPorId(perfilSesion)) {
+        return perfilSesion
+    }
+
+    return ""
+}
+
+function sincronizarPermisosPanelInstitucional() {
+    if (!haySesionAdminActiva()) {
+        permisosPanelInstitucionalResueltos = false
+        return false
+    }
+    if (esSuperusuarioActivo()) {
+        permisosPanelInstitucionalResueltos = true
+        return true
+    }
+
+    const perfilId = resolverPerfilActivoId()
+    if (!perfilId) {
+        permisosPanelInstitucionalResueltos = false
+        return false
+    }
+
+    const perfil = obtenerPerfilPorId(perfilId)
+    if (!perfil || String(perfil.estado || "activo") !== "activo") {
+        permisosPanelInstitucionalResueltos = false
+        return false
+    }
+
+    if (String(sesionAdminActiva?.perfilId || "") !== perfilId) {
+        actualizarSesionAdmin({ perfilId })
+    }
+    permisosPanelInstitucionalResueltos = true
+    return true
+}
+
 function obtenerPerfilUsuarioActivo() {
     if (!haySesionAdminActiva()) return null
     if (esSuperusuarioActivo()) return null
-    const sesion = obtenerSesionAdminActiva()
-    const perfilSesion = obtenerPerfilPorId(sesion.perfilId)
-    if (perfilSesion) return perfilSesion
-
-    const userLuiz = (usuariosAdminLuiz || []).find(u => String(u.usuario || "").toLowerCase() === String(sesion.usuario || "").toLowerCase())
-    if (userLuiz?.perfilId) {
-        return obtenerPerfilPorId(userLuiz.perfilId) || null
-    }
-    return obtenerPerfilPorId("administrador")
+    const perfilId = resolverPerfilActivoId()
+    if (!perfilId) return null
+    return obtenerPerfilPorId(perfilId) || null
 }
 
 function usuarioPuedeVerVista(vista) {
     const key = String(vista || "").trim()
     if (!key) return true
     if (esSuperusuarioActivo()) return true
+    if (!permisosPanelInstitucionalResueltos) return key === "dashboard"
     const perfil = obtenerPerfilUsuarioActivo()
     if (!perfil || String(perfil.estado || "activo") !== "activo") return key === "dashboard"
     const permisos = normalizarPermisosPerfil(perfil.permisos || {})
@@ -1199,6 +1256,7 @@ function usuarioPuedeVerVista(vista) {
 }
 
 function aplicarPermisosVistasPorPerfil(vista) {
+    if (!esSuperusuarioActivo() && !permisosPanelInstitucionalResueltos) return "dashboard"
     if (usuarioPuedeVerVista(vista)) return vista
     const ordenFallback = ["dashboard", "reportes", "actividad", "config", "usuarios"]
     const alternativa = ordenFallback.find(v => usuarioPuedeVerVista(v))
@@ -2050,6 +2108,7 @@ async function cargarLuizLabsDesdeStorage() {
         if (perfil && obtenerPerfilPorId(perfil)) return u
         return Object.assign({}, u, { perfilId: "administrador" })
     })
+    sincronizarPermisosPanelInstitucional()
     migrarLogosInstitucionalesBase()
     sincronizarTenantsDesdeInstituciones()
     guardarLuizLabsEnStorage()
@@ -3300,6 +3359,7 @@ async function guardarUsuarioAdminLuiz() {
         delete perfilesUsuariosLocales[previousUsuario]
     }
     perfilesUsuariosLocales[usuario] = perfilId
+    sincronizarPermisosPanelInstitucional()
     guardarLuizLabsEnStorage()
     await cargarUsuariosAdminDesdeSupabase()
     renderPanelLuizLabs()
@@ -3331,6 +3391,7 @@ function marcarNavActiva(vista) {
 
 function aplicarRestriccionesPanelPorContexto() {
     const limitado = esModoAdminMovilLimitado()
+    const permisosResueltos = sincronizarPermisosPanelInstitucional()
     const puedeReportes = usuarioPuedeVerVista("reportes")
     const puedeDashboard = usuarioPuedeVerVista("dashboard")
     const puedeConfig = usuarioPuedeVerVista("config")
@@ -3345,11 +3406,11 @@ function aplicarRestriccionesPanelPorContexto() {
     const btnInstitucion = document.getElementById("btnInstitucion")
     const btnVolverLuizLabs = document.getElementById("btnVolverLuizLabs")
 
-    if (navReportes) navReportes.style.display = puedeReportes ? "" : "none"
-    if (navDashboard) navDashboard.style.display = puedeDashboard ? "" : "none"
-    if (navConfig) navConfig.style.display = (!limitado && puedeConfig) ? "" : "none"
-    if (navUsuarios) navUsuarios.style.display = (!limitado && puedeUsuarios) ? "" : "none"
-    if (navActividad) navActividad.style.display = (!limitado && puedeActividad) ? "" : "none"
+    if (navReportes) navReportes.style.display = permisosResueltos && puedeReportes ? "" : "none"
+    if (navDashboard) navDashboard.style.display = permisosResueltos && puedeDashboard ? "" : "none"
+    if (navConfig) navConfig.style.display = permisosResueltos && (!limitado && puedeConfig) ? "" : "none"
+    if (navUsuarios) navUsuarios.style.display = permisosResueltos && (!limitado && puedeUsuarios) ? "" : "none"
+    if (navActividad) navActividad.style.display = permisosResueltos && (!limitado && puedeActividad) ? "" : "none"
     if (adminMobileNotice) adminMobileNotice.style.display = limitado ? "block" : "none"
 
     if (btnInstitucion) {
@@ -3366,6 +3427,12 @@ function aplicarRestriccionesPanelPorContexto() {
     }
 
     const vistaPermitidaPorPerfil = usuarioPuedeVerVista(vistaAdminActual)
+    if (!permisosResueltos && !esSuperusuarioActivo()) {
+        if (vistaAdminActual !== "dashboard") {
+            mostrarVista("dashboard")
+        }
+        return
+    }
     if ((limitado && !esVistaPermitidaEnAdminMovil(vistaAdminActual)) || !vistaPermitidaPorPerfil) {
         mostrarVista("dashboard")
     }
@@ -4637,6 +4704,7 @@ async function guardarUsuarioAdmin() {
         delete perfilesUsuariosLocales[previousUsuario]
     }
     perfilesUsuariosLocales[usuario] = perfilId
+    sincronizarPermisosPanelInstitucional()
     guardarLuizLabsEnStorage()
     limpiarUsuarioAdmin()
     registrarActividad(accion, { usuario, rol, perfilId, dni }, { tenantId: tenantActivoId })
@@ -5402,6 +5470,7 @@ window.onload = async () => {
     await cargarLuizLabsDesdeStorage()
     renderTenantSelector()
     cargarSesionAdminDesdeStorage()
+    sincronizarPermisosPanelInstitucional()
     aplicarAccesoDesdeRuta()
     await actualizarTenantScopeBackendReady()
     await resolverCursoDesdeURL()
@@ -5737,6 +5806,7 @@ async function loginAccesoAdminInstitucional() {
         origen: "tenant_route",
         perfilId: resultado.perfilId || ""
     })
+    sincronizarPermisosPanelInstitucional()
     registrarActividad("login_admin_institucional", {
         via: "acceso_administrativo_ruta",
         usuario: resultado.usuario,
@@ -5744,9 +5814,9 @@ async function loginAccesoAdminInstitucional() {
     }, { tenantId: tenant.id, usuario: resultado.usuario, rol: resultado.rol })
 
     cerrarAccesoAdminInstitucional()
+    aplicarLayout()
     mostrarVista("reportes")
     cargarDatos()
-    aplicarLayout()
 
     await bootstrapAuthorizedApp();
 }
@@ -5806,6 +5876,7 @@ async function login() {
                 origen: "staff_root",
                 perfilId: resultado.perfilId || ""
             })
+            sincronizarPermisosPanelInstitucional()
             registrarActividad("login_admin", {
                 via: "root",
                 usuario: resultado.usuario,
@@ -5827,13 +5898,13 @@ async function login() {
             origen: "tenant_route",
             perfilId: resultado.perfilId || ""
         })
+        sincronizarPermisosPanelInstitucional()
         registrarActividad("login_admin", {
             via: "tenant_login",
             usuario: resultado.usuario,
             rol: resultado.rol
         }, { usuario: resultado.usuario, rol: resultado.rol, tenantId: tenantActivoId })
-        loginScreen.style.display = "none"
-        vistaDesktop.style.display = "block"
+        aplicarLayout()
         mostrarVista("reportes")
         cargarDatos()
         await bootstrapAuthorizedApp();
