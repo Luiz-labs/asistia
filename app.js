@@ -3618,7 +3618,7 @@ function asignarTenantActivo(id) {
 
 function aplicarTenantEnUI() {
     const tenant = obtenerTenantActivo() || primerTenantFallback()
-    const titulo = esModoStaff ? "asistIA" : (tenant?.nombre || "Panel ESBAS")
+    const titulo = "asistIA"
     const linea = esModoStaff ? "Control Inteligente de Asistencia" : (tenant?.linea || "Incorporación y ESBAS")
     const curso = esModoStaff ? "Plataforma asistIA" : (tenant?.curso || "Instrucción ESBAS")
     const tituloCard = esModoStaff
@@ -3633,7 +3633,7 @@ function aplicarTenantEnUI() {
     }
     if (tenantSubtituloLogin) {
         tenantSubtituloLogin.innerText = linea
-        tenantSubtituloLogin.style.display = esModoStaff ? "none" : "block"
+        tenantSubtituloLogin.style.display = "none"
     }
     if (tenantCursoLogin) {
         tenantCursoLogin.innerText = curso
