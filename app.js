@@ -122,16 +122,52 @@ function toggleByPermission(permission, elementId, displayStyle = 'block') {
     }
 }
 
+function limpiarCurrentProfileVisual() {
+    window.currentProfile = null
+}
+
+function resolverDatosVisualesSesionActual() {
+    const sesion = obtenerSesionAdminActiva()
+    const usuario = String(sesion?.usuario || "").trim().toLowerCase()
+    const vacio = {
+        usuario,
+        nombreCompleto: usuario || "",
+        rolTecnico: sesion?.rol || "",
+        perfilFuncional: esSuperusuarioActivo() ? "Acceso total" : (obtenerPerfilUsuarioActivo()?.nombre || ""),
+        tenantNombre: obtenerNombreTenantUI(sesion?.tenantId || ""),
+        tenantId: String(sesion?.tenantId || "").trim()
+    }
+    if (!usuario) return vacio
+
+    const usuarioInstitucional = (usuariosAdmin || []).find(u => String(u.usuario || "").toLowerCase() === usuario)
+    const usuarioLuiz = (usuariosAdminLuiz || []).find(u => String(u.usuario || "").toLowerCase() === usuario)
+    const fuente = usuarioInstitucional || usuarioLuiz || null
+    const nombres = String(fuente?.nombres || fuente?.nombre || "").trim()
+    const apellidos = String(fuente?.apellidos || "").trim()
+    const nombreCompleto = `${nombres} ${apellidos}`.replace(/\s+/g, " ").trim() || usuario
+    const perfilNombre = esSuperusuarioActivo()
+        ? "Acceso total"
+        : (obtenerPerfilUsuarioActivo()?.nombre || "Administrador")
+
+    return {
+        usuario,
+        nombreCompleto,
+        rolTecnico: sesion?.rol || "",
+        perfilFuncional: perfilNombre,
+        tenantNombre: obtenerNombreTenantUI(sesion?.tenantId || ""),
+        tenantId: String(sesion?.tenantId || "").trim()
+    }
+}
+
 function renderCurrentUserInfo() {
     const ids = [
         { name: 'currentUserName', role: 'currentUserRole' },
         { name: 'currentUserNameLuiz', role: 'currentUserRoleLuiz' }
     ];
 
-    const sesion = obtenerSesionAdminActiva();
-    const profile = window.currentProfile;
-    const nombre = profile?.full_name?.trim() || sesion?.usuario || "";
-    const rol = profile?.role || sesion?.rol || "";
+    const datosSesion = resolverDatosVisualesSesionActual()
+    const nombre = datosSesion.nombreCompleto || datosSesion.usuario || ""
+    const rol = datosSesion.rolTecnico || ""
 
     ids.forEach(set => {
         const nameEl = document.getElementById(set.name);
@@ -1064,7 +1100,13 @@ function sincronizarEstadoLegacyAdmin() {
 }
 
 function setSesionAdminActiva(sesion) {
-    sesionAdminActiva = normalizarSesionAdmin(sesion)
+    const usuarioPrevio = String(sesionAdminActiva?.usuario || "").trim().toLowerCase()
+    const siguienteSesion = normalizarSesionAdmin(sesion)
+    const usuarioNuevo = String(siguienteSesion?.usuario || "").trim().toLowerCase()
+    if (usuarioPrevio !== usuarioNuevo) {
+        limpiarCurrentProfileVisual()
+    }
+    sesionAdminActiva = siguienteSesion
     guardarSesionAdminEnStorage()
     sincronizarPermisosPanelInstitucional()
     sincronizarEstadoLegacyAdmin()
@@ -1080,6 +1122,7 @@ function actualizarSesionAdmin(parcial) {
 function limpiarSesionAdminActiva() {
     sesionAdminActiva = crearSesionAdminVacia()
     permisosPanelInstitucionalResueltos = false
+    limpiarCurrentProfileVisual()
     guardarSesionAdminEnStorage()
     sincronizarEstadoLegacyAdmin()
     actualizarInfoSesionHeader()
@@ -1421,14 +1464,14 @@ function renderCuentaModalDetalle() {
     }
 
     const sesion = obtenerSesionAdminActiva()
-    const usuario = String(sesion.usuario || "").trim() || "-"
-    const profile = window.currentProfile
-    const nombre = profile?.full_name?.trim() || usuario
-    const rolUI = obtenerNombreRolUI(sesion.rol)
-    const tenantUI = obtenerNombreTenantUI(sesion.tenantId)
-    const perfilUI = esSuperusuarioActivo()
+    const datosSesion = resolverDatosVisualesSesionActual()
+    const usuario = String(datosSesion.usuario || sesion.usuario || "").trim() || "-"
+    const nombre = String(datosSesion.nombreCompleto || usuario).trim() || usuario
+    const rolUI = obtenerNombreRolUI(datosSesion.rolTecnico || sesion.rol)
+    const tenantUI = datosSesion.tenantNombre || obtenerNombreTenantUI(sesion.tenantId)
+    const perfilUI = datosSesion.perfilFuncional || (esSuperusuarioActivo()
         ? "Acceso total"
-        : (obtenerPerfilUsuarioActivo()?.nombre || "Administrador")
+        : (obtenerPerfilUsuarioActivo()?.nombre || "Administrador"))
 
     cuentaModalBody.innerHTML = `
     <div style="text-align:center; margin-bottom: 20px;">
@@ -5772,6 +5815,8 @@ async function loginAccesoAdminInstitucional() {
     }
 
     const tenant = obtenerTenantActivo()
+    limpiarCurrentProfileVisual()
+    actualizarInfoSesionHeader()
     const resultado = await resolverCredencialesAdmin(usuario, clave, { tenantId: tenant.id, origen: "tenant_route" })
 
     if (!resultado.valido) {
@@ -5825,6 +5870,8 @@ async function login() {
     const usuario = (loginUser.value || "").trim().toLowerCase()
     const clave = (loginPass.value || "").trim()
     await asegurarUsuariosAdminPrevioLogin(usuario)
+    limpiarCurrentProfileVisual()
+    actualizarInfoSesionHeader()
     const resultado = await resolverCredencialesAdmin(usuario, clave, {
         tenantId: esModoStaff ? "" : String(tenantActivoId || "").trim().toLowerCase(),
         origen: esModoStaff ? "staff_root" : "tenant_route"
