@@ -231,7 +231,7 @@ h2 {
 .user-module-shell {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 22px;
 }
 
 .module-accordion {
@@ -243,7 +243,7 @@ h2 {
 }
 
 .module-accordion + .module-accordion {
-  margin-top: 4px;
+  margin-top: 14px;
 }
 
 .module-accordion-summary {
@@ -252,7 +252,7 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 18px 20px;
+  padding: 22px 22px;
   cursor: pointer;
 }
 
@@ -267,9 +267,10 @@ h2 {
 }
 
 .module-accordion-copy p {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   font-size: 13px;
   color: #667996;
+  line-height: 1.45;
 }
 
 .module-accordion-meta {
@@ -302,13 +303,13 @@ h2 {
 }
 
 .module-accordion-body {
-  padding: 0 20px 20px;
+  padding: 18px 22px 22px;
   border-top: 1px solid #ebf0f7;
   background: #fbfcfe;
 }
 
 #luizBloqueUsuarios .user-search-bar {
-  margin-top: 14px;
+  margin-top: 18px;
 }
 
 #luizBloqueUsuarios .user-counter {
@@ -318,22 +319,22 @@ h2 {
 #luizPerfilPermisos {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 8px;
-  margin-bottom: 14px;
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 16px;
 }
 
 #luizPerfilPermisos label {
   position: relative;
   display: inline-flex;
   align-items: center;
-  min-height: 34px;
-  padding: 0 12px 0 34px;
+  min-height: 32px;
+  padding: 0 11px 0 32px;
   border: 1px solid #dbe3f0;
   border-radius: 999px;
   background: #f8fafc;
   color: #29405f;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
@@ -347,10 +348,10 @@ h2 {
 
 #luizPerfilPermisos input[type="checkbox"] {
   position: absolute;
-  left: 10px;
+  left: 9px;
   top: 50%;
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   margin: 0;
   transform: translateY(-50%);
   accent-color: var(--brand);
@@ -1090,7 +1091,7 @@ button.secondary:hover {
   display: flex;
   align-items: center;
   gap: 15px;
-  margin: 20px 0 10px;
+  margin: 18px 0 12px;
   flex-wrap: wrap;
 }
 
@@ -1476,7 +1477,7 @@ select {
 }
 
 .config-card {
-  padding: 22px;
+  padding: 24px;
 }
 
 #vistaConfig .config-card+.config-card {
@@ -1495,6 +1496,12 @@ select {
 #vistaConfig .module-accordion-body > .config-card,
 #vistaUsuarios .module-accordion-body > .user-form-card {
   margin-top: 0;
+}
+
+#vistaConfig .module-accordion-body > .config-card + .config-card,
+#vistaUsuarios .module-accordion-body > .user-form-card + .user-search-bar,
+#vistaUsuarios .module-accordion-body > .user-search-bar + .user-table-card {
+  margin-top: 18px;
 }
 
 #vistaConfig .card h3 {
@@ -1580,6 +1587,7 @@ select {
   .module-accordion-summary {
     flex-direction: column;
     align-items: flex-start;
+    padding: 18px 16px;
   }
 
   .module-accordion-meta {
@@ -1588,7 +1596,7 @@ select {
   }
 
   .module-accordion-body {
-    padding: 0 14px 14px;
+    padding: 14px 14px 16px;
   }
 
   #luizPerfilPermisos {
@@ -1812,7 +1820,7 @@ select {
 }
 
 #vistaUsuarios .config-card {
-  padding: 24px 22px;
+  padding: 24px;
 }
 
 .user-table-wrap {
@@ -1846,7 +1854,7 @@ select {
 }
 
 .logs-filter-bar {
-  padding: 14px;
+  padding: 16px;
   border: 1px solid #e4ebf6;
   border-radius: 14px;
   background: #f9fbfe;
@@ -3626,7 +3634,7 @@ body {
 }
 
 .form-header {
-  padding: 24px 30px;
+  padding: 26px 30px 22px;
   border-bottom: 1px solid #f0f0f2;
 }
 
@@ -3638,17 +3646,18 @@ body {
 }
 
 .form-header p {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   font-size: 13px;
   color: #86868b;
+  line-height: 1.45;
 }
 
 .form-body {
-  padding: 24px 30px;
+  padding: 26px 30px 28px;
 }
 
 .form-section {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .form-section:last-child {
@@ -3767,6 +3776,27 @@ body {
   .form-actions-bar button {
     width: 100%;
   }
+
+  .form-header,
+  .form-body,
+  .form-actions-bar {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .form-header {
+    padding-top: 22px;
+    padding-bottom: 18px;
+  }
+
+  .form-body {
+    padding-top: 20px;
+    padding-bottom: 22px;
+  }
+
+  .form-section {
+    margin-bottom: 22px;
+  }
 }
 
 .main-footer {
@@ -3816,7 +3846,7 @@ body {
 }
 
 .form-actions-bar {
-  padding: 20px 30px;
+  padding: 20px 30px 22px;
   background: #fbfbfd;
   border-top: 1px solid #f0f0f2;
   display: flex;
