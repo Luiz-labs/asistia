@@ -15,6 +15,41 @@
   --app-content-pad-y: 24px;
   --app-content-pad-x: 32px;
   --app-content-pad-mobile: 16px;
+  --motion-ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes uiFadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes uiModalBackdropFade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes uiModalCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 * {
@@ -205,6 +240,7 @@ h2 {
   background: linear-gradient(180deg, #fcfdff 0%, #f6f9fd 100%);
   text-align: center;
   color: #607092;
+  animation: uiFadeSlideUp 0.34s var(--motion-ease-premium);
 }
 
 .empty-state-compact {
@@ -308,6 +344,8 @@ h2 {
   background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
   overflow: hidden;
+  transition: box-shadow 0.24s ease, border-color 0.24s ease, transform 0.24s ease;
+  animation: uiFadeSlideUp 0.32s var(--motion-ease-premium);
 }
 
 .module-accordion + .module-accordion {
@@ -322,6 +360,15 @@ h2 {
   gap: 14px;
   padding: 22px 22px;
   cursor: pointer;
+  transition: background-color 0.22s ease, gap 0.22s ease;
+}
+
+.module-accordion-summary:hover {
+  background: rgba(37, 99, 235, 0.035);
+}
+
+.module-accordion[open] {
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
 }
 
 .module-accordion-summary::-webkit-details-marker {
@@ -358,6 +405,7 @@ h2 {
   align-items: center;
   justify-content: center;
   color: #35507b;
+  transition: transform 0.28s var(--motion-ease-premium), background-color 0.22s ease, border-color 0.22s ease;
 }
 
 .module-accordion-icon::before {
@@ -367,13 +415,26 @@ h2 {
 }
 
 .module-accordion[open] .module-accordion-icon::before {
-  content: "▴";
+  content: "▾";
+}
+
+.module-accordion-summary:hover .module-accordion-icon {
+  background: #eef4fd;
+  border-color: #cbd8ee;
+}
+
+.module-accordion[open] .module-accordion-icon {
+  transform: rotate(180deg);
 }
 
 .module-accordion-body {
   padding: 18px 22px 22px;
   border-top: 1px solid #ebf0f7;
   background: #fbfcfe;
+}
+
+.module-accordion[open] .module-accordion-body {
+  animation: uiFadeSlideUp 0.28s var(--motion-ease-premium);
 }
 
 #luizBloqueUsuarios .user-search-bar {
@@ -549,6 +610,7 @@ h2 {
   justify-content: center;
   background: rgba(11, 22, 45, 0.28);
   backdrop-filter: blur(3px);
+  animation: uiModalBackdropFade 0.24s ease;
 }
 
 .cuenta-modal-card {
@@ -558,6 +620,7 @@ h2 {
   border-radius: 16px;
   box-shadow: 0 24px 50px rgba(20, 42, 80, 0.2), 0 8px 20px rgba(20, 42, 80, 0.12);
   padding: 14px;
+  animation: uiModalCardIn 0.28s var(--motion-ease-premium);
 }
 
 .cuenta-modal-head {
@@ -692,22 +755,6 @@ h2 {
   font-size: 10px;
   color: #86868b;
   margin-top: 2px;
-}
-
-@keyframes modalFadeSlide {
-  from {
-    opacity: 0;
-    transform: translateY(-10px) scale(0.98);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.cuenta-modal-card {
-  animation: modalFadeSlide 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @media (max-width: 760px) {
@@ -878,6 +925,8 @@ h2 {
   padding: 16px;
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
+  animation: uiFadeSlideUp 0.34s var(--motion-ease-premium);
+  transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
 }
 
 select {
@@ -907,12 +956,18 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background-color .2s, box-shadow .2s, transform .2s, filter .2s;
+  transition: background-color .2s, box-shadow .2s, transform .2s, filter .2s, border-color .2s;
 }
 
 button:hover {
   background: var(--brand-dark);
   transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
+}
+
+button:active {
+  transform: translateY(0);
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.14);
 }
 
 button:focus-visible,
@@ -936,6 +991,12 @@ button.secondary:hover {
   background: var(--brand-softer);
   border-color: var(--brand-line);
   color: var(--brand-dark);
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
+}
+
+button.secondary:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 /* --- NUEVOS ESTILOS USUARIOS PRO SAAS (macOS Style) --- */
@@ -958,6 +1019,7 @@ button.secondary:hover {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
   overflow: hidden;
   margin-top: 15px;
+  animation: uiFadeSlideUp 0.36s var(--motion-ease-premium);
 }
 
 .user-table-compact {
@@ -1239,6 +1301,14 @@ th {
   text-align: left;
 }
 
+tbody tr {
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+tbody tr:hover {
+  background: rgba(37, 99, 235, 0.035);
+}
+
 th {
   background: var(--surface-soft);
   font-weight: 600;
@@ -1339,6 +1409,7 @@ select {
   margin: 0 auto;
   text-align: center;
   transition: border-color .24s ease, box-shadow .24s ease;
+  animation: uiFadeSlideUp 0.42s var(--motion-ease-premium);
 }
 
 @media (hover:hover) and (pointer:fine) {
@@ -1362,6 +1433,7 @@ select {
   background: #fff;
   padding: 8px;
   box-shadow: 0 12px 28px rgba(29, 62, 119, 0.12);
+  animation: uiFadeSlideUp 0.46s var(--motion-ease-premium);
 }
 
 .login-input-row {
@@ -2797,6 +2869,7 @@ select {
   justify-content: center;
   background: rgba(16, 28, 52, 0.38);
   padding: 16px;
+  animation: uiModalBackdropFade 0.24s ease;
 }
 
 .tenant-admin-modal-card {
@@ -2806,6 +2879,16 @@ select {
   border-radius: 16px;
   box-shadow: var(--shadow);
   padding: 16px;
+  animation: uiModalCardIn 0.28s var(--motion-ease-premium);
+}
+
+#modal {
+  animation: uiModalBackdropFade 0.22s ease;
+}
+
+#modal > div {
+  animation: uiModalCardIn 0.28s var(--motion-ease-premium);
+  transform-origin: center;
 }
 
 .tenant-admin-modal-card h3 {
@@ -3709,6 +3792,7 @@ body {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   border: 1px solid rgba(0, 0, 0, 0.05);
   margin-bottom: 24px;
+  animation: uiFadeSlideUp 0.36s var(--motion-ease-premium);
 }
 
 .form-header {
@@ -3952,6 +4036,7 @@ body {
 .form-actions-bar button:not(.secondary):hover {
   background: #1d4ed8 !important;
   transform: translateY(-1px) !important;
+  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.18) !important;
 }
 
 .form-actions-bar button.secondary {
@@ -3962,6 +4047,7 @@ body {
 
 .form-actions-bar button.secondary:hover {
   background: #f5f5f7 !important;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06) !important;
 }
 
 /* Edit Mode Indicator */
@@ -3981,4 +4067,22 @@ body {
   margin-left: 8px;
   vertical-align: middle;
   text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  button:hover,
+  .form-actions-bar button:not(.secondary):hover,
+  .module-accordion[open] .module-accordion-icon,
+  tbody tr:hover {
+    transform: none !important;
+  }
 }
