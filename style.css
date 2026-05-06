@@ -1449,6 +1449,55 @@ select {
   display: block;
 }
 
+.password-field-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.password-field-wrap input {
+  padding-right: 50px !important;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  padding: 0;
+  border-radius: 10px;
+  transform: translateY(-50%);
+  background: transparent !important;
+  color: #6980a8 !important;
+  border: 1px solid transparent;
+  box-shadow: none !important;
+}
+
+.password-toggle-btn:hover {
+  background: rgba(37, 99, 235, 0.08) !important;
+  color: #1f4fbf !important;
+  border-color: rgba(191, 219, 254, 0.9);
+  transform: translateY(-50%);
+  box-shadow: none !important;
+}
+
+.password-toggle-btn:active {
+  transform: translateY(-50%);
+  box-shadow: none !important;
+}
+
+.password-toggle-btn.is-visible {
+  background: rgba(37, 99, 235, 0.1) !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(191, 219, 254, 0.95);
+}
+
+.password-toggle-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
 .login-tenant-head h1 {
   margin: 0;
   font-family: "Sora", "Inter", sans-serif;
@@ -1518,6 +1567,31 @@ select {
   border-radius: 14px;
   font-size: 15px;
   font-weight: 700;
+}
+
+.login-help-link {
+  margin-top: 10px;
+  min-width: 0;
+  width: auto;
+  height: auto;
+  padding: 0;
+  background: transparent !important;
+  color: #5572a3 !important;
+  border: none;
+  box-shadow: none !important;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.login-help-link:hover {
+  color: #1d4ed8 !important;
+  transform: none;
+  text-decoration: underline;
+}
+
+.login-help-link:active {
+  transform: none;
 }
 
 .login-message {
@@ -2880,6 +2954,19 @@ select {
   box-shadow: var(--shadow);
   padding: 16px;
   animation: uiModalCardIn 0.28s var(--motion-ease-premium);
+}
+
+.tenant-admin-modal-card input {
+  width: 100%;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid #d4deee;
+  background: #fbfcff;
+  padding: 0 14px;
+}
+
+.password-field-wrap-tenant .password-toggle-btn {
+  right: 7px;
 }
 
 #modal {

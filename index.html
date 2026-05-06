@@ -55,11 +55,23 @@
       <!-- INPUTS EN LINEA -->
       <div class="login-input-row">
         <input id="loginUser" placeholder="Usuario">
-        <input id="loginPass" type="password" placeholder="Clave">
+        <div class="password-field-wrap">
+          <input id="loginPass" type="password" placeholder="Clave">
+          <button
+            type="button"
+            class="password-toggle-btn"
+            data-target="loginPass"
+            onclick="togglePasswordVisibility('loginPass', this)"
+            aria-label="Mostrar clave"
+            title="Mostrar clave">
+            <span class="password-toggle-icon" aria-hidden="true">◉</span>
+          </button>
+        </div>
       </div>
 
       <!-- BOTON -->
       <button class="login-submit-btn" onclick="login()">Ingresar</button>
+      <button type="button" class="login-help-link" onclick="abrirModalRecuperacionAcceso()">¿Olvidaste tu clave?</button>
 
       <p id="loginMsg" class="login-message"></p>
 
@@ -170,7 +182,18 @@
       <h3>Acceso administrativo</h3>
       <p class="hint">Ingresa tus credenciales para administrar esta institución.</p>
       <input id="tenantAdminUser" placeholder="Usuario">
-      <input id="tenantAdminPass" type="password" placeholder="Clave" style="margin-top:8px;">
+      <div class="password-field-wrap password-field-wrap-tenant" style="margin-top:8px;">
+        <input id="tenantAdminPass" type="password" placeholder="Clave">
+        <button
+          type="button"
+          class="password-toggle-btn"
+          data-target="tenantAdminPass"
+          onclick="togglePasswordVisibility('tenantAdminPass', this)"
+          aria-label="Mostrar clave"
+          title="Mostrar clave">
+          <span class="password-toggle-icon" aria-hidden="true">◉</span>
+        </button>
+      </div>
       <div id="tenantAdminMsg"></div>
       <div class="tenant-admin-modal-actions">
         <button class="secondary" onclick="cerrarAccesoAdminInstitucional()">Cancelar</button>
@@ -1340,7 +1363,7 @@
   <script src="/app.js"></script>
 
 
-  <div id="modal" style="
+  <div id="modal" onclick="cerrarModalPorBackdrop(event)" style="
   display:none;
   position:fixed;
   top:0;

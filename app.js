@@ -6067,6 +6067,32 @@ function verCriterio(tipo) {
     modal.style.display = "flex"
 }
 
+function togglePasswordVisibility(inputId, triggerEl) {
+    const input = document.getElementById(inputId)
+    if (!input || !triggerEl) return
+
+    const visible = input.type === "text"
+    input.type = visible ? "password" : "text"
+    triggerEl.classList.toggle("is-visible", !visible)
+    triggerEl.setAttribute("aria-label", visible ? "Mostrar clave" : "Ocultar clave")
+    triggerEl.setAttribute("title", visible ? "Mostrar clave" : "Ocultar clave")
+    const icon = triggerEl.querySelector(".password-toggle-icon")
+    if (icon) icon.textContent = visible ? "◉" : "◌"
+}
+
+function abrirModalRecuperacionAcceso() {
+    modalTitulo.innerText = "Recuperar acceso"
+    modalContenido.innerHTML = `
+      <div class="empty-state empty-state-compact">
+        <div class="empty-state-icon" aria-hidden="true">🔐</div>
+        <div class="empty-state-title">Recuperar acceso</div>
+        <div class="empty-state-text">Solicita a un administrador de tu institución que restablezca tu clave.</div>
+        <button type="button" class="secondary" onclick="cerrarModal()">Entendido</button>
+      </div>
+    `
+    modal.style.display = "flex"
+}
+
 function logout() {
     if (haySupabase()) {
         void supabaseClient.auth.signOut()
@@ -7189,6 +7215,12 @@ async function cargarUbos() {
 
 function cerrarModal() {
     modal.style.display = "none"
+}
+
+function cerrarModalPorBackdrop(event) {
+    if (event?.target?.id === "modal") {
+        cerrarModal()
+    }
 }
 
 // cerrar con ESC
