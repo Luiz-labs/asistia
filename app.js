@@ -234,6 +234,21 @@ let cacheDashboard = []
 let cacheRiesgoUbo = []
 let vistaAdminActual = "reportes"
 let vistaLuizLabsActual = "instituciones"
+const HISTORICAL_IMPORT_FIELDS = Object.freeze([
+    { key: "timestamp", label: "Timestamp", help: "Marca temporal o fecha y hora del registro." },
+    { key: "ubo", label: "UBO", help: "Código UBO; se conservarán solo números." },
+    { key: "nombres", label: "Nombres", help: "Nombres del aspirante." },
+    { key: "apellidos", label: "Apellidos", help: "Apellidos del aspirante." },
+    { key: "seccion", label: "Sección", help: "Sección del curso o grupo." }
+])
+const HISTORICAL_IMPORT_ALIASES = Object.freeze({
+    timestamp: ["marca temporal", "timestamp", "fecha y hora", "fecha hora", "fecha de envio", "hora de envio"],
+    ubo: ["ubo", "ubo colocar solo numero", "codigo ubo", "codigo de ubo", "nro ubo", "numero ubo"],
+    nombres: ["nombres", "nombre", "nombres y apellidos"],
+    apellidos: ["apellidos", "apellido", "apellidos y nombres"],
+    seccion: ["seccion", "sección", "seccion a/b/c", "seccion a b c", "sec", "grupo", "aula"]
+})
+let historicalImportState = createHistoricalImportState()
 const VISTA_MODO_KEY = "vistaModoManual"
 const ADMIN_SESSION_KEY = "asistia_admin_session_v1"
 const LUIZLABS_STORE_KEY = "asistia_luizlabs_v1"
@@ -4924,6 +4939,608 @@ async function cargarExcelAspirantes() {
     }, { tenantId: tenantActivoId })
 }
 
+function createHistoricalImportState() {
+    return {
+        file: null,
+        headers: [],
+        rows: [],
+        mapping: {},
+        autoDetected: {},
+        preview: [],
+        stats: {
+            total: 0,
+            valid: 0,
+            duplicates: 0,
+            invalidDates: 0,
+            missingUbo: 0,
+            incompleteName: 0,
+            observed: 0
+        },
+        validated: false
+    }
+}
+
+function getHistoricalImportElements() {
+    return {
+        fileInput: document.getElementById("historicalImportFile"),
+        dropzone: document.getElementById("historicalImportDropzone"),
+        fileMeta: document.getElementById("historicalImportFileMeta"),
+        message: document.getElementById("historicalImportMessage"),
+        mapping: document.getElementById("historicalImportMapping"),
+        previewBody: document.getElementById("historicalImportPreviewBody"),
+        previewCount: document.getElementById("historicalImportPreviewCount"),
+        prepareButton: document.getElementById("historicalPrepareButton"),
+        prepareMessage: document.getElementById("historicalPrepareMessage")
+    }
+}
+
+function normalizeHistoricalHeader(value) {
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[_\-]+/g, " ")
+        .replace(/[^\w\s/]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase()
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;")
+}
+
+function setHistoricalImportMessage(text, tone = "info") {
+    const { message } = getHistoricalImportElements()
+    if (!message) return
+    message.className = `course-inline-msg course-inline-msg--${tone}`
+    message.innerText = text
+}
+
+function setHistoricalPrepareMessage(text, tone = "info") {
+    const { prepareMessage } = getHistoricalImportElements()
+    if (!prepareMessage) return
+    prepareMessage.className = `course-inline-msg course-inline-msg--${tone}`
+    prepareMessage.innerText = text
+}
+
+function resetHistoricalImportStats() {
+    const stats = {
+        total: 0,
+        valid: 0,
+        duplicates: 0,
+        invalidDates: 0,
+        missingUbo: 0,
+        incompleteName: 0,
+        observed: 0
+    }
+    historicalImportState.stats = stats
+    const map = {
+        historicalKpiTotal: stats.total,
+        historicalKpiValid: stats.valid,
+        historicalKpiDuplicates: stats.duplicates,
+        historicalKpiInvalidDates: stats.invalidDates,
+        historicalKpiMissingUbo: stats.missingUbo,
+        historicalKpiIncompleteName: stats.incompleteName,
+        historicalKpiObserved: stats.observed
+    }
+    Object.entries(map).forEach(([id, value]) => {
+        const el = document.getElementById(id)
+        if (el) el.innerText = String(value)
+    })
+}
+
+function renderHistoricalPreview(rows = []) {
+    const { previewBody, previewCount } = getHistoricalImportElements()
+    if (previewCount) previewCount.innerText = `${rows.length} registro${rows.length === 1 ? "" : "s"} listados`
+    if (!previewBody) return
+
+    if (!rows.length) {
+        previewBody.innerHTML = buildEmptyTableRow(
+            7,
+            "Sin preview disponible",
+            "Valida un archivo para revisar registros, observaciones y errores.",
+            "🧪"
+        )
+        return
+    }
+
+    let html = ""
+    rows.slice(0, 250).forEach(row => {
+        const stateClass = row.status === "valido"
+            ? "is-valid"
+            : row.status === "observado"
+                ? "is-observed"
+                : "is-error"
+        html += `
+      <tr class="historical-preview-row ${stateClass}">
+        <td><span class="historical-row-state ${stateClass}">${escapeHtml(row.status)}</span></td>
+        <td>${escapeHtml(row.fecha || "-")}</td>
+        <td>${escapeHtml(row.hora || "-")}</td>
+        <td>${escapeHtml(row.ubo || "-")}</td>
+        <td>${escapeHtml(row.nombreCompleto || "-")}</td>
+        <td>${escapeHtml(row.seccion || "-")}</td>
+        <td class="historical-observation">${escapeHtml(row.observacion || "-")}</td>
+      </tr>
+    `
+    })
+    previewBody.innerHTML = html
+}
+
+function renderHistoricalImportMapping() {
+    const { mapping } = getHistoricalImportElements()
+    if (!mapping) return
+
+    if (!historicalImportState.headers.length) {
+        mapping.innerHTML = buildEmptyStateHTML(
+            "Sin encabezados detectados",
+            "Carga un archivo para activar la detección automática y el mapeo manual.",
+            "🧩",
+            true
+        )
+        return
+    }
+
+    const options = historicalImportState.headers.map((header, index) =>
+        `<option value="${index}">${escapeHtml(header)}</option>`
+    ).join("")
+
+    let html = ""
+    HISTORICAL_IMPORT_FIELDS.forEach(field => {
+        const detectedIndex = historicalImportState.mapping[field.key]
+        const hasSelection = Number.isInteger(detectedIndex)
+        const wasAutoDetected = !!historicalImportState.autoDetected[field.key] && hasSelection
+        const statusText = wasAutoDetected
+            ? "✔ Detectado automáticamente"
+            : hasSelection
+                ? "✔ Selección manual aplicada"
+                : "⚠ Requiere selección manual"
+        const detectedLabel = hasSelection
+            ? historicalImportState.headers[detectedIndex]
+            : "Selecciona manualmente una columna."
+        html += `
+      <div class="historical-mapping-card">
+        <div class="historical-mapping-top">
+          <div class="historical-mapping-label">
+            <strong>${escapeHtml(field.label)}</strong>
+            <span>${escapeHtml(field.help)}</span>
+          </div>
+          <span class="historical-status ${hasSelection ? "is-auto" : "is-manual"}">
+            ${statusText}
+          </span>
+        </div>
+        <div class="historical-detected-column ${hasSelection ? "" : "is-missing"}">
+          Campo AsistIA → Columna Excel<br><strong>${escapeHtml(detectedLabel)}</strong>
+        </div>
+        <label for="historicalMap_${field.key}" class="hint">Mapeo manual</label>
+        <select id="historicalMap_${field.key}" data-historical-map="${field.key}">
+          <option value="">Seleccionar columna</option>
+          ${options}
+        </select>
+      </div>
+    `
+    })
+
+    mapping.innerHTML = html
+    HISTORICAL_IMPORT_FIELDS.forEach(field => {
+        const select = document.getElementById(`historicalMap_${field.key}`)
+        if (!select) return
+        select.value = Number.isInteger(historicalImportState.mapping[field.key])
+            ? String(historicalImportState.mapping[field.key])
+            : ""
+    })
+}
+
+function detectHistoricalColumns(headers = []) {
+    const normalizedHeaders = headers.map(normalizeHistoricalHeader)
+    const mapping = {}
+    const autoDetected = {}
+    const used = new Set()
+
+    HISTORICAL_IMPORT_FIELDS.forEach(field => {
+        const aliases = HISTORICAL_IMPORT_ALIASES[field.key] || []
+        let idx = normalizedHeaders.findIndex(header => aliases.includes(header))
+        if (idx < 0) {
+            idx = normalizedHeaders.findIndex(header =>
+                aliases.some(alias => header.includes(alias) || alias.includes(header))
+            )
+        }
+        if (idx >= 0 && !used.has(idx)) {
+            mapping[field.key] = idx
+            autoDetected[field.key] = true
+            used.add(idx)
+        } else {
+            mapping[field.key] = null
+            autoDetected[field.key] = false
+        }
+    })
+
+    historicalImportState.mapping = mapping
+    historicalImportState.autoDetected = autoDetected
+}
+
+function syncHistoricalMappingFromSelectors() {
+    HISTORICAL_IMPORT_FIELDS.forEach(field => {
+        const select = document.getElementById(`historicalMap_${field.key}`)
+        if (!select) return
+        historicalImportState.mapping[field.key] = select.value === "" ? null : Number(select.value)
+    })
+    historicalImportState.validated = false
+    historicalImportState.preview = []
+    renderHistoricalPreview([])
+    setHistoricalPrepareMessage("La acción se habilitará después de validar el archivo.", "info")
+    const { prepareButton } = getHistoricalImportElements()
+    if (prepareButton) prepareButton.disabled = true
+}
+
+function normalizeHistoricalTimestamp(rawValue) {
+    if (rawValue instanceof Date && !Number.isNaN(rawValue.getTime())) {
+        const year = rawValue.getFullYear()
+        const month = String(rawValue.getMonth() + 1).padStart(2, "0")
+        const day = String(rawValue.getDate()).padStart(2, "0")
+        const hour = String(rawValue.getHours()).padStart(2, "0")
+        const minute = String(rawValue.getMinutes()).padStart(2, "0")
+        const second = String(rawValue.getSeconds()).padStart(2, "0")
+        return { fecha: `${year}-${month}-${day}`, hora: `${hour}:${minute}:${second}`, valido: true }
+    }
+
+    const value = String(rawValue || "").trim()
+    if (!value) return { fecha: "", hora: "", valido: false }
+
+    const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+|T)(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
+    if (match) {
+        const [, dd, mm, yyyy, hh, min, sec = "00"] = match
+        const day = Number(dd)
+        const month = Number(mm)
+        const year = Number(yyyy)
+        const hour = Number(hh)
+        const minute = Number(min)
+        const second = Number(sec)
+        const date = new Date(year, month - 1, day, hour, minute, second)
+        if (
+            date.getFullYear() === year &&
+            date.getMonth() === month - 1 &&
+            date.getDate() === day &&
+            hour <= 23 &&
+            minute <= 59 &&
+            second <= 59
+        ) {
+            return {
+                fecha: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+                hora: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}`,
+                valido: true
+            }
+        }
+    }
+
+    const isoDate = new Date(value)
+    if (!Number.isNaN(isoDate.getTime())) {
+        return {
+            fecha: isoDate.toISOString().slice(0, 10),
+            hora: isoDate.toTimeString().slice(0, 8),
+            valido: true
+        }
+    }
+
+    return { fecha: "", hora: "", valido: false }
+}
+
+function normalizeHistoricalText(value) {
+    return String(value || "").replace(/\s+/g, " ").trim()
+}
+
+function normalizeHistoricalUbo(value) {
+    return String(value || "").replace(/\D/g, "").trim()
+}
+
+function normalizeHistoricalSection(value) {
+    return normalizeHistoricalText(value).toUpperCase()
+}
+
+function parseHistoricalCsvLine(line, delimiter = ",") {
+    const cells = []
+    let current = ""
+    let insideQuotes = false
+
+    for (let i = 0; i < line.length; i += 1) {
+        const char = line[i]
+        const next = line[i + 1]
+        if (char === '"') {
+            if (insideQuotes && next === '"') {
+                current += '"'
+                i += 1
+            } else {
+                insideQuotes = !insideQuotes
+            }
+            continue
+        }
+        if (char === delimiter && !insideQuotes) {
+            cells.push(current)
+            current = ""
+            continue
+        }
+        current += char
+    }
+
+    cells.push(current)
+    return cells.map(cell => cell.trim())
+}
+
+function parseHistoricalCsv(text) {
+    const lines = String(text || "")
+        .replace(/^\uFEFF/, "")
+        .split(/\r?\n/)
+        .filter(line => line.trim() !== "")
+
+    if (!lines.length) return { headers: [], rows: [] }
+    const headerLine = lines[0]
+    const delimiterCandidates = [",", ";", "\t"]
+    const delimiter = delimiterCandidates
+        .map(candidate => ({ candidate, count: headerLine.split(candidate).length - 1 }))
+        .sort((a, b) => b.count - a.count)[0]?.candidate || ","
+    const headers = parseHistoricalCsvLine(headerLine, delimiter)
+    const rows = lines.slice(1).map(line => parseHistoricalCsvLine(line, delimiter))
+    return { headers, rows }
+}
+
+async function readHistoricalImportFile(file) {
+    const ext = String(file?.name || "").split(".").pop().toLowerCase()
+    if (ext === "csv") {
+        const text = await file.text()
+        return parseHistoricalCsv(text)
+    }
+
+    if (!window.XLSX) {
+        // Dependencia requerida para .xlsx/.xls: cargar SheetJS/XLSX antes de validar archivos Excel.
+        throw new Error("No está disponible la librería XLSX para leer archivos Excel.")
+    }
+
+    const buffer = await file.arrayBuffer()
+    const workbook = XLSX.read(buffer, { type: "array", cellDates: true })
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]]
+    const matrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "", raw: false })
+    const headers = (matrix[0] || []).map(value => String(value || "").trim()).filter(Boolean)
+    const rows = matrix.slice(1).filter(row =>
+        Array.isArray(row) && row.some(cell => String(cell || "").trim() !== "")
+    )
+    return { headers, rows }
+}
+
+function getHistoricalCell(row, columnIndex) {
+    if (!Array.isArray(row) || !Number.isInteger(columnIndex) || columnIndex < 0) return ""
+    return row[columnIndex] ?? ""
+}
+
+function validateHistoricalRows() {
+    const missingFields = HISTORICAL_IMPORT_FIELDS
+        .filter(field => !Number.isInteger(historicalImportState.mapping[field.key]))
+        .map(field => field.label)
+
+    if (missingFields.length) {
+        setHistoricalImportMessage(`Completa el mapeo manual para: ${missingFields.join(", ")}.`, "warning")
+        setHistoricalPrepareMessage("La acción se habilitará después de validar el archivo.", "info")
+        return
+    }
+
+    const preview = []
+    const stats = {
+        total: historicalImportState.rows.length,
+        valid: 0,
+        duplicates: 0,
+        invalidDates: 0,
+        missingUbo: 0,
+        incompleteName: 0,
+        observed: 0
+    }
+    const dedupe = new Set()
+
+    historicalImportState.rows.forEach((row, index) => {
+        const timestampRaw = getHistoricalCell(row, historicalImportState.mapping.timestamp)
+        const nombresRaw = normalizeHistoricalText(getHistoricalCell(row, historicalImportState.mapping.nombres))
+        const apellidosRaw = normalizeHistoricalText(getHistoricalCell(row, historicalImportState.mapping.apellidos))
+        const uboRaw = normalizeHistoricalUbo(getHistoricalCell(row, historicalImportState.mapping.ubo))
+        const seccionRaw = normalizeHistoricalSection(getHistoricalCell(row, historicalImportState.mapping.seccion))
+        const timestamp = normalizeHistoricalTimestamp(timestampRaw)
+        const nombreCompleto = `${apellidosRaw} ${nombresRaw}`.replace(/\s+/g, " ").trim()
+        const observations = []
+        let status = "valido"
+
+        if (!timestamp.valido) {
+            observations.push("Fecha u hora inválida")
+            stats.invalidDates += 1
+            status = "error"
+        }
+
+        if (!uboRaw) {
+            observations.push("UBO faltante")
+            stats.missingUbo += 1
+            status = "error"
+        }
+
+        if (!nombresRaw || !apellidosRaw) {
+            observations.push("Nombres incompletos")
+            stats.incompleteName += 1
+            status = "error"
+        }
+
+        const duplicateKey = `${nombreCompleto.toLowerCase()}|${timestamp.fecha}|${timestamp.hora}`
+        if (nombreCompleto && timestamp.valido && dedupe.has(duplicateKey)) {
+            observations.push("Duplicado interno")
+            stats.duplicates += 1
+            if (status !== "error") status = "observado"
+        } else if (nombreCompleto && timestamp.valido) {
+            dedupe.add(duplicateKey)
+        }
+
+        if (!seccionRaw) {
+            observations.push("Sección faltante")
+            if (status !== "error") status = "observado"
+        }
+
+        if (status === "valido") stats.valid += 1
+        if (status === "observado") stats.observed += 1
+
+        preview.push({
+            index: index + 1,
+            status,
+            fecha: timestamp.fecha,
+            hora: timestamp.hora,
+            ubo: uboRaw,
+            nombreCompleto,
+            seccion: seccionRaw,
+            observacion: observations.join(" · ") || "Sin observaciones"
+        })
+    })
+
+    historicalImportState.preview = preview
+    historicalImportState.stats = stats
+    historicalImportState.validated = true
+
+    resetHistoricalImportStats()
+    document.getElementById("historicalKpiTotal").innerText = String(stats.total)
+    document.getElementById("historicalKpiValid").innerText = String(stats.valid)
+    document.getElementById("historicalKpiDuplicates").innerText = String(stats.duplicates)
+    document.getElementById("historicalKpiInvalidDates").innerText = String(stats.invalidDates)
+    document.getElementById("historicalKpiMissingUbo").innerText = String(stats.missingUbo)
+    document.getElementById("historicalKpiIncompleteName").innerText = String(stats.incompleteName)
+    document.getElementById("historicalKpiObserved").innerText = String(stats.observed)
+    renderHistoricalPreview(preview)
+
+    const { prepareButton } = getHistoricalImportElements()
+    if (prepareButton) prepareButton.disabled = !preview.length
+
+    if (!preview.length) {
+        setHistoricalImportMessage("El archivo no contiene filas utilizables para validar.", "warning")
+        setHistoricalPrepareMessage("La acción se habilitará después de validar el archivo.", "info")
+        return
+    }
+
+    setHistoricalImportMessage(
+        `Validación completada: ${stats.valid} válido(s), ${stats.observed} observado(s) y ${preview.length - stats.valid - stats.observed} con error.`,
+        stats.invalidDates || stats.missingUbo || stats.incompleteName ? "warning" : "ok"
+    )
+    setHistoricalPrepareMessage("La acción está lista. Esta fase no insertará datos.", "info")
+}
+
+async function cargarArchivoHistorico(file) {
+    if (!file) return
+
+    const { fileInput, fileMeta, prepareButton } = getHistoricalImportElements()
+    historicalImportState = createHistoricalImportState()
+    historicalImportState.file = file
+    resetHistoricalImportStats()
+    renderHistoricalPreview([])
+    setHistoricalPrepareMessage("La acción se habilitará después de validar el archivo.", "info")
+    if (prepareButton) prepareButton.disabled = true
+
+    if (fileInput && fileInput.files?.[0] !== file) {
+        try {
+            const dt = new DataTransfer()
+            dt.items.add(file)
+            fileInput.files = dt.files
+        } catch (_) { }
+    }
+
+    if (fileMeta) {
+        const sizeKb = `${Math.max(1, Math.round(file.size / 1024))} KB`
+        fileMeta.innerText = `${file.name} · ${sizeKb}`
+    }
+
+    try {
+        const parsed = await readHistoricalImportFile(file)
+        if (!parsed.headers.length) {
+            setHistoricalImportMessage("No se encontraron encabezados en el archivo seleccionado.", "warning")
+            renderHistoricalImportMapping()
+            return
+        }
+
+        historicalImportState.headers = parsed.headers
+        historicalImportState.rows = Array.isArray(parsed.rows) ? parsed.rows : []
+        detectHistoricalColumns(parsed.headers)
+        renderHistoricalImportMapping()
+        setHistoricalImportMessage(
+            `Archivo cargado: ${parsed.headers.length} columna(s) detectadas y ${historicalImportState.rows.length} fila(s) listas para validar.`,
+            "info"
+        )
+    } catch (error) {
+        console.error("Error leyendo archivo histórico:", error)
+        setHistoricalImportMessage(error.message || "No se pudo leer el archivo seleccionado.", "error")
+        renderHistoricalImportMapping()
+    }
+}
+
+function abrirSelectorImportacionHistorica() {
+    const { fileInput } = getHistoricalImportElements()
+    if (fileInput) fileInput.click()
+}
+
+async function validarArchivoHistorico() {
+    if (!historicalImportState.file) {
+        setHistoricalImportMessage("Selecciona un archivo antes de validar.", "warning")
+        return
+    }
+    syncHistoricalMappingFromSelectors()
+    validateHistoricalRows()
+}
+
+function prepararImportacionHistorica() {
+    if (!historicalImportState.validated || !historicalImportState.preview.length) {
+        setHistoricalPrepareMessage("Primero valida un archivo con registros listos para revisión.", "warning")
+        return
+    }
+    setHistoricalPrepareMessage(
+        "Archivo validado correctamente. Importación habilitada para siguiente fase.",
+        "ok"
+    )
+}
+
+function bindHistoricalImportEvents() {
+    const { fileInput, dropzone, mapping } = getHistoricalImportElements()
+    if (!fileInput || !dropzone || !mapping) return
+
+    fileInput.addEventListener("change", async (event) => {
+        const file = event.target.files?.[0]
+        await cargarArchivoHistorico(file)
+    })
+
+    dropzone.addEventListener("click", abrirSelectorImportacionHistorica)
+    dropzone.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault()
+            abrirSelectorImportacionHistorica()
+        }
+    })
+
+    ;["dragenter", "dragover"].forEach(type => {
+        dropzone.addEventListener(type, (event) => {
+            event.preventDefault()
+            dropzone.classList.add("is-dragover")
+        })
+    })
+
+    ;["dragleave", "dragend", "drop"].forEach(type => {
+        dropzone.addEventListener(type, (event) => {
+            event.preventDefault()
+            if (type === "drop") {
+                const file = event.dataTransfer?.files?.[0]
+                if (file) cargarArchivoHistorico(file)
+            }
+            dropzone.classList.remove("is-dragover")
+        })
+    })
+
+    mapping.addEventListener("change", (event) => {
+        if (!event.target.matches("[data-historical-map]")) return
+        syncHistoricalMappingFromSelectors()
+        renderHistoricalImportMapping()
+        setHistoricalImportMessage("Mapeo actualizado. Vuelve a validar el archivo para refrescar el preview.", "info")
+    })
+}
+
 async function cargarAspirantesCargados() {
     const tablaEl = document.getElementById("tablaAspirantesCargados")
     const msgEl = document.getElementById("msgCargaAspirantes")
@@ -5587,6 +6204,10 @@ window.onload = async () => {
     if (redirigirRutaBackofficeLegada()) return
     enlazarIdsGlobales()
     enlazarAccionesCuentaHeader()
+    bindHistoricalImportEvents()
+    renderHistoricalImportMapping()
+    resetHistoricalImportStats()
+    renderHistoricalPreview([])
     await cargarLuizLabsDesdeStorage()
     renderTenantSelector()
     cargarSesionAdminDesdeStorage()
