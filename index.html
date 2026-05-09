@@ -703,11 +703,21 @@
               </div>
               <div>
                 <label for="staffGrado">Grado</label>
-                <input id="staffGrado" placeholder="Grado" autocomplete="off">
+                <select id="staffGrado">
+                  <option value="">Seleccionar grado</option>
+                  <option value="Seccionario">Seccionario</option>
+                  <option value="Sub Teniente">Sub Teniente</option>
+                  <option value="Teniente">Teniente</option>
+                  <option value="Capitán">Capitán</option>
+                  <option value="Teniente Brigadier">Teniente Brigadier</option>
+                  <option value="Brigadier">Brigadier</option>
+                  <option value="Brigadier Mayor">Brigadier Mayor</option>
+                  <option value="Brigadier General">Brigadier General</option>
+                </select>
               </div>
               <div>
                 <label for="staffUboOrigen">UBO origen</label>
-                <input id="staffUboOrigen" placeholder="UBO origen" autocomplete="off">
+                <input id="staffUboOrigen" placeholder="Solo número. Ejemplo: 129" inputmode="numeric" autocomplete="off">
               </div>
               <div>
                 <label for="staffTipo">Tipo staff</label>

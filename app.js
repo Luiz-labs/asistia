@@ -6906,16 +6906,60 @@ function normalizarTextoSimple(valor) {
     return String(valor || "").trim()
 }
 
+function normalizarTextoTitulo(valor) {
+    return String(valor || "")
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(parte => parte.charAt(0).toUpperCase() + parte.slice(1))
+        .join(" ")
+}
+
+function normalizarSoloNumeros(valor) {
+    return String(valor || "").replace(/\D/g, "")
+}
+
+const STAFF_GRADOS_VALIDOS = Object.freeze([
+    "Seccionario",
+    "Sub Teniente",
+    "Teniente",
+    "Capitán",
+    "Teniente Brigadier",
+    "Brigadier",
+    "Brigadier Mayor",
+    "Brigadier General"
+])
+
+function normalizarGradoStaff(valor) {
+    const limpio = normalizarTextoSimple(valor)
+    return STAFF_GRADOS_VALIDOS.includes(limpio) ? limpio : ""
+}
+
+function normalizarCampoStaffTitulo(input) {
+    if (!input) return ""
+    const valor = normalizarTextoTitulo(input.value)
+    input.value = valor
+    return valor
+}
+
+function normalizarCampoStaffSoloNumeros(input) {
+    if (!input) return ""
+    const valor = normalizarSoloNumeros(input.value)
+    input.value = valor
+    return valor
+}
+
 function normalizarStaffRow(row) {
     return {
         id: String(row?.id || "").trim(),
         tenant_id: String(row?.tenant_id || "").trim().toLowerCase(),
         curso_id: row?.curso_id == null ? null : Number(row.curso_id),
         codigo_bombero: normalizarCodigoBombero(row?.codigo_bombero),
-        nombres: normalizarTextoSimple(row?.nombres),
-        apellidos: normalizarTextoSimple(row?.apellidos),
-        grado: normalizarTextoSimple(row?.grado),
-        ubo_origen: normalizarTextoSimple(row?.ubo_origen),
+        nombres: normalizarTextoTitulo(row?.nombres),
+        apellidos: normalizarTextoTitulo(row?.apellidos),
+        grado: normalizarGradoStaff(row?.grado),
+        ubo_origen: normalizarSoloNumeros(row?.ubo_origen),
         tipo_staff: normalizarTextoSimple(row?.tipo_staff).toUpperCase() || "APOYO",
         celular: normalizarTextoSimple(row?.celular),
         correo: normalizarTextoSimple(row?.correo),
@@ -7022,7 +7066,7 @@ function poblarFormularioStaffInstruccion(item) {
     if (staffCodigoBombero) staffCodigoBombero.value = item.codigo_bombero || ""
     if (staffNombres) staffNombres.value = item.nombres || ""
     if (staffApellidos) staffApellidos.value = item.apellidos || ""
-    if (staffGrado) staffGrado.value = item.grado || ""
+    if (staffGrado) staffGrado.value = normalizarGradoStaff(item.grado)
     if (staffUboOrigen) staffUboOrigen.value = item.ubo_origen || ""
     if (staffTipo) staffTipo.value = item.tipo_staff || "APOYO"
     if (staffCelular) staffCelular.value = item.celular || ""
@@ -7160,12 +7204,15 @@ async function guardarStaffInstruccion() {
     }
 
     const codigo = normalizarCodigoBombero(staffCodigoBombero?.value)
-    const nombresValor = normalizarTextoSimple(staffNombres?.value)
-    const apellidosValor = normalizarTextoSimple(staffApellidos?.value)
+    const nombresValor = normalizarCampoStaffTitulo(staffNombres)
+    const apellidosValor = normalizarCampoStaffTitulo(staffApellidos)
+    const gradoValor = normalizarGradoStaff(staffGrado?.value)
+    const uboOrigenValor = normalizarCampoStaffSoloNumeros(staffUboOrigen)
     const tipoStaff = String(staffTipo?.value || "APOYO").trim().toUpperCase()
     const fueEdicion = !!editStaffInstruccionId
 
     if (staffCodigoBombero) staffCodigoBombero.value = codigo
+    if (staffGrado) staffGrado.value = gradoValor
 
     if (!codigo) {
         mostrarMsgCursoModulo("msgStaffInstruccion", "Ingresa el Código de Bombero.", "error")
@@ -7177,6 +7224,14 @@ async function guardarStaffInstruccion() {
     }
     if (!["APOYO", "ADJUNTO"].includes(tipoStaff)) {
         mostrarMsgCursoModulo("msgStaffInstruccion", "El tipo staff debe ser APOYO o ADJUNTO.", "error")
+        return
+    }
+    if (staffGrado?.value && !gradoValor) {
+        mostrarMsgCursoModulo("msgStaffInstruccion", "Selecciona un grado válido.", "error")
+        return
+    }
+    if (staffUboOrigen?.value && !uboOrigenValor) {
+        mostrarMsgCursoModulo("msgStaffInstruccion", "La UBO origen debe contener solo números.", "error")
         return
     }
 
@@ -7193,8 +7248,8 @@ async function guardarStaffInstruccion() {
         codigo_bombero: codigo,
         nombres: nombresValor,
         apellidos: apellidosValor,
-        grado: normalizarTextoSimple(staffGrado?.value) || null,
-        ubo_origen: normalizarTextoSimple(staffUboOrigen?.value) || null,
+        grado: gradoValor || null,
+        ubo_origen: uboOrigenValor || null,
         tipo_staff: tipoStaff,
         celular: normalizarTextoSimple(staffCelular?.value) || null,
         correo: normalizarTextoSimple(staffCorreo?.value) || null,
@@ -7859,10 +7914,26 @@ window.onload = async () => {
             if (id === "staffCodigoBombero" && staffCodigoBombero) {
                 staffCodigoBombero.value = normalizarCodigoBombero(staffCodigoBombero.value)
             }
+            if (id === "staffUboOrigen" && staffUboOrigen) {
+                staffUboOrigen.value = normalizarSoloNumeros(staffUboOrigen.value)
+            }
             actualizarPreviewStaffFormulario()
         }
         document.getElementById(id)?.addEventListener("input", handler)
         document.getElementById(id)?.addEventListener("change", handler)
+    })
+
+    staffNombres?.addEventListener("blur", () => {
+        normalizarCampoStaffTitulo(staffNombres)
+        actualizarPreviewStaffFormulario()
+    })
+    staffApellidos?.addEventListener("blur", () => {
+        normalizarCampoStaffTitulo(staffApellidos)
+        actualizarPreviewStaffFormulario()
+    })
+    staffUboOrigen?.addEventListener("blur", () => {
+        normalizarCampoStaffSoloNumeros(staffUboOrigen)
+        actualizarPreviewStaffFormulario()
     })
 
 }
