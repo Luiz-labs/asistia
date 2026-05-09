@@ -6038,6 +6038,7 @@ async function importarRegistrosHistoricosConciliados() {
 
         historicalImportState.importSummary = summary
         renderHistoricalImportSummary(summary)
+        updateHistoricalActionState()
 
         registrarActividad("asistencias_importacion_historica", {
             archivo: importMeta.fileName,
@@ -6061,6 +6062,7 @@ async function importarRegistrosHistoricosConciliados() {
         summary.failed += importableRows.length
         historicalImportState.importSummary = summary
         renderHistoricalImportSummary(summary)
+        updateHistoricalActionState()
         setHistoricalPrepareMessage(`No se pudo completar la importación histórica: ${error.message || "error desconocido"}`, "error")
     } finally {
         historicalImportState.importing = false
