@@ -5014,7 +5014,8 @@ function getHistoricalImportElements() {
         importResultSkippedNotConciliated: document.getElementById("historicalImportSummarySkippedNotConciliated"),
         importResultSkippedObserved: document.getElementById("historicalImportSummarySkippedObserved"),
         importResultFailed: document.getElementById("historicalImportSummaryFailed"),
-        importResultBatchId: document.getElementById("historicalImportSummaryBatchId")
+        importResultBatchId: document.getElementById("historicalImportSummaryBatchId"),
+        reportsButton: document.getElementById("historicalReportsButton")
     }
 }
 
@@ -5205,6 +5206,53 @@ function resetHistoricalImportSummary() {
     if (importResultBatchId) importResultBatchId.innerText = "-"
 }
 
+function resetHistoricalImportModuleState() {
+    const { fileInput, fileMeta } = getHistoricalImportElements()
+    historicalImportState = createHistoricalImportState()
+    if (fileInput) fileInput.value = ""
+    if (fileMeta) fileMeta.innerText = "Ningún archivo seleccionado."
+    resetHistoricalImportStats()
+    resetHistoricalReconciliation()
+    resetHistoricalImportSummary()
+    renderHistoricalImportMapping()
+    renderHistoricalPreview([])
+    setHistoricalImportMessage("Carga un archivo para leer encabezados y preparar el mapeo.", "info")
+    setHistoricalPrepareMessage("La acción se habilitará después de validar el archivo.", "info")
+    updateHistoricalActionState()
+}
+
+function shortenHistoricalBatchId(batchId = "") {
+    const value = String(batchId || "").trim()
+    if (!value) return "-"
+    if (value.length <= 16) return value
+    return `${value.slice(0, 8)}...${value.slice(-8)}`
+}
+
+function abrirReportesImportacionHistorica() {
+    mostrarVista("reportes")
+}
+
+function abrirModalExitoImportacionHistorica(summary = {}) {
+    modalTitulo.innerText = "Importación completada"
+    modalContenido.innerHTML = `
+      <div class="historical-success-modal">
+        <div class="historical-success-badge">✔ Proceso finalizado</div>
+        <p class="historical-success-copy">Importación histórica completada correctamente</p>
+        <div class="historical-success-grid">
+          <div><strong>Importados</strong><span>${escapeHtml(summary.imported || 0)}</span></div>
+          <div><strong>Duplicados</strong><span>${escapeHtml(summary.duplicate || 0)}</span></div>
+          <div><strong>Observados</strong><span>${escapeHtml(summary.skippedObserved || 0)}</span></div>
+          <div><strong>Batch ID</strong><span class="historical-success-batch">${escapeHtml(shortenHistoricalBatchId(summary.batchId || ""))}</span></div>
+        </div>
+        <div class="tenant-admin-modal-actions">
+          <button type="button" onclick="cerrarModal(); resetHistoricalImportModuleState()">Nueva carga</button>
+          <button type="button" class="secondary" onclick="cerrarModal(); abrirReportesImportacionHistorica()">Ver reportes</button>
+        </div>
+      </div>
+    `
+    modal.style.display = "flex"
+}
+
 function renderHistoricalImportSummary(summary = {}) {
     const {
         importResult,
@@ -5226,15 +5274,17 @@ function renderHistoricalImportSummary(summary = {}) {
 }
 
 function updateHistoricalActionState() {
-    const { prepareButton, actionHint } = getHistoricalImportElements()
+    const { prepareButton, actionHint, reportsButton } = getHistoricalImportElements()
     if (!prepareButton || !actionHint) return
     const canValidate = !!(historicalImportState.validated && historicalImportState.preview.length)
     const importableRows = getHistoricalImportableRows()
+    const importDone = !!historicalImportState.importSummary?.imported
 
     if (!canValidate) {
         prepareButton.disabled = true
         prepareButton.innerText = "Preparar importación"
         actionHint.innerText = "En esta fase no se insertan datos en Supabase. Solo se habilita el archivo para una fase posterior."
+        if (reportsButton) reportsButton.hidden = true
         return
     }
 
@@ -5242,6 +5292,15 @@ function updateHistoricalActionState() {
         prepareButton.disabled = true
         prepareButton.innerText = "Importando..."
         actionHint.innerText = "La importación histórica está en progreso. No cierres esta vista hasta que termine."
+        if (reportsButton) reportsButton.hidden = true
+        return
+    }
+
+    if (importDone) {
+        prepareButton.disabled = false
+        prepareButton.innerText = "Nueva carga"
+        actionHint.innerText = "Importación histórica completada correctamente. Puedes iniciar una nueva carga o revisar reportes."
+        if (reportsButton) reportsButton.hidden = false
         return
     }
 
@@ -5250,6 +5309,7 @@ function updateHistoricalActionState() {
     actionHint.innerText = importableRows.length
         ? `Hay ${importableRows.length} registro(s) conciliado(s) listos para importar sin sobrescribir datos existentes.`
         : "La importación real requiere filas válidas, conciliadas y con DNI sugerido."
+    if (reportsButton) reportsButton.hidden = true
 }
 
 function resetHistoricalImportStats() {
@@ -5990,9 +6050,12 @@ async function importarRegistrosHistoricosConciliados() {
         await refreshHistoricalImportViews()
 
         setHistoricalPrepareMessage(
-            `Importación finalizada: ${summary.imported} importado(s), ${summary.duplicate} omitido(s) por duplicado, ${summary.skippedNotConciliated} no conciliado(s), ${summary.skippedObserved} observado(s)/error y ${summary.failed} fallido(s).`,
+            `Importación histórica completada correctamente: ${summary.imported} importado(s), ${summary.duplicate} duplicado(s), ${summary.skippedObserved} observado(s) y batch ${shortenHistoricalBatchId(summary.batchId)}.`,
             summary.failed ? "warning" : "ok"
         )
+        if (summary.imported > 0) {
+            abrirModalExitoImportacionHistorica(summary)
+        }
     } catch (error) {
         console.error("Error en importación histórica:", error)
         summary.failed += importableRows.length
@@ -6430,6 +6493,11 @@ async function validarArchivoHistorico() {
 async function prepararImportacionHistorica() {
     if (!historicalImportState.validated || !historicalImportState.preview.length) {
         setHistoricalPrepareMessage("Primero valida un archivo con registros listos para revisión.", "warning")
+        return
+    }
+
+    if (historicalImportState.importSummary?.imported > 0) {
+        resetHistoricalImportModuleState()
         return
     }
 

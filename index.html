@@ -649,7 +649,7 @@
                   <h4>1. Subida de archivo</h4>
                   <p class="hint course-module-hint">Importa reportes históricos desde Google Forms o Excel.</p>
                 </div>
-                <span class="historical-import-chip">Fase 1 segura</span>
+                <span class="historical-import-chip">Validación</span>
               </div>
               <div id="historicalImportDropzone" class="historical-dropzone" tabindex="0" role="button"
                 aria-label="Zona para soltar archivos históricos">
@@ -769,10 +769,15 @@
               <p id="historicalActionHint" class="hint course-module-hint">En esta fase no se insertan datos en Supabase. Solo se habilita el archivo para una fase posterior.</p>
               <div class="config-actions">
                 <button type="button" id="historicalPrepareButton" onclick="prepararImportacionHistorica()" disabled>Preparar importación</button>
+                <button type="button" id="historicalReportsButton" class="secondary" onclick="abrirReportesImportacionHistorica()" hidden>Ver reportes</button>
               </div>
               <p id="historicalPrepareMessage" class="course-inline-msg course-inline-msg--info" role="status"
                 aria-live="polite">La acción se habilitará después de validar el archivo.</p>
               <div id="historicalImportSummary" class="historical-kpi-grid historical-import-summary" hidden>
+                <div class="historical-import-summary-head">
+                  <span class="historical-success-badge">✔ Importación exitosa</span>
+                  <p>Importación histórica completada correctamente</p>
+                </div>
                 <div class="card kpi-card historical-kpi-card">
                   <span>Importados</span>
                   <strong id="historicalImportSummaryImported">0</strong>
