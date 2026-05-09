@@ -4949,6 +4949,15 @@ function createHistoricalImportState() {
         mapping: {},
         autoDetected: {},
         preview: [],
+        aspirantesCache: {
+            rows: [],
+            index: null
+        },
+        manualResolution: {
+            rowIndex: null,
+            searchTerm: "",
+            searchResults: []
+        },
         stats: {
             total: 0,
             valid: 0,
@@ -4960,6 +4969,8 @@ function createHistoricalImportState() {
         },
         reconciliation: {
             conciliated: 0,
+            automatic: 0,
+            manual: 0,
             noMatch: 0,
             multiple: 0,
             pendingReview: 0,
@@ -4980,6 +4991,7 @@ function getHistoricalImportElements() {
         previewBody: document.getElementById("historicalImportPreviewBody"),
         previewCount: document.getElementById("historicalImportPreviewCount"),
         reconciliationStatus: document.getElementById("historicalReconciliationStatus"),
+        reconciliationLabel: document.getElementById("historicalConciliationLabel"),
         reconciliationConciliated: document.getElementById("historicalConciliationConciliated"),
         reconciliationNoMatch: document.getElementById("historicalConciliationNoMatch"),
         reconciliationMultiple: document.getElementById("historicalConciliationMultiple"),
@@ -5027,6 +5039,8 @@ function setHistoricalPrepareMessage(text, tone = "info") {
 function resetHistoricalReconciliation() {
     historicalImportState.reconciliation = {
         conciliated: 0,
+        automatic: 0,
+        manual: 0,
         noMatch: 0,
         multiple: 0,
         pendingReview: 0,
@@ -5035,6 +5049,7 @@ function resetHistoricalReconciliation() {
     }
     const {
         reconciliationStatus,
+        reconciliationLabel,
         reconciliationConciliated,
         reconciliationNoMatch,
         reconciliationMultiple,
@@ -5044,6 +5059,7 @@ function resetHistoricalReconciliation() {
         reconciliationStatus.className = "course-inline-msg course-inline-msg--info"
         reconciliationStatus.innerText = "La conciliación se ejecutará después de validar el archivo."
     }
+    if (reconciliationLabel) reconciliationLabel.innerText = "Conciliados"
     if (reconciliationConciliated) reconciliationConciliated.innerText = "0"
     if (reconciliationNoMatch) reconciliationNoMatch.innerText = "0"
     if (reconciliationMultiple) reconciliationMultiple.innerText = "0"
@@ -5053,6 +5069,7 @@ function resetHistoricalReconciliation() {
 function renderHistoricalReconciliation(summary = {}, tone = "info", message = "") {
     const {
         reconciliationStatus,
+        reconciliationLabel,
         reconciliationConciliated,
         reconciliationNoMatch,
         reconciliationMultiple,
@@ -5062,10 +5079,50 @@ function renderHistoricalReconciliation(summary = {}, tone = "info", message = "
         reconciliationStatus.className = `course-inline-msg course-inline-msg--${tone}`
         reconciliationStatus.innerText = message || "Conciliación lista."
     }
+    if (reconciliationLabel) {
+        reconciliationLabel.innerText = summary.manual ? "Conciliados totales" : "Conciliados"
+    }
     if (reconciliationConciliated) reconciliationConciliated.innerText = String(summary.conciliated || 0)
     if (reconciliationNoMatch) reconciliationNoMatch.innerText = String(summary.noMatch || 0)
     if (reconciliationMultiple) reconciliationMultiple.innerText = String(summary.multiple || 0)
     if (reconciliationPending) reconciliationPending.innerText = String(summary.pendingReview || 0)
+}
+
+function computeHistoricalReconciliationSummary(preview = [], available = false) {
+    const summary = {
+        conciliated: 0,
+        automatic: 0,
+        manual: 0,
+        noMatch: 0,
+        multiple: 0,
+        pendingReview: 0,
+        loaded: true,
+        available: !!available
+    }
+
+    ;(preview || []).forEach(row => {
+        if (row.conciliacionEstado === "conciliado") summary.automatic += 1
+        if (row.conciliacionEstado === "manual") summary.manual += 1
+        if (row.conciliacionEstado === "sin_coincidencia") summary.noMatch += 1
+        if (row.conciliacionEstado === "multiple") summary.multiple += 1
+    })
+
+    summary.conciliated = summary.automatic + summary.manual
+    summary.pendingReview = summary.noMatch + summary.multiple
+    return summary
+}
+
+function syncHistoricalReconciliationUI() {
+    const available = !!historicalImportState.reconciliation?.available
+    const summary = computeHistoricalReconciliationSummary(historicalImportState.preview || [], available)
+    historicalImportState.reconciliation = summary
+    const tone = summary.pendingReview ? "warning" : "ok"
+    const message = summary.conciliated
+        ? summary.manual
+            ? `Conciliación actualizada: ${summary.automatic} automática(s) y ${summary.manual} manual(es). La importación podrá habilitarse en la siguiente fase.`
+            : "Se encontraron coincidencias de aspirantes. La importación podrá habilitarse en la siguiente fase."
+        : "No se encontraron conciliaciones automáticas. La revisión manual quedará para la siguiente fase."
+    renderHistoricalReconciliation(summary, tone, message)
 }
 
 function hasHistoricalDniMapping() {
@@ -5119,30 +5176,34 @@ function resetHistoricalImportStats() {
     })
 }
 
-function renderHistoricalPreview(rows = []) {
-    const { previewBody, previewCount } = getHistoricalImportElements()
-    if (previewCount) previewCount.innerText = `${rows.length} registro${rows.length === 1 ? "" : "s"} listados`
-    if (!previewBody) return
+function canResolveHistoricalRow(row = {}) {
+    return row.conciliacionEstado === "sin_coincidencia" ||
+        row.conciliacionEstado === "multiple" ||
+        row.conciliacionEstado === "manual" ||
+        row.resolvedManually === true
+}
 
-    if (!rows.length) {
-        previewBody.innerHTML = buildEmptyTableRow(
-            10,
-            "Sin preview disponible",
-            "Valida un archivo para revisar registros, observaciones y errores.",
-            "🧪"
-        )
-        return
+function getHistoricalResolveButtonLabel(row = {}) {
+    if (row.conciliacionEstado === "manual" || row.resolvedManually) return "Cambiar aspirante"
+    if (row.conciliacionEstado === "multiple") return "Seleccionar aspirante"
+    return "Resolver"
+}
+
+function renderHistoricalResolveAction(row = {}) {
+    if (!canResolveHistoricalRow(row)) {
+        return `<span class="hint historical-resolve-empty">-</span>`
     }
+    return `<button type="button" class="secondary historical-resolve-button" onclick="abrirResolucionManualHistorica(${Number(row.index) || 0})">${escapeHtml(getHistoricalResolveButtonLabel(row))}</button>`
+}
 
-    let html = ""
-    rows.slice(0, 250).forEach(row => {
-        const stateClass = row.status === "valido"
-            ? "is-valid"
-            : row.status === "observado"
-                ? "is-observed"
-                : "is-error"
-        html += `
-      <tr class="historical-preview-row ${stateClass}">
+function renderHistoricalPreviewRow(row = {}) {
+    const stateClass = row.status === "valido"
+        ? "is-valid"
+        : row.status === "observado"
+            ? "is-observed"
+            : "is-error"
+    return `
+      <tr class="historical-preview-row ${stateClass}" data-historical-preview-index="${Number(row.index) || 0}">
         <td><span class="historical-row-state ${stateClass}">${escapeHtml(row.status)}</span></td>
         <td>${escapeHtml(row.fecha || "-")}</td>
         <td>${escapeHtml(row.hora || "-")}</td>
@@ -5152,11 +5213,36 @@ function renderHistoricalPreview(rows = []) {
         <td><span class="historical-reconciliation-state ${row.conciliacionClase || "is-pending"}">${escapeHtml(row.conciliacionLabel || "Pendiente")}</span></td>
         <td>${escapeHtml(row.dniSugerido || row.dni || "-")}</td>
         <td>${escapeHtml(row.aspiranteEncontrado || "-")}</td>
+        <td>${renderHistoricalResolveAction(row)}</td>
         <td class="historical-observation">${escapeHtml(row.observacion || "-")}</td>
       </tr>
     `
-    })
-    previewBody.innerHTML = html
+}
+
+function renderHistoricalPreview(rows = []) {
+    const { previewBody, previewCount } = getHistoricalImportElements()
+    if (previewCount) previewCount.innerText = `${rows.length} registro${rows.length === 1 ? "" : "s"} listados`
+    if (!previewBody) return
+
+    if (!rows.length) {
+        previewBody.innerHTML = buildEmptyTableRow(
+            11,
+            "Sin preview disponible",
+            "Valida un archivo para revisar registros, observaciones y errores.",
+            "🧪"
+        )
+        return
+    }
+
+    previewBody.innerHTML = rows.slice(0, 250).map(renderHistoricalPreviewRow).join("")
+}
+
+function patchHistoricalPreviewRow(row = {}) {
+    const { previewBody } = getHistoricalImportElements()
+    if (!previewBody) return
+    const rowEl = previewBody.querySelector(`[data-historical-preview-index="${Number(row.index) || 0}"]`)
+    if (!rowEl) return
+    rowEl.outerHTML = renderHistoricalPreviewRow(row)
 }
 
 function renderHistoricalImportMapping() {
@@ -5403,6 +5489,8 @@ function buildHistoricalAspirantesIndex(rows = []) {
         const nombreCompacto = normalizeHistoricalComparableCompact(nombre)
         const record = {
             dni: normalizeHistoricalDni(item?.dni),
+            nombres: normalizeHistoricalText(item?.nombres),
+            apellidos: normalizeHistoricalText(item?.apellidos),
             nombre,
             nombreNormalizado,
             nombreCompacto,
@@ -5420,6 +5508,184 @@ function buildHistoricalAspirantesIndex(rows = []) {
     })
 
     return { byName, byCompact, all }
+}
+
+function stripHistoricalConciliationNotes(text = "") {
+    return String(text || "")
+        .split(" · ")
+        .filter(part => part && !/Sin coincidencia en aspirantes|Múltiples candidatos en aspirantes|Resuelto manualmente/i.test(part))
+        .join(" · ")
+        .trim()
+}
+
+function buildHistoricalOfficialName(candidate = {}) {
+    return buildHistoricalAspiranteDisplayName(candidate)
+}
+
+function getHistoricalCachedAspirantesIndex() {
+    if (historicalImportState.aspirantesCache?.index) {
+        return historicalImportState.aspirantesCache.index
+    }
+    const rows = historicalImportState.aspirantesCache?.rows || []
+    const index = buildHistoricalAspirantesIndex(rows)
+    historicalImportState.aspirantesCache.index = index
+    return index
+}
+
+function searchHistoricalAspirantesLocal(term = "", row = {}) {
+    const index = getHistoricalCachedAspirantesIndex()
+    const all = index?.all || []
+    const normalizedTerm = normalizeHistoricalComparable(term)
+    const compactTerm = normalizeHistoricalComparableCompact(term)
+    const digitsTerm = String(term || "").replace(/\D/g, "").trim()
+    const rowUbo = normalizeHistoricalUbo(row.ubo)
+
+    let results = all.map(candidate => {
+        let score = 0
+        if (rowUbo && candidate.ubo === rowUbo) score += 4
+        if (!normalizedTerm) score += 1
+        if (normalizedTerm && candidate.nombreNormalizado === normalizedTerm) score += 10
+        if (compactTerm && candidate.nombreCompacto === compactTerm) score += 9
+        if (normalizedTerm && candidate.nombreNormalizado.includes(normalizedTerm)) score += 6
+        if (compactTerm && candidate.nombreCompacto.includes(compactTerm)) score += 5
+        if (digitsTerm && candidate.dni.includes(digitsTerm)) score += 3
+        if (digitsTerm && candidate.ubo.includes(digitsTerm)) score += 2
+        if (compactTerm && historicalLimitedLevenshtein(candidate.nombreCompacto, compactTerm, 2) <= 2) score += 2
+        return Object.assign({}, candidate, { score })
+    })
+
+    if (normalizedTerm) {
+        results = results.filter(candidate => candidate.score > 0)
+    }
+
+    results.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score
+        return String(a.nombre || "").localeCompare(String(b.nombre || ""), "es")
+    })
+
+    return results.slice(0, 24)
+}
+
+function getHistoricalPreviewRowByIndex(rowIndex) {
+    return (historicalImportState.preview || []).find(row => Number(row.index) === Number(rowIndex)) || null
+}
+
+function renderHistoricalManualResolutionResults() {
+    const searchResultsEl = document.getElementById("historicalResolutionResults")
+    if (!searchResultsEl) return
+    const currentRow = getHistoricalPreviewRowByIndex(historicalImportState.manualResolution.rowIndex)
+    const results = historicalImportState.manualResolution.searchResults || []
+
+    if (!currentRow) {
+        searchResultsEl.innerHTML = buildEmptyStateHTML(
+            "Fila no disponible",
+            "Cierra el modal y vuelve a intentar la resolución manual.",
+            "⚠️",
+            true
+        )
+        return
+    }
+
+    if (!results.length) {
+        searchResultsEl.innerHTML = buildEmptyStateHTML(
+            "Sin resultados",
+            "Ajusta la búsqueda para encontrar un aspirante local del tenant activo.",
+            "🔎",
+            true
+        )
+        return
+    }
+
+    searchResultsEl.innerHTML = results.map((candidate, idx) => `
+      <div class="historical-resolution-result-card">
+        <div class="historical-resolution-result-copy">
+          <strong>${escapeHtml(candidate.nombre || "-")}</strong>
+          <span>DNI: ${escapeHtml(candidate.dni || "-")}</span>
+          <span>Apellidos: ${escapeHtml(candidate.apellidos || "-")}</span>
+          <span>Nombres: ${escapeHtml(candidate.nombres || "-")}</span>
+          <span>UBO: ${escapeHtml(candidate.ubo || "-")}</span>
+        </div>
+        <button type="button" onclick="seleccionarAspiranteHistoricoManual(${idx})">Seleccionar</button>
+      </div>
+    `).join("")
+}
+
+function handleHistoricalResolutionSearchInput(event) {
+    const currentRow = getHistoricalPreviewRowByIndex(historicalImportState.manualResolution.rowIndex)
+    if (!currentRow) return
+    historicalImportState.manualResolution.searchTerm = String(event?.target?.value || "")
+    historicalImportState.manualResolution.searchResults = searchHistoricalAspirantesLocal(
+        historicalImportState.manualResolution.searchTerm,
+        currentRow
+    )
+    renderHistoricalManualResolutionResults()
+}
+
+function abrirResolucionManualHistorica(rowIndex) {
+    const row = getHistoricalPreviewRowByIndex(rowIndex)
+    if (!row) return
+    if (!historicalImportState.aspirantesCache?.rows?.length) {
+        setHistoricalPrepareMessage("No hay aspirantes cargados en memoria para resolver manualmente.", "warning")
+        return
+    }
+
+    historicalImportState.manualResolution = {
+        rowIndex: Number(row.index),
+        searchTerm: row.nombreCompleto || "",
+        searchResults: searchHistoricalAspirantesLocal(row.nombreCompleto || "", row)
+    }
+
+    modalTitulo.innerText = row.resolvedManually ? "Cambiar aspirante" : "Resolución manual"
+    modalContenido.innerHTML = `
+      <div class="historical-resolution-modal">
+        <div class="historical-resolution-panel">
+          <span class="historical-resolution-label">Datos históricos</span>
+          <div class="historical-resolution-grid">
+            <div><strong>Nombre Excel</strong><span>${escapeHtml(row.nombresExcel || "-")}</span></div>
+            <div><strong>Apellidos Excel</strong><span>${escapeHtml(row.apellidosExcel || "-")}</span></div>
+            <div><strong>UBO Excel</strong><span>${escapeHtml(row.ubo || "-")}</span></div>
+            <div><strong>Sección Excel</strong><span>${escapeHtml(row.seccion || "-")}</span></div>
+            <div><strong>Fecha</strong><span>${escapeHtml(row.fecha || "-")}</span></div>
+            <div><strong>Hora</strong><span>${escapeHtml(row.hora || "-")}</span></div>
+          </div>
+        </div>
+        <div class="historical-resolution-panel">
+          <label class="historical-resolution-label" for="historicalResolutionSearch">Buscar aspirante</label>
+          <input id="historicalResolutionSearch" class="historical-resolution-input" type="search" placeholder="Buscar por nombre, DNI o UBO" value="${escapeHtml(historicalImportState.manualResolution.searchTerm)}">
+          <div id="historicalResolutionResults" class="historical-resolution-results"></div>
+        </div>
+      </div>
+    `
+    modal.style.display = "flex"
+
+    const input = document.getElementById("historicalResolutionSearch")
+    if (input) {
+        input.addEventListener("input", handleHistoricalResolutionSearchInput)
+        setTimeout(() => input.focus(), 0)
+    }
+    renderHistoricalManualResolutionResults()
+}
+
+function seleccionarAspiranteHistoricoManual(resultIndex) {
+    const row = getHistoricalPreviewRowByIndex(historicalImportState.manualResolution.rowIndex)
+    const candidate = historicalImportState.manualResolution.searchResults?.[resultIndex]
+    if (!row || !candidate) return
+
+    const baseObservation = stripHistoricalConciliationNotes(row.observacion)
+    row.conciliacionEstado = "manual"
+    row.conciliacionLabel = "✔ Manual"
+    row.conciliacionClase = "is-manual"
+    row.dniSugerido = candidate.dni || ""
+    row.aspiranteEncontrado = buildHistoricalOfficialName(candidate) || row.nombreCompleto || ""
+    row.resolvedManually = true
+    row.observacion = baseObservation
+        ? `${baseObservation} · Resuelto manualmente`
+        : "Resuelto manualmente"
+
+    patchHistoricalPreviewRow(row)
+    syncHistoricalReconciliationUI()
+    setHistoricalPrepareMessage("Se actualizó la fila manualmente. La importación podrá habilitarse en la siguiente fase.", "info")
+    cerrarModal()
 }
 
 function filterHistoricalCandidatesByContext(candidates = [], row = {}) {
@@ -5485,11 +5751,12 @@ function buildHistoricalConciliationRow(row, aspirantesIndex) {
         const candidate = candidates[0]
         return Object.assign({}, row, {
             conciliacionEstado: "conciliado",
-            conciliacionLabel: "✔ Conciliado",
+            conciliacionLabel: "✔ Automático",
             conciliacionClase: "is-conciliated",
             dniSugerido: candidate.dni || row.dni || "",
             aspiranteEncontrado: candidate.nombre || row.nombreCompleto || "",
-            seccion: row.seccion || ""
+            seccion: row.seccion || "",
+            resolvedManually: false
         })
     }
 
@@ -5500,6 +5767,7 @@ function buildHistoricalConciliationRow(row, aspirantesIndex) {
             conciliacionClase: "is-multiple",
             dniSugerido: "",
             aspiranteEncontrado: `${candidates.length} candidatos`,
+            resolvedManually: false,
             observacion: row.observacion === "Sin observaciones"
                 ? "Múltiples candidatos en aspirantes"
                 : `${row.observacion} · Múltiples candidatos en aspirantes`
@@ -5512,6 +5780,7 @@ function buildHistoricalConciliationRow(row, aspirantesIndex) {
         conciliacionClase: "is-no-match",
         dniSugerido: "",
         aspiranteEncontrado: "",
+        resolvedManually: false,
         observacion: row.observacion === "Sin observaciones"
             ? "Sin coincidencia en aspirantes"
             : `${row.observacion} · Sin coincidencia en aspirantes`
@@ -5526,21 +5795,19 @@ async function reconcileHistoricalPreviewRows(preview = []) {
 
     const aspirantesResponse = await fetchHistoricalAspirantesTenant()
     if (!aspirantesResponse.available) {
+        historicalImportState.aspirantesCache = {
+            rows: [],
+            index: null
+        }
         const untouched = preview.map(row => Object.assign({}, row, {
             conciliacionEstado: "pendiente",
             conciliacionLabel: "Pendiente",
             conciliacionClase: "is-pending",
             dniSugerido: row.dni || "",
-            aspiranteEncontrado: ""
+            aspiranteEncontrado: "",
+            resolvedManually: false
         }))
-        historicalImportState.reconciliation = {
-            conciliated: 0,
-            noMatch: 0,
-            multiple: 0,
-            pendingReview: untouched.length,
-            loaded: true,
-            available: false
-        }
+        historicalImportState.reconciliation = computeHistoricalReconciliationSummary(untouched, false)
         renderHistoricalReconciliation(
             historicalImportState.reconciliation,
             "warning",
@@ -5550,30 +5817,19 @@ async function reconcileHistoricalPreviewRows(preview = []) {
     }
 
     const aspirantesIndex = buildHistoricalAspirantesIndex(aspirantesResponse.rows)
-    const summary = {
-        conciliated: 0,
-        noMatch: 0,
-        multiple: 0,
-        pendingReview: 0,
-        loaded: true,
-        available: true
+    historicalImportState.aspirantesCache = {
+        rows: aspirantesResponse.rows || [],
+        index: aspirantesIndex
     }
 
-    const reconciled = preview.map(row => {
-        const nextRow = buildHistoricalConciliationRow(row, aspirantesIndex)
-        if (nextRow.conciliacionEstado === "conciliado") summary.conciliated += 1
-        if (nextRow.conciliacionEstado === "sin_coincidencia") summary.noMatch += 1
-        if (nextRow.conciliacionEstado === "multiple") summary.multiple += 1
-        return nextRow
-    })
-
-    summary.pendingReview = summary.noMatch + summary.multiple
+    const reconciled = preview.map(row => buildHistoricalConciliationRow(row, aspirantesIndex))
+    const summary = computeHistoricalReconciliationSummary(reconciled, true)
     historicalImportState.reconciliation = summary
     renderHistoricalReconciliation(
         summary,
         summary.pendingReview ? "warning" : "ok",
         summary.conciliated
-            ? "Se encontraron coincidencias de aspirantes. La importación podrá habilitarse en la siguiente fase."
+            ? `Se encontraron ${summary.conciliated} coincidencia(s) de aspirantes. La importación podrá habilitarse en la siguiente fase.`
             : "No se encontraron conciliaciones automáticas. La revisión manual quedará para la siguiente fase."
     )
     return reconciled
@@ -5739,6 +5995,8 @@ async function validateHistoricalRows() {
             hora: timestamp.hora,
             dni: dniRaw,
             ubo: uboRaw,
+            nombresExcel: nombresRaw,
+            apellidosExcel: apellidosRaw,
             nombreCompleto,
             seccion: seccionRaw,
             conciliacionEstado: "pendiente",
@@ -5746,6 +6004,7 @@ async function validateHistoricalRows() {
             conciliacionClase: "is-pending",
             dniSugerido: "",
             aspiranteEncontrado: "",
+            resolvedManually: false,
             observacion: observations.join(" · ") || "Sin observaciones"
         })
     })
