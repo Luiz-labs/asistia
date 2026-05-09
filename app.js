@@ -236,6 +236,7 @@ let vistaAdminActual = "reportes"
 let vistaLuizLabsActual = "instituciones"
 const HISTORICAL_IMPORT_FIELDS = Object.freeze([
     { key: "timestamp", label: "Timestamp", help: "Marca temporal o fecha y hora del registro." },
+    { key: "dni", label: "DNI", help: "Requerido para importar a asistencias en Fase 2.", optional: true },
     { key: "ubo", label: "UBO", help: "Código UBO; se conservarán solo números." },
     { key: "nombres", label: "Nombres", help: "Nombres del aspirante." },
     { key: "apellidos", label: "Apellidos", help: "Apellidos del aspirante." },
@@ -243,6 +244,7 @@ const HISTORICAL_IMPORT_FIELDS = Object.freeze([
 ])
 const HISTORICAL_IMPORT_ALIASES = Object.freeze({
     timestamp: ["marca temporal", "timestamp", "fecha y hora", "fecha hora", "fecha de envio", "hora de envio"],
+    dni: ["dni", "documento", "n documento", "numero de documento", "num documento"],
     ubo: ["ubo", "ubo colocar solo numero", "codigo ubo", "codigo de ubo", "nro ubo", "numero ubo"],
     nombres: ["nombres", "nombre", "nombres y apellidos"],
     apellidos: ["apellidos", "apellido", "apellidos y nombres"],
@@ -4956,6 +4958,14 @@ function createHistoricalImportState() {
             incompleteName: 0,
             observed: 0
         },
+        reconciliation: {
+            conciliated: 0,
+            noMatch: 0,
+            multiple: 0,
+            pendingReview: 0,
+            loaded: false,
+            available: false
+        },
         validated: false
     }
 }
@@ -4969,8 +4979,14 @@ function getHistoricalImportElements() {
         mapping: document.getElementById("historicalImportMapping"),
         previewBody: document.getElementById("historicalImportPreviewBody"),
         previewCount: document.getElementById("historicalImportPreviewCount"),
+        reconciliationStatus: document.getElementById("historicalReconciliationStatus"),
+        reconciliationConciliated: document.getElementById("historicalConciliationConciliated"),
+        reconciliationNoMatch: document.getElementById("historicalConciliationNoMatch"),
+        reconciliationMultiple: document.getElementById("historicalConciliationMultiple"),
+        reconciliationPending: document.getElementById("historicalConciliationPending"),
         prepareButton: document.getElementById("historicalPrepareButton"),
-        prepareMessage: document.getElementById("historicalPrepareMessage")
+        prepareMessage: document.getElementById("historicalPrepareMessage"),
+        actionHint: document.getElementById("historicalActionHint")
     }
 }
 
@@ -5008,6 +5024,75 @@ function setHistoricalPrepareMessage(text, tone = "info") {
     prepareMessage.innerText = text
 }
 
+function resetHistoricalReconciliation() {
+    historicalImportState.reconciliation = {
+        conciliated: 0,
+        noMatch: 0,
+        multiple: 0,
+        pendingReview: 0,
+        loaded: false,
+        available: false
+    }
+    const {
+        reconciliationStatus,
+        reconciliationConciliated,
+        reconciliationNoMatch,
+        reconciliationMultiple,
+        reconciliationPending
+    } = getHistoricalImportElements()
+    if (reconciliationStatus) {
+        reconciliationStatus.className = "course-inline-msg course-inline-msg--info"
+        reconciliationStatus.innerText = "La conciliación se ejecutará después de validar el archivo."
+    }
+    if (reconciliationConciliated) reconciliationConciliated.innerText = "0"
+    if (reconciliationNoMatch) reconciliationNoMatch.innerText = "0"
+    if (reconciliationMultiple) reconciliationMultiple.innerText = "0"
+    if (reconciliationPending) reconciliationPending.innerText = "0"
+}
+
+function renderHistoricalReconciliation(summary = {}, tone = "info", message = "") {
+    const {
+        reconciliationStatus,
+        reconciliationConciliated,
+        reconciliationNoMatch,
+        reconciliationMultiple,
+        reconciliationPending
+    } = getHistoricalImportElements()
+    if (reconciliationStatus) {
+        reconciliationStatus.className = `course-inline-msg course-inline-msg--${tone}`
+        reconciliationStatus.innerText = message || "Conciliación lista."
+    }
+    if (reconciliationConciliated) reconciliationConciliated.innerText = String(summary.conciliated || 0)
+    if (reconciliationNoMatch) reconciliationNoMatch.innerText = String(summary.noMatch || 0)
+    if (reconciliationMultiple) reconciliationMultiple.innerText = String(summary.multiple || 0)
+    if (reconciliationPending) reconciliationPending.innerText = String(summary.pendingReview || 0)
+}
+
+function hasHistoricalDniMapping() {
+    return Number.isInteger(historicalImportState.mapping?.dni)
+}
+
+function getHistoricalValidPreviewRows() {
+    return (historicalImportState.preview || []).filter(row => row.status === "valido")
+}
+
+function updateHistoricalActionState() {
+    const { prepareButton, actionHint } = getHistoricalImportElements()
+    if (!prepareButton || !actionHint) return
+    const canValidate = !!(historicalImportState.validated && historicalImportState.preview.length)
+
+    if (!canValidate) {
+        prepareButton.disabled = true
+        prepareButton.innerText = "Preparar importación"
+        actionHint.innerText = "En esta fase no se insertan datos en Supabase. Solo se habilita el archivo para una fase posterior."
+        return
+    }
+
+    prepareButton.disabled = false
+    prepareButton.innerText = "Preparar importación"
+    actionHint.innerText = "La importación real seguirá bloqueada hasta la siguiente fase. Esta vista solo concilia identidad y enriquece el preview."
+}
+
 function resetHistoricalImportStats() {
     const stats = {
         total: 0,
@@ -5041,7 +5126,7 @@ function renderHistoricalPreview(rows = []) {
 
     if (!rows.length) {
         previewBody.innerHTML = buildEmptyTableRow(
-            7,
+            10,
             "Sin preview disponible",
             "Valida un archivo para revisar registros, observaciones y errores.",
             "🧪"
@@ -5064,6 +5149,9 @@ function renderHistoricalPreview(rows = []) {
         <td>${escapeHtml(row.ubo || "-")}</td>
         <td>${escapeHtml(row.nombreCompleto || "-")}</td>
         <td>${escapeHtml(row.seccion || "-")}</td>
+        <td><span class="historical-reconciliation-state ${row.conciliacionClase || "is-pending"}">${escapeHtml(row.conciliacionLabel || "Pendiente")}</span></td>
+        <td>${escapeHtml(row.dniSugerido || row.dni || "-")}</td>
+        <td>${escapeHtml(row.aspiranteEncontrado || "-")}</td>
         <td class="historical-observation">${escapeHtml(row.observacion || "-")}</td>
       </tr>
     `
@@ -5172,9 +5260,9 @@ function syncHistoricalMappingFromSelectors() {
     historicalImportState.validated = false
     historicalImportState.preview = []
     renderHistoricalPreview([])
+    resetHistoricalReconciliation()
     setHistoricalPrepareMessage("La acción se habilitará después de validar el archivo.", "info")
-    const { prepareButton } = getHistoricalImportElements()
-    if (prepareButton) prepareButton.disabled = true
+    updateHistoricalActionState()
 }
 
 function normalizeHistoricalTimestamp(rawValue) {
@@ -5237,8 +5325,260 @@ function normalizeHistoricalUbo(value) {
     return String(value || "").replace(/\D/g, "").trim()
 }
 
+function normalizeHistoricalDni(value) {
+    return String(value || "").replace(/\D/g, "").trim()
+}
+
 function normalizeHistoricalSection(value) {
     return normalizeHistoricalText(value).toUpperCase()
+}
+
+function normalizeHistoricalComparable(value) {
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^\w\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toUpperCase()
+}
+
+function normalizeHistoricalComparableCompact(value) {
+    return normalizeHistoricalComparable(value).replace(/\s+/g, "")
+}
+
+function buildHistoricalFullName(apellidos, nombres) {
+    return `${normalizeHistoricalText(apellidos)} ${normalizeHistoricalText(nombres)}`
+        .replace(/\s+/g, " ")
+        .trim()
+}
+
+function buildHistoricalAspiranteDisplayName(record = {}) {
+    return normalizeHistoricalText(record.nombre || record.nombreCompleto || "")
+}
+
+async function fetchHistoricalAspirantesTenant() {
+    if (!haySupabase()) {
+        return { available: false, rows: [], reason: "Supabase no está disponible para conciliar aspirantes." }
+    }
+    if (!tenantActivoId) {
+        return { available: false, rows: [], reason: "No hay tenant activo para conciliar aspirantes." }
+    }
+
+    let data = []
+    let error = null
+
+    ; ({ data, error } = await withTenantScope(
+        supabaseClient.from("aspirantes").select("dni,nombre,tenant_id,seccion,ubo")
+    ))
+
+    if (error && /tenant_id/i.test(String(error.message || ""))) {
+        const fallback = await withTenantScope(
+            supabaseClient.from("aspirantes").select("dni,nombre,seccion,ubo")
+        )
+        data = (fallback.data || []).map(item => Object.assign({}, item, { tenant_id: tenantActivoId }))
+        error = fallback.error
+    }
+
+    if (error) {
+        console.error("Error cargando aspirantes para conciliación:", error)
+        return { available: false, rows: [], reason: error.message || "No se pudo consultar aspirantes." }
+    }
+
+    return { available: true, rows: filtrarDataTenantActivo(data || []), reason: "" }
+}
+
+function buildHistoricalAspirantesIndex(rows = []) {
+    const byName = new Map()
+    const byCompact = new Map()
+    const all = []
+
+    rows.forEach(item => {
+        const nombre = buildHistoricalAspiranteDisplayName(item)
+        const nombreNormalizado = normalizeHistoricalComparable(nombre)
+        const nombreCompacto = normalizeHistoricalComparableCompact(nombre)
+        const record = {
+            dni: normalizeHistoricalDni(item?.dni),
+            nombre,
+            nombreNormalizado,
+            nombreCompacto,
+            seccion: normalizeHistoricalSection(item?.seccion),
+            ubo: normalizeHistoricalUbo(item?.ubo)
+        }
+        all.push(record)
+        if (nombreNormalizado) {
+            if (!byName.has(nombreNormalizado)) byName.set(nombreNormalizado, [])
+            byName.get(nombreNormalizado).push(record)
+        }
+        if (nombreCompacto) {
+            if (!byCompact.has(nombreCompacto)) byCompact.set(nombreCompacto, [])
+            byCompact.get(nombreCompacto).push(record)
+        }
+    })
+
+    return { byName, byCompact, all }
+}
+
+function filterHistoricalCandidatesByContext(candidates = [], row = {}) {
+    if (!candidates.length) return []
+    const rowUbo = normalizeHistoricalUbo(row.ubo)
+    const rowSeccion = normalizeHistoricalSection(row.seccion)
+
+    let scoped = candidates
+    if (rowUbo) {
+        const sameUbo = scoped.filter(candidate => candidate.ubo && candidate.ubo === rowUbo)
+        if (sameUbo.length) scoped = sameUbo
+    }
+    if (rowSeccion) {
+        const sameSeccion = scoped.filter(candidate => candidate.seccion && candidate.seccion === rowSeccion)
+        if (sameSeccion.length) scoped = sameSeccion
+    }
+    return scoped
+}
+
+function historicalLimitedLevenshtein(a = "", b = "", maxDistance = 2) {
+    if (a === b) return 0
+    if (!a || !b) return maxDistance + 1
+    if (Math.abs(a.length - b.length) > maxDistance) return maxDistance + 1
+
+    let previous = Array.from({ length: b.length + 1 }, (_, index) => index)
+    for (let i = 1; i <= a.length; i += 1) {
+        const current = [i]
+        let minValue = current[0]
+        for (let j = 1; j <= b.length; j += 1) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1
+            const value = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost)
+            current.push(value)
+            if (value < minValue) minValue = value
+        }
+        if (minValue > maxDistance) return maxDistance + 1
+        previous = current
+    }
+    return previous[b.length]
+}
+
+function findHistoricalAspiranteCandidates(row, aspirantesIndex) {
+    const nombreNormalizado = normalizeHistoricalComparable(row.nombreCompleto)
+    const nombreCompacto = normalizeHistoricalComparableCompact(row.nombreCompleto)
+
+    const exactByName = filterHistoricalCandidatesByContext(
+        aspirantesIndex.byName.get(nombreNormalizado) || [],
+        row
+    )
+    if (exactByName.length) return exactByName
+
+    const exactByCompact = filterHistoricalCandidatesByContext(
+        aspirantesIndex.byCompact.get(nombreCompacto) || [],
+        row
+    )
+    if (exactByCompact.length) return exactByCompact
+
+    if (!row.ubo && !row.seccion) return []
+
+    return filterHistoricalCandidatesByContext(aspirantesIndex.all, row).filter(candidate =>
+        historicalLimitedLevenshtein(candidate.nombreCompacto, nombreCompacto, 2) <= 2
+    )
+}
+
+function buildHistoricalConciliationRow(row, aspirantesIndex) {
+    const candidates = findHistoricalAspiranteCandidates(row, aspirantesIndex)
+
+    if (candidates.length === 1) {
+        const candidate = candidates[0]
+        return Object.assign({}, row, {
+            conciliacionEstado: "conciliado",
+            conciliacionLabel: "✔ Conciliado",
+            conciliacionClase: "is-conciliated",
+            dniSugerido: candidate.dni || row.dni || "",
+            aspiranteEncontrado: candidate.nombre || row.nombreCompleto || "",
+            seccion: row.seccion || candidate.seccion || ""
+        })
+    }
+
+    if (candidates.length > 1) {
+        return Object.assign({}, row, {
+            conciliacionEstado: "multiple",
+            conciliacionLabel: "⚠ Múltiples candidatos",
+            conciliacionClase: "is-multiple",
+            dniSugerido: "",
+            aspiranteEncontrado: `${candidates.length} candidatos`,
+            observacion: row.observacion === "Sin observaciones"
+                ? "Múltiples candidatos en aspirantes"
+                : `${row.observacion} · Múltiples candidatos en aspirantes`
+        })
+    }
+
+    return Object.assign({}, row, {
+        conciliacionEstado: "sin_coincidencia",
+        conciliacionLabel: "⚠ Sin coincidencia",
+        conciliacionClase: "is-no-match",
+        dniSugerido: "",
+        aspiranteEncontrado: "",
+        observacion: row.observacion === "Sin observaciones"
+            ? "Sin coincidencia en aspirantes"
+            : `${row.observacion} · Sin coincidencia en aspirantes`
+    })
+}
+
+async function reconcileHistoricalPreviewRows(preview = []) {
+    if (!preview.length) {
+        resetHistoricalReconciliation()
+        return preview
+    }
+
+    const aspirantesResponse = await fetchHistoricalAspirantesTenant()
+    if (!aspirantesResponse.available) {
+        const untouched = preview.map(row => Object.assign({}, row, {
+            conciliacionEstado: "pendiente",
+            conciliacionLabel: "Pendiente",
+            conciliacionClase: "is-pending",
+            dniSugerido: row.dni || "",
+            aspiranteEncontrado: ""
+        }))
+        historicalImportState.reconciliation = {
+            conciliated: 0,
+            noMatch: 0,
+            multiple: 0,
+            pendingReview: untouched.length,
+            loaded: true,
+            available: false
+        }
+        renderHistoricalReconciliation(
+            historicalImportState.reconciliation,
+            "warning",
+            aspirantesResponse.reason || "No fue posible ejecutar la conciliación."
+        )
+        return untouched
+    }
+
+    const aspirantesIndex = buildHistoricalAspirantesIndex(aspirantesResponse.rows)
+    const summary = {
+        conciliated: 0,
+        noMatch: 0,
+        multiple: 0,
+        pendingReview: 0,
+        loaded: true,
+        available: true
+    }
+
+    const reconciled = preview.map(row => {
+        const nextRow = buildHistoricalConciliationRow(row, aspirantesIndex)
+        if (nextRow.conciliacionEstado === "conciliado") summary.conciliated += 1
+        if (nextRow.conciliacionEstado === "sin_coincidencia") summary.noMatch += 1
+        if (nextRow.conciliacionEstado === "multiple") summary.multiple += 1
+        return nextRow
+    })
+
+    summary.pendingReview = summary.noMatch + summary.multiple
+    historicalImportState.reconciliation = summary
+    renderHistoricalReconciliation(
+        summary,
+        summary.pendingReview ? "warning" : "ok",
+        summary.conciliated
+            ? "Se encontraron coincidencias de aspirantes. La importación podrá habilitarse en la siguiente fase."
+            : "No se encontraron conciliaciones automáticas. La revisión manual quedará para la siguiente fase."
+    )
+    return reconciled
 }
 
 function parseHistoricalCsvLine(line, delimiter = ",") {
@@ -5315,8 +5655,9 @@ function getHistoricalCell(row, columnIndex) {
     return row[columnIndex] ?? ""
 }
 
-function validateHistoricalRows() {
+async function validateHistoricalRows() {
     const missingFields = HISTORICAL_IMPORT_FIELDS
+        .filter(field => !field.optional)
         .filter(field => !Number.isInteger(historicalImportState.mapping[field.key]))
         .map(field => field.label)
 
@@ -5337,15 +5678,17 @@ function validateHistoricalRows() {
         observed: 0
     }
     const dedupe = new Set()
+    const dniMapped = hasHistoricalDniMapping()
 
     historicalImportState.rows.forEach((row, index) => {
         const timestampRaw = getHistoricalCell(row, historicalImportState.mapping.timestamp)
+        const dniRaw = dniMapped ? normalizeHistoricalDni(getHistoricalCell(row, historicalImportState.mapping.dni)) : ""
         const nombresRaw = normalizeHistoricalText(getHistoricalCell(row, historicalImportState.mapping.nombres))
         const apellidosRaw = normalizeHistoricalText(getHistoricalCell(row, historicalImportState.mapping.apellidos))
         const uboRaw = normalizeHistoricalUbo(getHistoricalCell(row, historicalImportState.mapping.ubo))
         const seccionRaw = normalizeHistoricalSection(getHistoricalCell(row, historicalImportState.mapping.seccion))
         const timestamp = normalizeHistoricalTimestamp(timestampRaw)
-        const nombreCompleto = `${apellidosRaw} ${nombresRaw}`.replace(/\s+/g, " ").trim()
+        const nombreCompleto = buildHistoricalFullName(apellidosRaw, nombresRaw)
         const observations = []
         let status = "valido"
 
@@ -5367,12 +5710,19 @@ function validateHistoricalRows() {
             status = "error"
         }
 
-        const duplicateKey = `${nombreCompleto.toLowerCase()}|${timestamp.fecha}|${timestamp.hora}`
+        if (dniMapped && !dniRaw) {
+            observations.push("DNI faltante")
+            if (status !== "error") status = "observado"
+        }
+
+        const duplicateKey = dniMapped && dniRaw
+            ? `${dniRaw}|${timestamp.fecha}`
+            : `${nombreCompleto.toLowerCase()}|${timestamp.fecha}|${timestamp.hora}`
         if (nombreCompleto && timestamp.valido && dedupe.has(duplicateKey)) {
-            observations.push("Duplicado interno")
+            observations.push(dniMapped && dniRaw ? "Duplicado interno por DNI y fecha" : "Duplicado interno")
             stats.duplicates += 1
             if (status !== "error") status = "observado"
-        } else if (nombreCompleto && timestamp.valido) {
+        } else if ((dniMapped ? !!dniRaw : !!nombreCompleto) && timestamp.valido) {
             dedupe.add(duplicateKey)
         }
 
@@ -5389,14 +5739,21 @@ function validateHistoricalRows() {
             status,
             fecha: timestamp.fecha,
             hora: timestamp.hora,
+            dni: dniRaw,
             ubo: uboRaw,
             nombreCompleto,
             seccion: seccionRaw,
+            conciliacionEstado: "pendiente",
+            conciliacionLabel: "Pendiente",
+            conciliacionClase: "is-pending",
+            dniSugerido: "",
+            aspiranteEncontrado: "",
             observacion: observations.join(" · ") || "Sin observaciones"
         })
     })
 
-    historicalImportState.preview = preview
+    const previewWithConciliation = await reconcileHistoricalPreviewRows(preview)
+    historicalImportState.preview = previewWithConciliation
     historicalImportState.stats = stats
     historicalImportState.validated = true
 
@@ -5408,34 +5765,38 @@ function validateHistoricalRows() {
     document.getElementById("historicalKpiMissingUbo").innerText = String(stats.missingUbo)
     document.getElementById("historicalKpiIncompleteName").innerText = String(stats.incompleteName)
     document.getElementById("historicalKpiObserved").innerText = String(stats.observed)
-    renderHistoricalPreview(preview)
+    renderHistoricalPreview(previewWithConciliation)
 
-    const { prepareButton } = getHistoricalImportElements()
-    if (prepareButton) prepareButton.disabled = !preview.length
-
-    if (!preview.length) {
+    if (!previewWithConciliation.length) {
         setHistoricalImportMessage("El archivo no contiene filas utilizables para validar.", "warning")
         setHistoricalPrepareMessage("La acción se habilitará después de validar el archivo.", "info")
         return
     }
 
     setHistoricalImportMessage(
-        `Validación completada: ${stats.valid} válido(s), ${stats.observed} observado(s) y ${preview.length - stats.valid - stats.observed} con error.`,
+        `Validación completada: ${stats.valid} válido(s), ${stats.observed} observado(s) y ${previewWithConciliation.length - stats.valid - stats.observed} con error.`,
         stats.invalidDates || stats.missingUbo || stats.incompleteName ? "warning" : "ok"
     )
-    setHistoricalPrepareMessage("La acción está lista. Esta fase no insertará datos.", "info")
+    setHistoricalPrepareMessage(
+        historicalImportState.reconciliation.conciliated > 0
+            ? "Se encontraron coincidencias de aspirantes. La importación podrá habilitarse en la siguiente fase."
+            : "Preview validado. La importación real seguirá deshabilitada hasta la siguiente fase.",
+        historicalImportState.reconciliation.conciliated > 0 ? "info" : "warning"
+    )
+    updateHistoricalActionState()
 }
 
 async function cargarArchivoHistorico(file) {
     if (!file) return
 
-    const { fileInput, fileMeta, prepareButton } = getHistoricalImportElements()
+    const { fileInput, fileMeta } = getHistoricalImportElements()
     historicalImportState = createHistoricalImportState()
     historicalImportState.file = file
     resetHistoricalImportStats()
+    resetHistoricalReconciliation()
     renderHistoricalPreview([])
     setHistoricalPrepareMessage("La acción se habilitará después de validar el archivo.", "info")
-    if (prepareButton) prepareButton.disabled = true
+    updateHistoricalActionState()
 
     if (fileInput && fileInput.files?.[0] !== file) {
         try {
@@ -5462,6 +5823,7 @@ async function cargarArchivoHistorico(file) {
         historicalImportState.rows = Array.isArray(parsed.rows) ? parsed.rows : []
         detectHistoricalColumns(parsed.headers)
         renderHistoricalImportMapping()
+        updateHistoricalActionState()
         setHistoricalImportMessage(
             `Archivo cargado: ${parsed.headers.length} columna(s) detectadas y ${historicalImportState.rows.length} fila(s) listas para validar.`,
             "info"
@@ -5470,6 +5832,7 @@ async function cargarArchivoHistorico(file) {
         console.error("Error leyendo archivo histórico:", error)
         setHistoricalImportMessage(error.message || "No se pudo leer el archivo seleccionado.", "error")
         renderHistoricalImportMapping()
+        updateHistoricalActionState()
     }
 }
 
@@ -5484,18 +5847,29 @@ async function validarArchivoHistorico() {
         return
     }
     syncHistoricalMappingFromSelectors()
-    validateHistoricalRows()
+    await validateHistoricalRows()
 }
 
-function prepararImportacionHistorica() {
+async function prepararImportacionHistorica() {
     if (!historicalImportState.validated || !historicalImportState.preview.length) {
         setHistoricalPrepareMessage("Primero valida un archivo con registros listos para revisión.", "warning")
         return
     }
-    setHistoricalPrepareMessage(
-        "Archivo validado correctamente. Importación habilitada para siguiente fase.",
-        "ok"
-    )
+
+    const { conciliated, pendingReview, available } = historicalImportState.reconciliation || {}
+    if (!available) {
+        setHistoricalPrepareMessage("La conciliación no quedó disponible en esta sesión. La importación sigue bloqueada hasta la siguiente fase.", "warning")
+        return
+    }
+    if (conciliated > 0) {
+        setHistoricalPrepareMessage("Se encontraron coincidencias de aspirantes. La importación podrá habilitarse en la siguiente fase.", "info")
+        return
+    }
+    if (pendingReview > 0) {
+        setHistoricalPrepareMessage("Hay filas pendientes de revisión por falta de coincidencia o múltiples candidatos. La importación sigue bloqueada.", "warning")
+        return
+    }
+    setHistoricalPrepareMessage("El archivo quedó validado, pero la importación real aún no está habilitada en esta fase.", "info")
 }
 
 function bindHistoricalImportEvents() {
@@ -5538,6 +5912,7 @@ function bindHistoricalImportEvents() {
         syncHistoricalMappingFromSelectors()
         renderHistoricalImportMapping()
         setHistoricalImportMessage("Mapeo actualizado. Vuelve a validar el archivo para refrescar el preview.", "info")
+        updateHistoricalActionState()
     })
 }
 
@@ -6207,7 +6582,9 @@ window.onload = async () => {
     bindHistoricalImportEvents()
     renderHistoricalImportMapping()
     resetHistoricalImportStats()
+    resetHistoricalReconciliation()
     renderHistoricalPreview([])
+    updateHistoricalActionState()
     await cargarLuizLabsDesdeStorage()
     renderTenantSelector()
     cargarSesionAdminDesdeStorage()

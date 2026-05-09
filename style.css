@@ -2000,7 +2000,7 @@ select {
 }
 
 .historical-preview-wrap table {
-  min-width: 920px;
+  min-width: 1360px;
 }
 
 .historical-row-state {
@@ -2052,6 +2052,34 @@ select {
   min-width: 220px;
   color: #51657f;
   line-height: 1.45;
+}
+
+.historical-reconciliation-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 148px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.historical-reconciliation-state.is-conciliated {
+  background: rgba(13, 107, 77, 0.1);
+  color: #0d6b4d;
+}
+
+.historical-reconciliation-state.is-no-match,
+.historical-reconciliation-state.is-multiple {
+  background: rgba(180, 83, 9, 0.12);
+  color: #9a5208;
+}
+
+.historical-reconciliation-state.is-pending {
+  background: #eef4ff;
+  color: #40618f;
 }
 
 @media (max-width: 760px) {

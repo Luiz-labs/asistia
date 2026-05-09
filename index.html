@@ -727,6 +727,9 @@
                       <th>UBO</th>
                       <th>Nombre completo</th>
                       <th>Sección</th>
+                      <th>Estado conciliación</th>
+                      <th>DNI sugerido</th>
+                      <th>Aspirante encontrado</th>
                       <th>Observación</th>
                     </tr>
                   </thead>
@@ -736,8 +739,33 @@
             </section>
 
             <section class="course-module historical-import-block">
-              <h4>5. Acción</h4>
-              <p class="hint course-module-hint">En esta fase no se insertan datos en Supabase. Solo se habilita el archivo para una fase posterior.</p>
+              <h4>5. Trazabilidad y conciliación</h4>
+              <p class="hint course-module-hint">AsistIA intenta asociar cada fila histórica con un aspirante existente del tenant activo para sugerir el DNI antes de una futura importación.</p>
+              <div class="historical-kpi-grid">
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Conciliados automáticamente</span>
+                  <strong id="historicalConciliationConciliated">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Sin coincidencia</span>
+                  <strong id="historicalConciliationNoMatch">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Múltiples coincidencias</span>
+                  <strong id="historicalConciliationMultiple">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Pendientes revisión</span>
+                  <strong id="historicalConciliationPending">0</strong>
+                </div>
+              </div>
+              <p id="historicalReconciliationStatus" class="course-inline-msg course-inline-msg--info" role="status"
+                aria-live="polite">La conciliación se ejecutará después de validar el archivo.</p>
+            </section>
+
+            <section class="course-module historical-import-block">
+              <h4>6. Acción</h4>
+              <p id="historicalActionHint" class="hint course-module-hint">En esta fase no se insertan datos en Supabase. Solo se habilita el archivo para una fase posterior.</p>
               <div class="config-actions">
                 <button type="button" id="historicalPrepareButton" onclick="prepararImportacionHistorica()" disabled>Preparar importación</button>
               </div>
