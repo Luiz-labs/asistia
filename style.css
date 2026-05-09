@@ -2186,6 +2186,18 @@ select {
   font-size: 12px;
 }
 
+.historical-import-summary[hidden] {
+  display: none !important;
+}
+
+.historical-import-summary {
+  margin-top: 14px;
+}
+
+.historical-import-summary strong {
+  word-break: break-word;
+}
+
 @media (max-width: 760px) {
   #luizInstLogoFile {
     min-width: 100%;

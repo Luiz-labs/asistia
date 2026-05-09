@@ -772,6 +772,32 @@
               </div>
               <p id="historicalPrepareMessage" class="course-inline-msg course-inline-msg--info" role="status"
                 aria-live="polite">La acción se habilitará después de validar el archivo.</p>
+              <div id="historicalImportSummary" class="historical-kpi-grid historical-import-summary" hidden>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Importados</span>
+                  <strong id="historicalImportSummaryImported">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Omitidos por duplicado</span>
+                  <strong id="historicalImportSummaryDuplicate">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Omitidos por no conciliado</span>
+                  <strong id="historicalImportSummarySkippedNotConciliated">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Omitidos por observación/error</span>
+                  <strong id="historicalImportSummarySkippedObserved">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Fallidos</span>
+                  <strong id="historicalImportSummaryFailed">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Import batch ID</span>
+                  <strong id="historicalImportSummaryBatchId">-</strong>
+                </div>
+              </div>
             </section>
           </div>
         </div>

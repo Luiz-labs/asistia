@@ -4958,6 +4958,15 @@ function createHistoricalImportState() {
             searchTerm: "",
             searchResults: []
         },
+        importing: false,
+        importSummary: {
+            imported: 0,
+            duplicate: 0,
+            skippedNotConciliated: 0,
+            skippedObserved: 0,
+            failed: 0,
+            batchId: ""
+        },
         stats: {
             total: 0,
             valid: 0,
@@ -4998,7 +5007,14 @@ function getHistoricalImportElements() {
         reconciliationPending: document.getElementById("historicalConciliationPending"),
         prepareButton: document.getElementById("historicalPrepareButton"),
         prepareMessage: document.getElementById("historicalPrepareMessage"),
-        actionHint: document.getElementById("historicalActionHint")
+        actionHint: document.getElementById("historicalActionHint"),
+        importResult: document.getElementById("historicalImportSummary"),
+        importResultImported: document.getElementById("historicalImportSummaryImported"),
+        importResultDuplicate: document.getElementById("historicalImportSummaryDuplicate"),
+        importResultSkippedNotConciliated: document.getElementById("historicalImportSummarySkippedNotConciliated"),
+        importResultSkippedObserved: document.getElementById("historicalImportSummarySkippedObserved"),
+        importResultFailed: document.getElementById("historicalImportSummaryFailed"),
+        importResultBatchId: document.getElementById("historicalImportSummaryBatchId")
     }
 }
 
@@ -5119,10 +5135,11 @@ function syncHistoricalReconciliationUI() {
     const tone = summary.pendingReview ? "warning" : "ok"
     const message = summary.conciliated
         ? summary.manual
-            ? `Conciliación actualizada: ${summary.automatic} automática(s) y ${summary.manual} manual(es). La importación podrá habilitarse en la siguiente fase.`
-            : "Se encontraron coincidencias de aspirantes. La importación podrá habilitarse en la siguiente fase."
+            ? `Conciliación actualizada: ${summary.automatic} automática(s) y ${summary.manual} manual(es). Ya puedes importar los registros conciliados válidos.`
+            : "Se encontraron coincidencias de aspirantes. Ya puedes importar los registros conciliados válidos."
         : "No se encontraron conciliaciones automáticas. La revisión manual quedará para la siguiente fase."
     renderHistoricalReconciliation(summary, tone, message)
+    updateHistoricalActionState()
 }
 
 function hasHistoricalDniMapping() {
@@ -5133,10 +5150,86 @@ function getHistoricalValidPreviewRows() {
     return (historicalImportState.preview || []).filter(row => row.status === "valido")
 }
 
+function isHistoricalImportEligibleRow(row = {}) {
+    return row.status === "valido" &&
+        (row.conciliacionEstado === "conciliado" || row.conciliacionEstado === "manual") &&
+        !!normalizeHistoricalDni(row.dniSugerido) &&
+        !!String(row.fecha || "").trim() &&
+        !!String(row.hora || "").trim() &&
+        !!normalizeHistoricalUbo(row.ubo) &&
+        !!String(row.aspiranteEncontrado || row.nombreCompleto || "").trim()
+}
+
+function getHistoricalImportableRows() {
+    return (historicalImportState.preview || []).filter(isHistoricalImportEligibleRow)
+}
+
+function buildHistoricalImportSummaryBase() {
+    const preview = historicalImportState.preview || []
+    return {
+        imported: 0,
+        duplicate: 0,
+        skippedNotConciliated: preview.filter(row =>
+            row.status === "valido" && !isHistoricalImportEligibleRow(row)
+        ).length,
+        skippedObserved: preview.filter(row => row.status !== "valido").length,
+        failed: 0,
+        batchId: ""
+    }
+}
+
+function resetHistoricalImportSummary() {
+    historicalImportState.importSummary = {
+        imported: 0,
+        duplicate: 0,
+        skippedNotConciliated: 0,
+        skippedObserved: 0,
+        failed: 0,
+        batchId: ""
+    }
+    const {
+        importResult,
+        importResultImported,
+        importResultDuplicate,
+        importResultSkippedNotConciliated,
+        importResultSkippedObserved,
+        importResultFailed,
+        importResultBatchId
+    } = getHistoricalImportElements()
+    if (importResult) importResult.hidden = true
+    if (importResultImported) importResultImported.innerText = "0"
+    if (importResultDuplicate) importResultDuplicate.innerText = "0"
+    if (importResultSkippedNotConciliated) importResultSkippedNotConciliated.innerText = "0"
+    if (importResultSkippedObserved) importResultSkippedObserved.innerText = "0"
+    if (importResultFailed) importResultFailed.innerText = "0"
+    if (importResultBatchId) importResultBatchId.innerText = "-"
+}
+
+function renderHistoricalImportSummary(summary = {}) {
+    const {
+        importResult,
+        importResultImported,
+        importResultDuplicate,
+        importResultSkippedNotConciliated,
+        importResultSkippedObserved,
+        importResultFailed,
+        importResultBatchId
+    } = getHistoricalImportElements()
+    if (!importResult) return
+    importResult.hidden = false
+    if (importResultImported) importResultImported.innerText = String(summary.imported || 0)
+    if (importResultDuplicate) importResultDuplicate.innerText = String(summary.duplicate || 0)
+    if (importResultSkippedNotConciliated) importResultSkippedNotConciliated.innerText = String(summary.skippedNotConciliated || 0)
+    if (importResultSkippedObserved) importResultSkippedObserved.innerText = String(summary.skippedObserved || 0)
+    if (importResultFailed) importResultFailed.innerText = String(summary.failed || 0)
+    if (importResultBatchId) importResultBatchId.innerText = String(summary.batchId || "-")
+}
+
 function updateHistoricalActionState() {
     const { prepareButton, actionHint } = getHistoricalImportElements()
     if (!prepareButton || !actionHint) return
     const canValidate = !!(historicalImportState.validated && historicalImportState.preview.length)
+    const importableRows = getHistoricalImportableRows()
 
     if (!canValidate) {
         prepareButton.disabled = true
@@ -5145,9 +5238,18 @@ function updateHistoricalActionState() {
         return
     }
 
+    if (historicalImportState.importing) {
+        prepareButton.disabled = true
+        prepareButton.innerText = "Importando..."
+        actionHint.innerText = "La importación histórica está en progreso. No cierres esta vista hasta que termine."
+        return
+    }
+
     prepareButton.disabled = false
-    prepareButton.innerText = "Preparar importación"
-    actionHint.innerText = "La importación real seguirá bloqueada hasta la siguiente fase. Esta vista solo concilia identidad y enriquece el preview."
+    prepareButton.innerText = importableRows.length ? "Importar registros conciliados" : "Preparar importación"
+    actionHint.innerText = importableRows.length
+        ? `Hay ${importableRows.length} registro(s) conciliado(s) listos para importar sin sobrescribir datos existentes.`
+        : "La importación real requiere filas válidas, conciliadas y con DNI sugerido."
 }
 
 function resetHistoricalImportStats() {
@@ -5347,6 +5449,7 @@ function syncHistoricalMappingFromSelectors() {
     historicalImportState.preview = []
     renderHistoricalPreview([])
     resetHistoricalReconciliation()
+    resetHistoricalImportSummary()
     setHistoricalPrepareMessage("La acción se habilitará después de validar el archivo.", "info")
     updateHistoricalActionState()
 }
@@ -5684,8 +5787,222 @@ function seleccionarAspiranteHistoricoManual(resultIndex) {
 
     patchHistoricalPreviewRow(row)
     syncHistoricalReconciliationUI()
+    resetHistoricalImportSummary()
     setHistoricalPrepareMessage("Se actualizó la fila manualmente. La importación podrá habilitarse en la siguiente fase.", "info")
     cerrarModal()
+}
+
+function resolveHistoricalImportBatchId() {
+    if (window.crypto?.randomUUID) return window.crypto.randomUUID()
+    return `hist_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+}
+
+function resolveHistoricalImportActor() {
+    const profile = window.currentProfile || null
+    const sesion = obtenerSesionAdminActiva?.() || null
+    const visible = String(profile?.full_name || profile?.email || "").trim()
+    if (visible) return visible
+    const usuarioSesion = String(sesion?.usuario || "").trim()
+    if (usuarioSesion) return usuarioSesion
+    try {
+        if (window.usuarioActual?.usuario) return String(window.usuarioActual.usuario).trim() || null
+    } catch (_) { }
+    return null
+}
+
+function resolveHistoricalTimestampLocal(fecha, hora) {
+    const fechaOk = String(fecha || "").trim()
+    const horaOk = String(hora || "").trim().slice(0, 8)
+    if (!fechaOk || !horaOk) return null
+    return `${fechaOk}T${horaOk}`
+}
+
+function resolveHistoricalTipoJornada(fecha) {
+    return obtenerDiaSemanaEs(fecha) === "domingo" ? "DOMINICAL" : "SECCION"
+}
+
+function buildHistoricalAttendancePayload(row, batchId, importMeta = {}) {
+    const cursoId = Number.isFinite(Number(cursoBaseActual?.id)) ? Number(cursoBaseActual.id) : null
+    return {
+        dni: normalizeHistoricalDni(row.dniSugerido),
+        nombre: String(row.aspiranteEncontrado || row.nombreCompleto || "").trim(),
+        ubo: normalizeHistoricalUbo(row.ubo),
+        fecha: String(row.fecha || "").trim(),
+        hora: String(row.hora || "").trim().slice(0, 8),
+        seccion: String(row.seccion || "").trim() || null,
+        tenant_id: String(tenantActivoId || "").trim().toLowerCase(),
+        estado: "registrado",
+        curso_id: cursoId,
+        tipo_jornada: resolveHistoricalTipoJornada(row.fecha),
+        device_id: "importacion_historica",
+        timestamp_local: resolveHistoricalTimestampLocal(row.fecha, row.hora),
+        origen_registro: "importacion_historica",
+        archivo_origen: importMeta.fileName || null,
+        import_batch_id: batchId,
+        importado_en: importMeta.importedAt || new Date().toISOString(),
+        importado_por: importMeta.importedBy || null
+    }
+}
+
+function isHistoricalDuplicateInsertError(error) {
+    const message = String(error?.message || "")
+    const code = String(error?.code || "")
+    return code === "23505" || /duplicate key|unica_dni_por_dia|unique/i.test(message)
+}
+
+async function fetchHistoricalExistingAttendanceKeys(rows = []) {
+    if (!rows.length) return new Set()
+
+    const fechas = rows.map(row => String(row.fecha || "")).filter(Boolean).sort()
+    const fechaMin = fechas[0] || ""
+    const fechaMax = fechas[fechas.length - 1] || ""
+    let data = []
+    let error = null
+
+    let query = withTenantScope(
+        supabaseClient
+            .from("asistencias")
+            .select("dni,fecha,tenant_id")
+            .gte("fecha", fechaMin)
+            .lte("fecha", fechaMax)
+    )
+
+    ; ({ data, error } = await query)
+
+    if (error && /tenant_id/i.test(String(error.message || ""))) {
+        const fallback = await supabaseClient
+            .from("asistencias")
+            .select("dni,fecha")
+            .gte("fecha", fechaMin)
+            .lte("fecha", fechaMax)
+        data = fallback.data || []
+        error = fallback.error
+    }
+
+    if (error) throw error
+
+    return new Set((filtrarDataTenantActivo(data) || []).map(item =>
+        `${normalizeHistoricalDni(item?.dni)}|${String(item?.fecha || "").trim()}`
+    ))
+}
+
+async function insertHistoricalImportChunk(rows = [], batchId, importMeta) {
+    if (!rows.length) return { imported: 0, duplicate: 0, failed: 0 }
+
+    const payload = rows.map(row => buildHistoricalAttendancePayload(row, batchId, importMeta))
+    const { error } = await supabaseClient.from("asistencias").insert(payload)
+
+    if (!error) {
+        return { imported: rows.length, duplicate: 0, failed: 0 }
+    }
+
+    if (rows.length === 1) {
+        return isHistoricalDuplicateInsertError(error)
+            ? { imported: 0, duplicate: 1, failed: 0 }
+            : { imported: 0, duplicate: 0, failed: 1 }
+    }
+
+    let summary = { imported: 0, duplicate: 0, failed: 0 }
+    for (const row of rows) {
+        const unit = await insertHistoricalImportChunk([row], batchId, importMeta)
+        summary.imported += unit.imported
+        summary.duplicate += unit.duplicate
+        summary.failed += unit.failed
+    }
+    return summary
+}
+
+async function refreshHistoricalImportViews() {
+    const jobs = []
+    if (typeof cargarDatos === "function") jobs.push(Promise.resolve().then(() => cargarDatos()))
+    if (typeof cargarDashboard === "function") jobs.push(Promise.resolve().then(() => cargarDashboard()))
+    if (typeof cargarAlertasReporte === "function") jobs.push(Promise.resolve().then(() => cargarAlertasReporte()))
+    if (!jobs.length) return
+    await Promise.allSettled(jobs)
+}
+
+async function importarRegistrosHistoricosConciliados() {
+    if (!haySupabase()) {
+        setHistoricalPrepareMessage("No se pudo importar porque Supabase no está disponible.", "error")
+        return
+    }
+    if (!tenantActivoId) {
+        setHistoricalPrepareMessage("No hay tenant activo para ejecutar la importación histórica.", "error")
+        return
+    }
+
+    const importableRows = getHistoricalImportableRows()
+    if (!importableRows.length) {
+        setHistoricalPrepareMessage("No hay registros conciliados válidos disponibles para importar.", "warning")
+        return
+    }
+
+    const ok = confirm(`Se importarán ${importableRows.length} registros históricos conciliados. Esta acción insertará datos en AsistIA. ¿Deseas continuar?`)
+    if (!ok) return
+
+    historicalImportState.importing = true
+    resetHistoricalImportSummary()
+    updateHistoricalActionState()
+    setHistoricalPrepareMessage("Importación histórica en progreso. Verificando duplicados existentes…", "info")
+
+    const summary = buildHistoricalImportSummaryBase()
+    const batchId = resolveHistoricalImportBatchId()
+    summary.batchId = batchId
+
+    const importMeta = {
+        fileName: String(historicalImportState.file?.name || "").trim() || null,
+        importedAt: new Date().toISOString(),
+        importedBy: resolveHistoricalImportActor()
+    }
+
+    try {
+        const existingKeys = await fetchHistoricalExistingAttendanceKeys(importableRows)
+        const toInsert = []
+
+        importableRows.forEach(row => {
+            const key = `${normalizeHistoricalDni(row.dniSugerido)}|${String(row.fecha || "").trim()}`
+            if (existingKeys.has(key)) {
+                summary.duplicate += 1
+                return
+            }
+            toInsert.push(row)
+        })
+
+        for (let index = 0; index < toInsert.length; index += 100) {
+            const chunk = toInsert.slice(index, index + 100)
+            const chunkSummary = await insertHistoricalImportChunk(chunk, batchId, importMeta)
+            summary.imported += chunkSummary.imported
+            summary.duplicate += chunkSummary.duplicate
+            summary.failed += chunkSummary.failed
+        }
+
+        historicalImportState.importSummary = summary
+        renderHistoricalImportSummary(summary)
+
+        registrarActividad("asistencias_importacion_historica", {
+            archivo: importMeta.fileName,
+            importados: summary.imported,
+            duplicados: summary.duplicate,
+            fallidos: summary.failed,
+            import_batch_id: batchId
+        }, { tenantId: tenantActivoId })
+
+        await refreshHistoricalImportViews()
+
+        setHistoricalPrepareMessage(
+            `Importación finalizada: ${summary.imported} importado(s), ${summary.duplicate} omitido(s) por duplicado, ${summary.skippedNotConciliated} no conciliado(s), ${summary.skippedObserved} observado(s)/error y ${summary.failed} fallido(s).`,
+            summary.failed ? "warning" : "ok"
+        )
+    } catch (error) {
+        console.error("Error en importación histórica:", error)
+        summary.failed += importableRows.length
+        historicalImportState.importSummary = summary
+        renderHistoricalImportSummary(summary)
+        setHistoricalPrepareMessage(`No se pudo completar la importación histórica: ${error.message || "error desconocido"}`, "error")
+    } finally {
+        historicalImportState.importing = false
+        updateHistoricalActionState()
+    }
 }
 
 function filterHistoricalCandidatesByContext(candidates = [], row = {}) {
@@ -6035,10 +6352,12 @@ async function validateHistoricalRows() {
         stats.invalidDates || stats.missingUbo || stats.incompleteName ? "warning" : "ok"
     )
     setHistoricalPrepareMessage(
-        historicalImportState.reconciliation.conciliated > 0
-            ? "Se encontraron coincidencias de aspirantes. La importación podrá habilitarse en la siguiente fase."
-            : "Preview validado. La importación real seguirá deshabilitada hasta la siguiente fase.",
-        historicalImportState.reconciliation.conciliated > 0 ? "info" : "warning"
+        getHistoricalImportableRows().length > 0
+            ? `Hay ${getHistoricalImportableRows().length} registro(s) conciliado(s) listo(s) para importar.`
+            : historicalImportState.reconciliation.conciliated > 0
+                ? "Hay conciliaciones, pero todavía faltan campos obligatorios para importar."
+                : "Preview validado. La importación real requiere conciliación previa.",
+        getHistoricalImportableRows().length > 0 ? "info" : "warning"
     )
     updateHistoricalActionState()
 }
@@ -6051,6 +6370,7 @@ async function cargarArchivoHistorico(file) {
     historicalImportState.file = file
     resetHistoricalImportStats()
     resetHistoricalReconciliation()
+    resetHistoricalImportSummary()
     renderHistoricalPreview([])
     setHistoricalPrepareMessage("La acción se habilitará después de validar el archivo.", "info")
     updateHistoricalActionState()
@@ -6110,6 +6430,16 @@ async function validarArchivoHistorico() {
 async function prepararImportacionHistorica() {
     if (!historicalImportState.validated || !historicalImportState.preview.length) {
         setHistoricalPrepareMessage("Primero valida un archivo con registros listos para revisión.", "warning")
+        return
+    }
+
+    if (historicalImportState.importing) {
+        setHistoricalPrepareMessage("La importación histórica ya está en progreso.", "warning")
+        return
+    }
+
+    if (getHistoricalImportableRows().length > 0) {
+        await importarRegistrosHistoricosConciliados()
         return
     }
 
@@ -6840,6 +7170,7 @@ window.onload = async () => {
     renderHistoricalImportMapping()
     resetHistoricalImportStats()
     resetHistoricalReconciliation()
+    resetHistoricalImportSummary()
     renderHistoricalPreview([])
     updateHistoricalActionState()
     await cargarLuizLabsDesdeStorage()
