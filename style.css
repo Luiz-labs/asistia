@@ -105,6 +105,29 @@ h2 {
   min-width: 0;
 }
 
+.support-link-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  background: rgba(255, 255, 255, 0.82);
+  color: #2859b8;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
+}
+
+.support-link-pill:hover {
+  background: #f5f9ff;
+  border-color: rgba(37, 99, 235, 0.22);
+  color: #1d4ed8;
+  transform: translateY(-1px);
+}
+
 .header-brand {
   display: flex;
   align-items: center;
@@ -4599,6 +4622,17 @@ body {
   color: #86868b;
   border-top: 1px solid #f0f0f2;
   margin-top: auto;
+}
+
+.main-footer a {
+  color: #2859b8;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.main-footer a:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
 }
 
 .icon-btn-with-text {
