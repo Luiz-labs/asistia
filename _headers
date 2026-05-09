@@ -40,6 +40,12 @@
   Pragma: no-cache
   Expires: 0
 
+/staff-asistencia/index.html
+
+  Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate
+  Pragma: no-cache
+  Expires: 0
+
 /esbas-24/*
 
   Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate
@@ -53,6 +59,12 @@
   Expires: 0
 
 /esbas-24/asistencia/*
+
+  Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate
+  Pragma: no-cache
+  Expires: 0
+
+/esbas-24/staff-asistencia/*
 
   Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate
   Pragma: no-cache

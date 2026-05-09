@@ -411,6 +411,39 @@
             <div id="tablaAlertasContenido" class="table-empty-copy">Sin alertas registradas.</div>
           </div>
 
+          <div class="card section-card section-card-lg">
+            <div class="staff-report-head">
+              <div>
+                <h3 class="section-subtitle">Asistencia Staff</h3>
+                <p class="hint">Módulo separado para APOYO y ADJUNTO. No se mezcla con aspirantes.</p>
+              </div>
+            </div>
+
+            <div class="filtros staff-filtros">
+              <div class="input-date">
+                <input type="date" id="staffReporteDesde">
+              </div>
+
+              <div class="input-date">
+                <input type="date" id="staffReporteHasta">
+              </div>
+
+              <select id="staffReporteTipo" class="filter-select-sm">
+                <option value="">Todos los tipos</option>
+                <option value="APOYO">APOYO</option>
+                <option value="ADJUNTO">ADJUNTO</option>
+              </select>
+
+              <input id="staffReporteUbo" placeholder="UBO origen" autocomplete="off">
+
+              <button type="button" onclick="cargarReportesStaff()">Aplicar</button>
+              <button type="button" class="secondary" onclick="limpiarFiltrosStaffReportes()">Limpiar</button>
+              <button type="button" onclick="exportarReportesStaffExcel()">Exportar Excel</button>
+            </div>
+
+            <div id="tablaStaffReportes" class="staff-report-table table-empty-copy">Sin registros consultados.</div>
+          </div>
+
 
         </div>
 
@@ -625,6 +658,125 @@
               </thead>
               <tbody id="tablaAspirantesCargados"></tbody>
             </table>
+          </div>
+        </div>
+          </div>
+        </details>
+
+        <details class="module-accordion">
+          <summary class="module-accordion-summary">
+            <div class="module-accordion-copy">
+              <h3>Staff de instrucción</h3>
+              <p>Administra el padrón separado de APOYO y ADJUNTO.</p>
+            </div>
+            <div class="module-accordion-meta">
+              <span class="module-accordion-icon" aria-hidden="true"></span>
+            </div>
+          </summary>
+          <div class="module-accordion-body">
+        <div class="card config-card">
+          <div class="course-module" id="staffModuleGestion">
+            <div class="staff-config-head">
+              <div>
+                <h4>Registro de staff</h4>
+                <p class="hint course-module-hint">Usa Código de Bombero como identificador único institucional. No se usa DNI.</p>
+              </div>
+              <div id="staffPreviewMini" class="staff-preview-mini" hidden></div>
+            </div>
+            <div id="staffEditBanner" class="course-edit-banner" hidden>
+              <span class="course-edit-badge">Modo edición</span>
+              <span class="course-edit-banner-text">Estás editando a: <strong id="staffEditLabel"></strong></span>
+            </div>
+            <p id="msgStaffInstruccion" class="course-inline-msg" role="status" aria-live="polite"></p>
+            <div class="config-grid staff-config-grid">
+              <div>
+                <label for="staffCodigoBombero">Código de Bombero</label>
+                <input id="staffCodigoBombero" placeholder="Ejemplo: A17200" autocomplete="off">
+              </div>
+              <div>
+                <label for="staffNombres">Nombres</label>
+                <input id="staffNombres" placeholder="Nombres" autocomplete="off">
+              </div>
+              <div>
+                <label for="staffApellidos">Apellidos</label>
+                <input id="staffApellidos" placeholder="Apellidos" autocomplete="off">
+              </div>
+              <div>
+                <label for="staffGrado">Grado</label>
+                <input id="staffGrado" placeholder="Grado" autocomplete="off">
+              </div>
+              <div>
+                <label for="staffUboOrigen">UBO origen</label>
+                <input id="staffUboOrigen" placeholder="UBO origen" autocomplete="off">
+              </div>
+              <div>
+                <label for="staffTipo">Tipo staff</label>
+                <select id="staffTipo">
+                  <option value="APOYO">APOYO</option>
+                  <option value="ADJUNTO">ADJUNTO</option>
+                </select>
+              </div>
+              <div>
+                <label for="staffCelular">Celular</label>
+                <input id="staffCelular" placeholder="Celular" autocomplete="off">
+              </div>
+              <div>
+                <label for="staffCorreo">Correo</label>
+                <input id="staffCorreo" type="email" placeholder="Correo" autocomplete="off">
+              </div>
+              <div>
+                <label>Estado</label>
+                <label class="toggle-wrap">
+                  <input id="staffActivo" type="checkbox" checked>
+                  <span>Activo</span>
+                </label>
+              </div>
+            </div>
+            <div class="course-actions">
+              <button type="button" id="btnStaffPrimary" onclick="guardarStaffInstruccion()">GUARDAR STAFF</button>
+              <button type="button" class="secondary" id="btnStaffCancel" onclick="cancelarEdicionStaffInstruccion()">Limpiar formulario</button>
+            </div>
+          </div>
+
+          <div class="course-module">
+            <div class="staff-toolbar">
+              <div>
+                <h4>Listado de staff</h4>
+                <p class="hint course-module-hint">Solo integra APOYO y ADJUNTO. El campo foto se muestra solo si ya existe en <code>foto_url</code>.</p>
+              </div>
+              <button type="button" class="secondary" onclick="cargarStaffInstruccion()">Refrescar</button>
+            </div>
+            <div class="config-row">
+              <input id="staffFiltroTexto" placeholder="Buscar por código, nombre, grado o UBO" oninput="renderStaffInstruccion()">
+              <select id="staffFiltroTipo" onchange="renderStaffInstruccion()">
+                <option value="">Todos los tipos</option>
+                <option value="APOYO">APOYO</option>
+                <option value="ADJUNTO">ADJUNTO</option>
+              </select>
+              <select id="staffFiltroEstado" onchange="renderStaffInstruccion()">
+                <option value="">Todos los estados</option>
+                <option value="activo">Activos</option>
+                <option value="inactivo">Inactivos</option>
+              </select>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Staff</th>
+                    <th>Código</th>
+                    <th>Grado</th>
+                    <th>UBO</th>
+                    <th>Tipo</th>
+                    <th>Celular</th>
+                    <th>Correo</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tablaStaffInstruccion"></tbody>
+              </table>
+            </div>
           </div>
         </div>
           </div>

@@ -230,8 +230,11 @@ let editSedeUboIndex = -1
 let editUsuarioIndex = null
 let usuariosAdmin = []
 let cacheReportes = []
+let cacheReportesStaff = []
 let cacheDashboard = []
 let cacheRiesgoUbo = []
+let staffInstruccionCache = []
+let editStaffInstruccionId = null
 let vistaAdminActual = "reportes"
 let vistaLuizLabsActual = "instituciones"
 const HISTORICAL_IMPORT_FIELDS = Object.freeze([
@@ -4142,10 +4145,14 @@ function aplicarRangoMesActualEnFiltros() {
     const elFechaHasta = document.getElementById("fechaHasta")
     const elDashDesde = document.getElementById("dashDesde")
     const elDashHasta = document.getElementById("dashHasta")
+    const elStaffDesde = document.getElementById("staffReporteDesde")
+    const elStaffHasta = document.getElementById("staffReporteHasta")
     if (elFechaDesde) elFechaDesde.value = from
     if (elFechaHasta) elFechaHasta.value = to
     if (elDashDesde) elDashDesde.value = from
     if (elDashHasta) elDashHasta.value = to
+    if (elStaffDesde) elStaffDesde.value = from
+    if (elStaffHasta) elStaffHasta.value = to
 }
 
 function mostrarPasoMovil(paso) {
@@ -4461,6 +4468,26 @@ function exportarReportesExcel() {
     }))
 
     descargarExcelDesdeJSON("reportes_asistencia.xlsx", rows)
+}
+
+function exportarReportesStaffExcel() {
+    if (!cacheReportesStaff.length) {
+        alert("No hay datos de staff para exportar")
+        return
+    }
+
+    const rows = cacheReportesStaff.map(r => ({
+        Fecha: r.fecha || "",
+        Hora_Ingreso: r.hora_ingreso || "",
+        Codigo: r.codigo_bombero || "",
+        Nombre: r.nombre || "",
+        Grado: r.grado || "",
+        UBO_Origen: r.ubo_origen || "",
+        Tipo_Staff: r.tipo_staff || "",
+        Jornada: r.jornada || ""
+    }))
+
+    descargarExcelDesdeJSON("reportes_staff_asistencia.xlsx", rows)
 }
 
 function exportarRiesgoUboExcel() {
@@ -6871,6 +6898,493 @@ function mostrarMsgCursoModulo(elId, texto, tipo = "") {
     }
 }
 
+function normalizarCodigoBombero(valor) {
+    return String(valor || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20)
+}
+
+function normalizarTextoSimple(valor) {
+    return String(valor || "").trim()
+}
+
+function normalizarStaffRow(row) {
+    return {
+        id: String(row?.id || "").trim(),
+        tenant_id: String(row?.tenant_id || "").trim().toLowerCase(),
+        curso_id: row?.curso_id == null ? null : Number(row.curso_id),
+        codigo_bombero: normalizarCodigoBombero(row?.codigo_bombero),
+        nombres: normalizarTextoSimple(row?.nombres),
+        apellidos: normalizarTextoSimple(row?.apellidos),
+        grado: normalizarTextoSimple(row?.grado),
+        ubo_origen: normalizarTextoSimple(row?.ubo_origen),
+        tipo_staff: normalizarTextoSimple(row?.tipo_staff).toUpperCase() || "APOYO",
+        celular: normalizarTextoSimple(row?.celular),
+        correo: normalizarTextoSimple(row?.correo),
+        foto_url: normalizarTextoSimple(row?.foto_url),
+        activo: row?.activo !== false
+    }
+}
+
+function obtenerNombreCompletoStaff(row) {
+    return `${normalizarTextoSimple(row?.nombres)} ${normalizarTextoSimple(row?.apellidos)}`.replace(/\s+/g, " ").trim()
+}
+
+function obtenerInicialesStaff(row) {
+    const nombre = obtenerNombreCompletoStaff(row)
+    if (!nombre) return "ST"
+    return nombre
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(part => part[0] || "")
+        .join("")
+        .toUpperCase()
+}
+
+function renderBadgeTipoStaff(tipo) {
+    const limpio = String(tipo || "").trim().toUpperCase()
+    const cls = limpio === "ADJUNTO" ? "badge-staff-adjunto" : "badge-staff-apoyo"
+    return `<span class="badge ${cls}">${limpio || "APOYO"}</span>`
+}
+
+function renderStaffAvatar(row) {
+    const nombre = obtenerNombreCompletoStaff(row) || "Staff"
+    const foto = normalizarTextoSimple(row?.foto_url)
+    if (foto) {
+        return `<img src="${escapeHtml(foto)}" alt="${escapeHtml(nombre)}" class="staff-avatar">`
+    }
+    return `<span class="staff-avatar-placeholder" aria-hidden="true">${escapeHtml(obtenerInicialesStaff(row))}</span>`
+}
+
+function actualizarPreviewStaffFormulario() {
+    const preview = document.getElementById("staffPreviewMini")
+    if (!preview) return
+
+    const draft = {
+        nombres: staffNombres?.value || "",
+        apellidos: staffApellidos?.value || "",
+        grado: staffGrado?.value || "",
+        tipo_staff: staffTipo?.value || "APOYO"
+    }
+    const nombre = obtenerNombreCompletoStaff(draft)
+
+    if (!nombre && !normalizarTextoSimple(draft.grado)) {
+        preview.hidden = true
+        preview.innerHTML = ""
+        return
+    }
+
+    preview.hidden = false
+    preview.innerHTML = `
+      ${renderStaffAvatar(draft)}
+      <div class="staff-cell-copy">
+        <strong>${escapeHtml(nombre || "Nuevo staff")}</strong>
+        <span>${escapeHtml(draft.grado || "Sin grado")} · ${escapeHtml(draft.tipo_staff || "APOYO")}</span>
+      </div>
+    `
+}
+
+function actualizarUIModoEdicionStaffInstruccion() {
+    const banner = document.getElementById("staffEditBanner")
+    const label = document.getElementById("staffEditLabel")
+    const btnPrimary = document.getElementById("btnStaffPrimary")
+    const module = document.getElementById("staffModuleGestion")
+    const item = staffInstruccionCache.find(row => row.id === editStaffInstruccionId)
+    const editando = !!item
+
+    if (banner) banner.hidden = !editando
+    if (label) label.textContent = editando ? `${item.codigo_bombero} · ${obtenerNombreCompletoStaff(item)}` : ""
+    if (btnPrimary) btnPrimary.textContent = editando ? "GUARDAR CAMBIOS" : "GUARDAR STAFF"
+    if (module) module.classList.toggle("course-module--editing", editando)
+}
+
+function limpiarFormStaffInstruccion() {
+    if (staffCodigoBombero) staffCodigoBombero.value = ""
+    if (staffNombres) staffNombres.value = ""
+    if (staffApellidos) staffApellidos.value = ""
+    if (staffGrado) staffGrado.value = ""
+    if (staffUboOrigen) staffUboOrigen.value = ""
+    if (staffTipo) staffTipo.value = "APOYO"
+    if (staffCelular) staffCelular.value = ""
+    if (staffCorreo) staffCorreo.value = ""
+    if (staffActivo) staffActivo.checked = true
+    editStaffInstruccionId = null
+    actualizarPreviewStaffFormulario()
+    actualizarUIModoEdicionStaffInstruccion()
+}
+
+function cancelarEdicionStaffInstruccion() {
+    limpiarFormStaffInstruccion()
+    mostrarMsgCursoModulo("msgStaffInstruccion", "", "")
+}
+
+function poblarFormularioStaffInstruccion(item) {
+    if (!item) return
+    if (staffCodigoBombero) staffCodigoBombero.value = item.codigo_bombero || ""
+    if (staffNombres) staffNombres.value = item.nombres || ""
+    if (staffApellidos) staffApellidos.value = item.apellidos || ""
+    if (staffGrado) staffGrado.value = item.grado || ""
+    if (staffUboOrigen) staffUboOrigen.value = item.ubo_origen || ""
+    if (staffTipo) staffTipo.value = item.tipo_staff || "APOYO"
+    if (staffCelular) staffCelular.value = item.celular || ""
+    if (staffCorreo) staffCorreo.value = item.correo || ""
+    if (staffActivo) staffActivo.checked = item.activo !== false
+    editStaffInstruccionId = item.id
+    actualizarPreviewStaffFormulario()
+    actualizarUIModoEdicionStaffInstruccion()
+}
+
+function editarStaffInstruccion(id) {
+    const item = staffInstruccionCache.find(row => row.id === id)
+    if (!item) return
+    poblarFormularioStaffInstruccion(item)
+    mostrarMsgCursoModulo("msgStaffInstruccion", "", "")
+}
+
+function renderStaffInstruccion() {
+    if (!tablaStaffInstruccion) return
+
+    const filtroTexto = String(staffFiltroTexto?.value || "").trim().toLowerCase()
+    const filtroTipo = String(staffFiltroTipo?.value || "").trim().toUpperCase()
+    const filtroEstado = String(staffFiltroEstado?.value || "").trim().toLowerCase()
+
+    const rows = staffInstruccionCache
+        .filter(item => {
+            if (filtroTipo && item.tipo_staff !== filtroTipo) return false
+            if (filtroEstado === "activo" && item.activo !== true) return false
+            if (filtroEstado === "inactivo" && item.activo !== false) return false
+            if (!filtroTexto) return true
+            const blob = [
+                item.codigo_bombero,
+                item.nombres,
+                item.apellidos,
+                item.grado,
+                item.ubo_origen,
+                item.celular,
+                item.correo
+            ].join(" ").toLowerCase()
+            return blob.includes(filtroTexto)
+        })
+        .sort((a, b) => {
+            if (a.activo !== b.activo) return a.activo ? -1 : 1
+            return `${a.apellidos} ${a.nombres}`.localeCompare(`${b.apellidos} ${b.nombres}`, "es", { sensitivity: "base" })
+        })
+
+    if (!rows.length) {
+        tablaStaffInstruccion.innerHTML = buildEmptyTableRow(
+            9,
+            "Sin staff registrado",
+            "No hay resultados para el filtro aplicado o aun no se ha cargado personal de instruccion.",
+            "🧑‍🚒"
+        )
+        return
+    }
+
+    let html = ""
+    rows.forEach(item => {
+        html += `
+          <tr>
+            <td>
+              <div class="staff-cell">
+                ${renderStaffAvatar(item)}
+                <div class="staff-cell-copy">
+                  <strong>${escapeHtml(obtenerNombreCompletoStaff(item) || "Sin nombre")}</strong>
+                  <span>${escapeHtml(item.grado || "Sin grado")}</span>
+                </div>
+              </div>
+            </td>
+            <td>${escapeHtml(item.codigo_bombero || "-")}</td>
+            <td>${escapeHtml(item.grado || "-")}</td>
+            <td>${escapeHtml(item.ubo_origen || "-")}</td>
+            <td>${renderBadgeTipoStaff(item.tipo_staff)}</td>
+            <td>${escapeHtml(item.celular || "-")}</td>
+            <td>${escapeHtml(item.correo || "-")}</td>
+            <td>${renderBadgeEstado(item.activo !== false)}</td>
+            <td>
+              <div class="table-actions">
+                <button type="button" onclick="editarStaffInstruccion('${item.id}')">Editar</button>
+                <button type="button" class="secondary" onclick="toggleActivoStaffInstruccion('${item.id}', ${item.activo ? "false" : "true"})">
+                  ${item.activo ? "Desactivar" : "Activar"}
+                </button>
+              </div>
+            </td>
+          </tr>
+        `
+    })
+
+    tablaStaffInstruccion.innerHTML = html
+}
+
+async function cargarStaffInstruccion() {
+    if (!tablaStaffInstruccion) return
+    if (!haySupabase() || !tenantActivoId) {
+        tablaStaffInstruccion.innerHTML = buildEmptyTableRow(
+            9,
+            "Sin conexión disponible",
+            "No se pudo preparar el módulo staff porque falta Supabase o el tenant activo.",
+            "⚠️"
+        )
+        return
+    }
+
+    const { data, error } = await withTenantScope(
+        supabaseClient
+            .from("staff_instruccion")
+            .select("*")
+            .order("activo", { ascending: false })
+            .order("apellidos", { ascending: true })
+            .order("nombres", { ascending: true })
+    )
+
+    if (error) {
+        staffInstruccionCache = []
+        tablaStaffInstruccion.innerHTML = buildEmptyTableRow(
+            9,
+            "Tabla staff_instruccion no disponible",
+            esTablaNoExiste(error)
+                ? "Aplica primero el SQL sugerido para habilitar este módulo."
+                : `No se pudo cargar el staff: ${error.message || "error desconocido"}`,
+            "⚠️"
+        )
+        return
+    }
+
+    staffInstruccionCache = filtrarDataTenantActivo(data).map(normalizarStaffRow)
+    renderStaffInstruccion()
+    actualizarUIModoEdicionStaffInstruccion()
+}
+
+async function guardarStaffInstruccion() {
+    if (!haySupabase() || !tenantActivoId) {
+        mostrarMsgCursoModulo("msgStaffInstruccion", "Sin conexión a Supabase o sin tenant activo.", "error")
+        return
+    }
+
+    const codigo = normalizarCodigoBombero(staffCodigoBombero?.value)
+    const nombresValor = normalizarTextoSimple(staffNombres?.value)
+    const apellidosValor = normalizarTextoSimple(staffApellidos?.value)
+    const tipoStaff = String(staffTipo?.value || "APOYO").trim().toUpperCase()
+    const fueEdicion = !!editStaffInstruccionId
+
+    if (staffCodigoBombero) staffCodigoBombero.value = codigo
+
+    if (!codigo) {
+        mostrarMsgCursoModulo("msgStaffInstruccion", "Ingresa el Código de Bombero.", "error")
+        return
+    }
+    if (!nombresValor || !apellidosValor) {
+        mostrarMsgCursoModulo("msgStaffInstruccion", "Completa nombres y apellidos.", "error")
+        return
+    }
+    if (!["APOYO", "ADJUNTO"].includes(tipoStaff)) {
+        mostrarMsgCursoModulo("msgStaffInstruccion", "El tipo staff debe ser APOYO o ADJUNTO.", "error")
+        return
+    }
+
+    const duplicado = staffInstruccionCache.find(item =>
+        item.codigo_bombero === codigo && item.id !== editStaffInstruccionId
+    )
+    if (duplicado) {
+        mostrarMsgCursoModulo("msgStaffInstruccion", "Ya existe otro registro staff con ese Código de Bombero.", "error")
+        return
+    }
+
+    const payload = withTenantPayload({
+        curso_id: Number(cursoActualId || 1) || null,
+        codigo_bombero: codigo,
+        nombres: nombresValor,
+        apellidos: apellidosValor,
+        grado: normalizarTextoSimple(staffGrado?.value) || null,
+        ubo_origen: normalizarTextoSimple(staffUboOrigen?.value) || null,
+        tipo_staff: tipoStaff,
+        celular: normalizarTextoSimple(staffCelular?.value) || null,
+        correo: normalizarTextoSimple(staffCorreo?.value) || null,
+        activo: staffActivo?.checked !== false,
+        updated_at: new Date().toISOString()
+    })
+
+    let error = null
+    if (fueEdicion) {
+        ;({ error } = await withTenantScope(
+            supabaseClient
+                .from("staff_instruccion")
+                .update(payload)
+        ).eq("id", editStaffInstruccionId))
+    } else {
+        ;({ error } = await supabaseClient
+            .from("staff_instruccion")
+            .insert([payload]))
+    }
+
+    if (error) {
+        mostrarMsgCursoModulo(
+            "msgStaffInstruccion",
+            /duplicate key|23505/i.test(String(error.message || ""))
+                ? "Ya existe un staff con ese Código de Bombero en esta institución."
+                : `No se pudo guardar el staff: ${error.message || "error desconocido"}`,
+            "error"
+        )
+        return
+    }
+
+    await cargarStaffInstruccion()
+    await cargarReportesStaff()
+    limpiarFormStaffInstruccion()
+    mostrarMsgCursoModulo(
+        "msgStaffInstruccion",
+        fueEdicion ? "Staff actualizado correctamente." : "Staff registrado correctamente.",
+        "ok"
+    )
+    registrarActividad(
+        fueEdicion ? "staff_instruccion_editado" : "staff_instruccion_creado",
+        { codigoBombero: codigo, tipoStaff },
+        { tenantId: tenantActivoId }
+    )
+}
+
+async function toggleActivoStaffInstruccion(id, siguienteEstado) {
+    if (!haySupabase() || !tenantActivoId) return
+    const item = staffInstruccionCache.find(row => row.id === id)
+    if (!item) return
+
+    const { error } = await withTenantScope(
+        supabaseClient
+            .from("staff_instruccion")
+            .update({
+                activo: !!siguienteEstado,
+                updated_at: new Date().toISOString()
+            })
+    ).eq("id", id)
+
+    if (error) {
+        mostrarMsgCursoModulo("msgStaffInstruccion", `No se pudo actualizar el estado: ${error.message || "error desconocido"}`, "error")
+        return
+    }
+
+    await cargarStaffInstruccion()
+    registrarActividad(
+        siguienteEstado ? "staff_instruccion_activado" : "staff_instruccion_desactivado",
+        { codigoBombero: item.codigo_bombero, tipoStaff: item.tipo_staff },
+        { tenantId: tenantActivoId }
+    )
+}
+
+function renderReportesStaff(data) {
+    if (!tablaStaffReportes) return
+    const rows = Array.isArray(data) ? data.slice() : []
+    cacheReportesStaff = rows
+
+    if (!rows.length) {
+        tablaStaffReportes.innerHTML = buildEmptyStateHTML(
+            "Sin registros de staff",
+            "Ajusta el rango, el tipo o la UBO para consultar asistencias de APOYO y ADJUNTO.",
+            "🗂️"
+        )
+        return
+    }
+
+    let html = `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Hora ingreso</th>
+              <th>Código</th>
+              <th>Nombre</th>
+              <th>Grado</th>
+              <th>UBO origen</th>
+              <th>Tipo staff</th>
+              <th>Jornada</th>
+            </tr>
+          </thead>
+          <tbody>
+    `
+
+    rows.forEach(r => {
+        html += `
+          <tr>
+            <td>${escapeHtml(r.fecha || "")}</td>
+            <td>${escapeHtml(r.hora_ingreso || "")}</td>
+            <td>${escapeHtml(r.codigo_bombero || "")}</td>
+            <td>${escapeHtml(r.nombre || "")}</td>
+            <td>${escapeHtml(r.grado || "-")}</td>
+            <td>${escapeHtml(r.ubo_origen || "-")}</td>
+            <td>${renderBadgeTipoStaff(r.tipo_staff)}</td>
+            <td>${escapeHtml(r.jornada || "-")}</td>
+          </tr>
+        `
+    })
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:10px;font-weight:bold;">Total registros staff: ${rows.length}</div>
+    `
+
+    tablaStaffReportes.innerHTML = html
+}
+
+async function cargarReportesStaff() {
+    if (!tablaStaffReportes) return
+    if (!haySupabase() || !tenantActivoId) {
+        tablaStaffReportes.innerHTML = buildEmptyStateHTML(
+            "Sin conexión disponible",
+            "No se pudo cargar el reporte staff porque falta Supabase o el tenant activo.",
+            "⚠️"
+        )
+        return
+    }
+
+    let q = withTenantScope(
+        supabaseClient
+            .from("staff_asistencias")
+            .select("fecha,hora_ingreso,codigo_bombero,nombre,grado,ubo_origen,tipo_staff,jornada,tenant_id")
+    )
+
+    if (staffReporteDesde?.value) q = q.gte("fecha", staffReporteDesde.value)
+    if (staffReporteHasta?.value) q = q.lte("fecha", staffReporteHasta.value)
+    if (staffReporteTipo?.value) q = q.eq("tipo_staff", staffReporteTipo.value)
+    if (staffReporteUbo?.value) q = q.ilike("ubo_origen", `%${String(staffReporteUbo.value || "").trim()}%`)
+
+    const { data, error } = await q
+        .order("fecha", { ascending: false })
+        .order("hora_ingreso", { ascending: false })
+
+    if (error) {
+        tablaStaffReportes.innerHTML = buildEmptyStateHTML(
+            "Tabla staff_asistencias no disponible",
+            esTablaNoExiste(error)
+                ? "Aplica primero el SQL sugerido para habilitar el reporte staff."
+                : `No se pudo cargar el reporte: ${error.message || "error desconocido"}`,
+            "⚠️"
+        )
+        cacheReportesStaff = []
+        return
+    }
+
+    const rows = filtrarDataTenantActivo(data).map(item => ({
+        fecha: item.fecha || "",
+        hora_ingreso: item.hora_ingreso || "",
+        codigo_bombero: normalizarCodigoBombero(item.codigo_bombero),
+        nombre: normalizarTextoSimple(item.nombre),
+        grado: normalizarTextoSimple(item.grado),
+        ubo_origen: normalizarTextoSimple(item.ubo_origen),
+        tipo_staff: normalizarTextoSimple(item.tipo_staff).toUpperCase(),
+        jornada: normalizarTextoSimple(item.jornada)
+    }))
+    renderReportesStaff(rows)
+}
+
+function limpiarFiltrosStaffReportes() {
+    const { from, to } = obtenerRangoMesActual()
+    if (staffReporteDesde) staffReporteDesde.value = from
+    if (staffReporteHasta) staffReporteHasta.value = to
+    if (staffReporteTipo) staffReporteTipo.value = ""
+    if (staffReporteUbo) staffReporteUbo.value = ""
+    void cargarReportesStaff()
+}
+
 function actualizarUIModoEdicionSeccion() {
     const btn = document.getElementById("btnSecCursoPrimary")
     const btnCancel = document.getElementById("btnSecCursoCancel")
@@ -7281,6 +7795,16 @@ window.onload = async () => {
         } catch (e) {
             console.error("Error cargando aspirantes:", e)
         }
+        try {
+            await cargarStaffInstruccion()
+        } catch (e) {
+            console.error("Error cargando staff de instruccion:", e)
+        }
+        try {
+            await cargarReportesStaff()
+        } catch (e) {
+            console.error("Error cargando reportes staff:", e)
+        }
     } else {
         console.error("Supabase no cargó. Verifica conexión/CDN.")
     }
@@ -7319,6 +7843,27 @@ window.onload = async () => {
             await bootstrapAuthorizedApp();
         }
     }
+
+    ;[
+        "staffCodigoBombero",
+        "staffNombres",
+        "staffApellidos",
+        "staffGrado",
+        "staffUboOrigen",
+        "staffTipo",
+        "staffCelular",
+        "staffCorreo",
+        "staffActivo"
+    ].forEach(id => {
+        const handler = () => {
+            if (id === "staffCodigoBombero" && staffCodigoBombero) {
+                staffCodigoBombero.value = normalizarCodigoBombero(staffCodigoBombero.value)
+            }
+            actualizarPreviewStaffFormulario()
+        }
+        document.getElementById(id)?.addEventListener("input", handler)
+        document.getElementById(id)?.addEventListener("change", handler)
+    })
 
 }
 
@@ -8755,6 +9300,7 @@ function mostrarVista(vista) {
     if (vista === "reportes") {
         vistaReportes.style.display = "block"
         if (!tabla.innerHTML.trim()) cargarDatos()
+        if (!tablaStaffReportes.innerHTML.trim() || /Sin registros consultados/i.test(tablaStaffReportes.innerHTML)) cargarReportesStaff()
     }
 
     if (vista === "config") {
@@ -8762,6 +9308,7 @@ function mostrarVista(vista) {
         cargarUbos()
         cargarConfigCurso()
         cargarAspirantesCargados()
+        cargarStaffInstruccion()
     }
 
     if (vista === "usuarios") {
