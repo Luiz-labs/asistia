@@ -5354,7 +5354,11 @@ function buildHistoricalFullName(apellidos, nombres) {
 }
 
 function buildHistoricalAspiranteDisplayName(record = {}) {
-    return normalizeHistoricalText(record.nombre || record.nombreCompleto || "")
+    return normalizeHistoricalText(
+        record.nombre ||
+        record.nombreCompleto ||
+        `${record.apellidos || ""} ${record.nombres || ""}`
+    )
 }
 
 async function fetchHistoricalAspirantesTenant() {
@@ -5369,12 +5373,12 @@ async function fetchHistoricalAspirantesTenant() {
     let error = null
 
     ; ({ data, error } = await withTenantScope(
-        supabaseClient.from("aspirantes").select("dni,nombre,tenant_id,seccion,ubo")
+        supabaseClient.from("aspirantes").select("dni,nombres,apellidos,tenant_id,ubo,curso_id")
     ))
 
     if (error && /tenant_id/i.test(String(error.message || ""))) {
         const fallback = await withTenantScope(
-            supabaseClient.from("aspirantes").select("dni,nombre,seccion,ubo")
+            supabaseClient.from("aspirantes").select("dni,nombres,apellidos,ubo,curso_id")
         )
         data = (fallback.data || []).map(item => Object.assign({}, item, { tenant_id: tenantActivoId }))
         error = fallback.error
@@ -5402,7 +5406,6 @@ function buildHistoricalAspirantesIndex(rows = []) {
             nombre,
             nombreNormalizado,
             nombreCompacto,
-            seccion: normalizeHistoricalSection(item?.seccion),
             ubo: normalizeHistoricalUbo(item?.ubo)
         }
         all.push(record)
@@ -5422,16 +5425,11 @@ function buildHistoricalAspirantesIndex(rows = []) {
 function filterHistoricalCandidatesByContext(candidates = [], row = {}) {
     if (!candidates.length) return []
     const rowUbo = normalizeHistoricalUbo(row.ubo)
-    const rowSeccion = normalizeHistoricalSection(row.seccion)
 
     let scoped = candidates
     if (rowUbo) {
         const sameUbo = scoped.filter(candidate => candidate.ubo && candidate.ubo === rowUbo)
         if (sameUbo.length) scoped = sameUbo
-    }
-    if (rowSeccion) {
-        const sameSeccion = scoped.filter(candidate => candidate.seccion && candidate.seccion === rowSeccion)
-        if (sameSeccion.length) scoped = sameSeccion
     }
     return scoped
 }
@@ -5473,7 +5471,7 @@ function findHistoricalAspiranteCandidates(row, aspirantesIndex) {
     )
     if (exactByCompact.length) return exactByCompact
 
-    if (!row.ubo && !row.seccion) return []
+    if (!row.ubo) return []
 
     return filterHistoricalCandidatesByContext(aspirantesIndex.all, row).filter(candidate =>
         historicalLimitedLevenshtein(candidate.nombreCompacto, nombreCompacto, 2) <= 2
@@ -5491,7 +5489,7 @@ function buildHistoricalConciliationRow(row, aspirantesIndex) {
             conciliacionClase: "is-conciliated",
             dniSugerido: candidate.dni || row.dni || "",
             aspiranteEncontrado: candidate.nombre || row.nombreCompleto || "",
-            seccion: row.seccion || candidate.seccion || ""
+            seccion: row.seccion || ""
         })
     }
 
