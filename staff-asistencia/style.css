@@ -143,6 +143,16 @@ button {
   font-weight: 600;
 }
 
+.tertiary-btn {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #365b93;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
 .staff-card-shell {
   margin-top: 18px;
   padding: 18px;
@@ -259,6 +269,130 @@ button {
   width: 100%;
 }
 
+.staff-profile-tools {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.staff-profile-form {
+  display: none;
+  width: 100%;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  text-align: left;
+  gap: 12px;
+}
+
+.staff-profile-form.is-open {
+  display: flex;
+  flex-direction: column;
+}
+
+.staff-profile-form-head h3,
+.staff-profile-form-head p {
+  margin: 0;
+}
+
+.staff-profile-form-head h3 {
+  font-size: 1rem;
+  color: #162033;
+}
+
+.staff-profile-form-head p,
+.staff-photo-copy span {
+  color: #5a6780;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.staff-photo-editor {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.staff-photo-preview {
+  width: 76px;
+  height: 76px;
+}
+
+.staff-photo-preview-img,
+.staff-photo-preview-empty {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.staff-photo-preview-img {
+  object-fit: cover;
+  border: 1px solid #dbeafe;
+  background: #fff;
+}
+
+.staff-photo-preview-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+  color: #1d4ed8;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: 1px solid #bfdbfe;
+}
+
+.staff-photo-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.staff-photo-copy strong,
+.staff-profile-field span {
+  font-size: 12px;
+  color: #31507d;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.staff-profile-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.staff-profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inline-form-msg {
+  min-height: 18px;
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.inline-form-msg.error {
+  color: #b12d2d;
+}
+
+.inline-form-msg.ok {
+  color: #1f7a3b;
+}
+
+.staff-profile-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
 .success-shell {
   margin-top: 14px;
   padding: 18px;
@@ -320,6 +454,11 @@ button {
   .staff-card-actions {
     grid-template-columns: 1fr 1fr;
   }
+
+  .staff-profile-grid,
+  .staff-profile-actions {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 430px) {
@@ -360,6 +499,14 @@ button {
 
   .staff-field:last-child {
     font-size: 0.86rem;
+  }
+
+  .staff-photo-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .staff-photo-preview {
+    margin: 0 auto;
   }
 
   .success-shell {

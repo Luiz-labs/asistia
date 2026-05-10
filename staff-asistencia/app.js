@@ -9,6 +9,8 @@ let tenantActivoId = ""
 let cursoActualId = null
 let cursoContextoValido = true
 let staffSeleccionado = null
+let staffPerfilEditando = false
+let staffPerfilGuardando = false
 
 let tenantLabel
 let codigoBomberoInput
@@ -64,6 +66,31 @@ function normalizarTexto(valor) {
     return String(valor || "").trim()
 }
 
+function normalizarCelular(valor) {
+    return String(valor || "").replace(/\D/g, "")
+}
+
+function normalizarCorreo(valor) {
+    return String(valor || "").trim().toLowerCase()
+}
+
+function esCorreoValido(valor) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(valor || ""))
+}
+
+function esCelularValido(valor) {
+    const limpio = normalizarCelular(valor)
+    return !limpio || (limpio.length >= 7 && limpio.length <= 15)
+}
+
+function sanitizeFileName(nombre) {
+    return String(nombre || "foto")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9._-]/g, "_")
+        .replace(/_+/g, "_")
+}
+
 function escapeHtml(value) {
     return String(value || "")
         .replace(/&/g, "&amp;")
@@ -109,6 +136,9 @@ function renderStaffCard(row) {
     const nombre = `${normalizarTexto(row?.nombres)} ${normalizarTexto(row?.apellidos)}`.replace(/\s+/g, " ").trim()
     const tipo = normalizarTexto(row?.tipo_staff).toUpperCase() || "APOYO"
     const badgeClass = tipo === "ADJUNTO" ? "adjunto" : "apoyo"
+    const celular = normalizarTexto(row?.celular)
+    const correo = normalizarTexto(row?.correo)
+    const foto = normalizarTexto(row?.foto_url)
 
     staffCardSection.hidden = false
     staffCardSection.innerHTML = `
@@ -128,6 +158,48 @@ function renderStaffCard(row) {
         <div class="staff-field"><strong>Correo</strong>${escapeHtml(normalizarTexto(row?.correo) || "-")}</div>
       </div>
 
+      <div class="staff-profile-tools">
+        <button id="btnEditarPerfilStaff" class="tertiary-btn" type="button">${staffPerfilEditando ? "Ocultar edición" : "Editar perfil"}</button>
+      </div>
+
+      <form id="staffProfileForm" class="staff-profile-form${staffPerfilEditando ? " is-open" : ""}">
+        <div class="staff-profile-form-head">
+          <div>
+            <h3>Editar perfil</h3>
+            <p>Solo puedes actualizar foto, celular y correo.</p>
+          </div>
+        </div>
+
+        <div class="staff-photo-editor">
+          <div class="staff-photo-preview">
+            ${foto ? `<img src="${escapeHtml(foto)}" alt="${escapeHtml(nombre || "Foto staff")}" class="staff-photo-preview-img">` : `<div class="staff-photo-preview-empty">${escapeHtml(obtenerInicialesStaff(row))}</div>`}
+          </div>
+          <div class="staff-photo-copy">
+            <strong>Foto de perfil</strong>
+            <span>JPG, PNG o WEBP. Máximo 2 MB.</span>
+            <input id="staffFotoFile" type="file" accept="image/jpeg,image/png,image/webp">
+          </div>
+        </div>
+
+        <div class="staff-profile-grid">
+          <label class="staff-profile-field">
+            <span>Celular</span>
+            <input id="staffPerfilCelular" class="text-input" value="${escapeHtml(celular)}" placeholder="Solo números" inputmode="numeric" autocomplete="tel">
+          </label>
+          <label class="staff-profile-field">
+            <span>Correo</span>
+            <input id="staffPerfilCorreo" class="text-input" value="${escapeHtml(correo)}" placeholder="correo@dominio.com" type="email" autocomplete="email">
+          </label>
+        </div>
+
+        <p id="staffProfileMsg" class="inline-form-msg" aria-live="polite"></p>
+
+        <div class="staff-profile-actions">
+          <button id="btnGuardarPerfilStaff" class="primary-btn" type="submit" ${staffPerfilGuardando ? "disabled" : ""}>${staffPerfilGuardando ? "Guardando..." : "Guardar cambios"}</button>
+          <button id="btnCancelarPerfilStaff" class="secondary-btn" type="button" ${staffPerfilGuardando ? "disabled" : ""}>Cancelar</button>
+        </div>
+      </form>
+
       <div class="staff-card-actions">
         <button id="btnRegistrarStaff" class="primary-btn" type="button">Registrar asistencia</button>
         <button id="btnResetStaff" class="secondary-btn" type="button">Registrar otro staff</button>
@@ -136,6 +208,161 @@ function renderStaffCard(row) {
 
     document.getElementById("btnRegistrarStaff")?.addEventListener("click", registrarAsistenciaStaff)
     document.getElementById("btnResetStaff")?.addEventListener("click", resetStaffSeleccionado)
+    document.getElementById("btnEditarPerfilStaff")?.addEventListener("click", toggleEdicionPerfilStaff)
+    document.getElementById("btnCancelarPerfilStaff")?.addEventListener("click", cancelarEdicionPerfilStaff)
+    document.getElementById("staffProfileForm")?.addEventListener("submit", guardarPerfilStaff)
+    document.getElementById("staffPerfilCelular")?.addEventListener("input", () => {
+        const input = document.getElementById("staffPerfilCelular")
+        if (input) input.value = normalizarCelular(input.value)
+    })
+}
+
+function setPerfilMsg(texto, tipo = "") {
+    const el = document.getElementById("staffProfileMsg")
+    if (!el) return
+    el.className = "inline-form-msg"
+    el.textContent = texto || ""
+    if (texto && tipo) el.classList.add(tipo)
+}
+
+function toggleEdicionPerfilStaff() {
+    staffPerfilEditando = !staffPerfilEditando
+    setPerfilMsg("")
+    renderStaffCard(staffSeleccionado)
+}
+
+function cancelarEdicionPerfilStaff() {
+    staffPerfilEditando = false
+    staffPerfilGuardando = false
+    setPerfilMsg("")
+    renderStaffCard(staffSeleccionado)
+}
+
+function obtenerArchivoFotoStaffValido() {
+    const input = document.getElementById("staffFotoFile")
+    const file = input?.files?.[0] || null
+    if (!file) return { ok: true, file: null }
+
+    const tiposPermitidos = ["image/jpeg", "image/png", "image/webp"]
+    if (!tiposPermitidos.includes(file.type)) {
+        return { ok: false, mensaje: "La foto debe ser JPG, PNG o WEBP." }
+    }
+    if (file.size > 2 * 1024 * 1024) {
+        return { ok: false, mensaje: "La foto excede el máximo permitido de 2 MB." }
+    }
+    return { ok: true, file }
+}
+
+async function subirFotoStaff(file) {
+    const bucket = "staff-fotos"
+    const codigo = normalizarCodigoBombero(staffSeleccionado?.codigo_bombero)
+    const tenant = normalizarTexto(tenantActivoId)
+    const timestamp = Date.now()
+    const nombre = sanitizeFileName(file?.name || "foto_staff")
+    const path = `${tenant}/${codigo}/${timestamp}_${nombre}`
+
+    const { error: uploadError } = await supabaseClient.storage
+        .from(bucket)
+        .upload(path, file, {
+            cacheControl: "3600",
+            upsert: false
+        })
+
+    if (uploadError) {
+        throw new Error(
+            /bucket/i.test(String(uploadError.message || ""))
+                ? "No se pudo subir la foto. Verifica que el bucket staff-fotos exista y permita uploads."
+                : `No se pudo subir la foto: ${uploadError.message || "error desconocido"}`
+        )
+    }
+
+    const { data } = supabaseClient.storage.from(bucket).getPublicUrl(path)
+    const publicUrl = normalizarTexto(data?.publicUrl)
+    if (!publicUrl) {
+        throw new Error("La foto se subió, pero no se pudo obtener la URL pública.")
+    }
+    return publicUrl
+}
+
+async function guardarPerfilStaff(event) {
+    event?.preventDefault()
+    if (!staffSeleccionado?.id || !tenantActivoId || !haySupabase()) {
+        setPerfilMsg("No se pudo preparar la edición del perfil.", "error")
+        return
+    }
+
+    const celularInput = document.getElementById("staffPerfilCelular")
+    const correoInput = document.getElementById("staffPerfilCorreo")
+    const celular = normalizarCelular(celularInput?.value)
+    const correo = normalizarCorreo(correoInput?.value)
+    const validacionFoto = obtenerArchivoFotoStaffValido()
+
+    if (celularInput) celularInput.value = celular
+    if (correoInput) correoInput.value = correo
+
+    if (!esCelularValido(celular)) {
+        setPerfilMsg("El celular debe contener solo números y tener entre 7 y 15 dígitos.", "error")
+        return
+    }
+    if (correo && !esCorreoValido(correo)) {
+        setPerfilMsg("Ingresa un correo válido.", "error")
+        return
+    }
+    if (!validacionFoto.ok) {
+        setPerfilMsg(validacionFoto.mensaje, "error")
+        return
+    }
+
+    staffPerfilGuardando = true
+    renderStaffCard(staffSeleccionado)
+    setPerfilMsg("Guardando cambios...", "ok")
+
+    try {
+        let fotoUrl = normalizarTexto(staffSeleccionado?.foto_url) || null
+        if (validacionFoto.file) {
+            fotoUrl = await subirFotoStaff(validacionFoto.file)
+        }
+
+        const payload = {
+            foto_url: fotoUrl,
+            celular: celular || null,
+            correo: correo || null
+        }
+
+        const { data, error } = await supabaseClient
+            .from("staff_instruccion")
+            .update(payload)
+            .eq("id", staffSeleccionado.id)
+            .eq("tenant_id", tenantActivoId)
+            .eq("codigo_bombero", normalizarCodigoBombero(staffSeleccionado.codigo_bombero))
+            .eq("activo", true)
+            .select("*")
+            .maybeSingle()
+
+        if (error) {
+            throw new Error(
+                /policy|rls|permission|row-level/i.test(String(error.message || ""))
+                    ? "No se pudo actualizar el perfil por políticas de seguridad. Revisa el SQL sugerido de Storage/RLS."
+                    : `No se pudo actualizar el perfil: ${error.message || "error desconocido"}`
+            )
+        }
+        if (!data?.id) {
+            throw new Error("No se pudo confirmar la actualización del perfil. Revisa las políticas RLS para staff_instruccion.")
+        }
+
+        staffSeleccionado = {
+            ...staffSeleccionado,
+            ...data
+        }
+        staffPerfilEditando = false
+        staffPerfilGuardando = false
+        renderStaffCard(staffSeleccionado)
+        setMensaje("Perfil actualizado correctamente.", "ok")
+    } catch (error) {
+        staffPerfilGuardando = false
+        renderStaffCard(staffSeleccionado)
+        setPerfilMsg(error.message || "No se pudo actualizar el perfil.", "error")
+    }
 }
 
 function actualizarEstadoVistaStaff(estado = "inicio", detalle = {}) {
@@ -170,6 +397,8 @@ function actualizarEstadoVistaStaff(estado = "inicio", detalle = {}) {
 
 function resetStaffSeleccionado() {
     staffSeleccionado = null
+    staffPerfilEditando = false
+    staffPerfilGuardando = false
     if (staffCardSection) {
         staffCardSection.hidden = true
         staffCardSection.innerHTML = ""
@@ -304,6 +533,8 @@ async function buscarStaffPorCodigo() {
 
     if (!data) {
         staffSeleccionado = null
+        staffPerfilEditando = false
+        staffPerfilGuardando = false
         if (staffCardSection) {
             staffCardSection.hidden = true
             staffCardSection.innerHTML = ""
@@ -313,6 +544,8 @@ async function buscarStaffPorCodigo() {
     }
 
     staffSeleccionado = data
+    staffPerfilEditando = false
+    staffPerfilGuardando = false
     renderStaffCard(data)
     actualizarEstadoVistaStaff("validado")
     setMensaje("Staff validado. Revisa la card y confirma tu ingreso.", "ok")
