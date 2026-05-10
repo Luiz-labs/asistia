@@ -17,6 +17,10 @@ body {
   min-height: 100%;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   font-family: "Sora", sans-serif;
   background:
@@ -122,12 +126,23 @@ body.staff-modal-open {
 }
 
 .public-card[data-staff-state="login"] #staffCardSection,
-.public-card[data-staff-state="login"] #staffSuccessSection {
+.public-card[data-staff-state="login"] #staffSuccessSection,
+.public-card[data-staff-state="login"] #staffProfileModal {
   display: none !important;
 }
 
-.public-card[data-staff-state="validado"] #staffLookupSection,
-.public-card[data-staff-state="registrado"] #staffLookupSection {
+.public-card[data-staff-state="perfil"] #staffLookupSection,
+.public-card[data-staff-state="editar"] #staffLookupSection,
+.public-card[data-staff-state="exito"] #staffLookupSection {
+  display: none !important;
+}
+
+.public-card[data-staff-state="perfil"] #staffSuccessSection,
+.public-card[data-staff-state="editar"] #staffSuccessSection {
+  display: none !important;
+}
+
+.public-card[data-staff-state="exito"] #staffCardSection {
   display: none !important;
 }
 

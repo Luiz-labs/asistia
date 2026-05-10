@@ -12,6 +12,7 @@ let staffSeleccionado = null
 let staffPerfilEditando = false
 let staffPerfilGuardando = false
 let staffSuccessResetTimer = null
+let staffCurrentView = "login"
 
 let tenantLabel
 let codigoBomberoInput
@@ -25,6 +26,76 @@ function setSectionVisible(element, visible, display = "") {
     if (!element) return
     element.hidden = !visible
     element.style.display = visible ? display : "none"
+}
+
+function setStaffView(view, detalle = {}) {
+    staffCurrentView = view
+    console.log("[staff] view:", view)
+
+    if (staffSuccessResetTimer) {
+        clearTimeout(staffSuccessResetTimer)
+        staffSuccessResetTimer = null
+    }
+
+    const publicCard = document.querySelector(".public-card")
+    if (publicCard) {
+        publicCard.dataset.staffState = view
+    }
+
+    if (view === "login") {
+        setSectionVisible(staffLookupSection, true)
+        setSectionVisible(staffCardSection, false)
+        setSectionVisible(staffSuccessSection, false)
+        setSectionVisible(staffProfileModal, false)
+        if (staffProfileModal) staffProfileModal.setAttribute("aria-hidden", "true")
+        document.body.classList.remove("staff-modal-open")
+        if (!detalle.preserveMessage) setMensaje("")
+        if (staffSuccessSection) staffSuccessSection.innerHTML = ""
+        return
+    }
+
+    if (view === "perfil") {
+        setSectionVisible(staffLookupSection, false)
+        setSectionVisible(staffCardSection, true)
+        setSectionVisible(staffSuccessSection, false)
+        setSectionVisible(staffProfileModal, false)
+        if (staffProfileModal) staffProfileModal.setAttribute("aria-hidden", "true")
+        document.body.classList.remove("staff-modal-open")
+        if (staffSuccessSection) staffSuccessSection.innerHTML = ""
+        return
+    }
+
+    if (view === "editar") {
+        setSectionVisible(staffLookupSection, false)
+        setSectionVisible(staffCardSection, true)
+        setSectionVisible(staffSuccessSection, false)
+        setSectionVisible(staffProfileModal, true, "flex")
+        return
+    }
+
+    if (view === "exito") {
+        setSectionVisible(staffLookupSection, false)
+        setSectionVisible(staffCardSection, false)
+        setSectionVisible(staffSuccessSection, true)
+        setSectionVisible(staffProfileModal, false)
+        if (staffProfileModal) staffProfileModal.setAttribute("aria-hidden", "true")
+        document.body.classList.remove("staff-modal-open")
+        if (staffSuccessSection) {
+            const nombre = `${normalizarTexto(detalle.nombres)} ${normalizarTexto(detalle.apellidos)}`.replace(/\s+/g, " ").trim()
+            staffSuccessSection.innerHTML = `
+              <div class="success-badge">Registro exitoso</div>
+              <h3>✅ Asistencia staff registrada correctamente</h3>
+              <div class="success-summary">
+                <div><strong>Nombre</strong><span>${escapeHtml(nombre || "Staff")}</span></div>
+                <div><strong>Hora</strong><span>${escapeHtml(detalle.hora || "--:--:--")}</span></div>
+                <div><strong>Tipo staff</strong><span>${escapeHtml(detalle.tipo_staff || "APOYO")}</span></div>
+              </div>
+            `
+        }
+        staffSuccessResetTimer = setTimeout(() => {
+            resetStaffSeleccionado()
+        }, 3000)
+    }
 }
 
 function haySupabase() {
@@ -219,7 +290,7 @@ function abrirModalPerfilStaff() {
     const correoInput = document.getElementById("staffPerfilCorreo")
     const fotoInput = document.getElementById("staffFotoFile")
     staffPerfilEditando = true
-    setSectionVisible(staffProfileModal, true, "flex")
+    setStaffView("editar")
     staffProfileModal.setAttribute("aria-hidden", "false")
     document.body.classList.add("staff-modal-open")
     if (celularInput) celularInput.value = normalizarTexto(staffSeleccionado?.celular)
@@ -240,6 +311,9 @@ function cerrarModalPerfilStaff() {
     document.body.classList.remove("staff-modal-open")
     setPerfilMsg("")
     actualizarEstadoModalPerfilStaff()
+    if (staffSeleccionado && staffCurrentView !== "exito") {
+        setStaffView("perfil")
+    }
 }
 
 function obtenerArchivoFotoStaffValido() {
@@ -370,57 +444,14 @@ async function guardarPerfilStaff(event) {
     }
 }
 
-function actualizarEstadoVistaStaff(estado = "inicio", detalle = {}) {
-    const esInicio = estado === "inicio"
-    const esValidado = estado === "validado"
-    const esRegistrado = estado === "registrado"
-    const publicCard = document.querySelector(".public-card")
-
-    if (staffSuccessResetTimer) {
-        clearTimeout(staffSuccessResetTimer)
-        staffSuccessResetTimer = null
-    }
-
-    if (publicCard) {
-        publicCard.dataset.staffState = estado
-    }
-
-    if (staffLookupSection) {
-        setSectionVisible(staffLookupSection, esInicio)
-        staffLookupSection.classList.toggle("is-collapsed", !esInicio)
-    }
-    if (staffCardSection) {
-        setSectionVisible(staffCardSection, esValidado)
-        staffCardSection.classList.toggle("is-compact", esValidado)
-        staffCardSection.classList.toggle("is-success", false)
-    }
-    if (staffSuccessSection) {
-        setSectionVisible(staffSuccessSection, esRegistrado)
-        if (esRegistrado) {
-            const nombre = `${normalizarTexto(detalle.nombres)} ${normalizarTexto(detalle.apellidos)}`.replace(/\s+/g, " ").trim()
-            staffSuccessSection.innerHTML = `
-              <div class="success-badge">Registro exitoso</div>
-              <h3>Asistencia staff registrada correctamente</h3>
-              <div class="success-summary">
-                <div><strong>Nombre</strong><span>${escapeHtml(nombre || "Staff")}</span></div>
-                <div><strong>Hora</strong><span>${escapeHtml(detalle.hora || "--:--:--")}</span></div>
-                <div><strong>Tipo staff</strong><span>${escapeHtml(detalle.tipo_staff || "APOYO")}</span></div>
-              </div>
-            `
-            staffSuccessResetTimer = setTimeout(() => {
-                resetStaffSeleccionado()
-            }, 3000)
-        } else {
-            staffSuccessSection.innerHTML = ""
-        }
-    }
-}
-
 function resetStaffSeleccionado() {
     staffSeleccionado = null
     staffPerfilEditando = false
     staffPerfilGuardando = false
-    cerrarModalPerfilStaff()
+    staffCurrentView = "login"
+    document.body.classList.remove("staff-modal-open")
+    setSectionVisible(staffProfileModal, false)
+    if (staffProfileModal) staffProfileModal.setAttribute("aria-hidden", "true")
     if (staffCardSection) {
         setSectionVisible(staffCardSection, false)
         staffCardSection.innerHTML = ""
@@ -437,7 +468,8 @@ function resetStaffSeleccionado() {
         codigoBomberoInput.value = ""
         codigoBomberoInput.focus()
     }
-    setMensaje("")
+    setPerfilMsg("")
+    setStaffView("login")
 }
 
 function obtenerCursoTokenDesdeURL() {
@@ -519,7 +551,7 @@ async function buscarStaffPorCodigo() {
     if (codigoBomberoInput) codigoBomberoInput.value = codigo
 
     if (!codigo) {
-        setMensaje("Ingresa tu Código de Bombero.", "error")
+        setMensaje("Ingresa tu Código CBP.", "error")
         return
     }
     if (!tenantActivoId) {
@@ -561,7 +593,7 @@ async function buscarStaffPorCodigo() {
             setSectionVisible(staffCardSection, false)
             staffCardSection.innerHTML = ""
         }
-        actualizarEstadoVistaStaff("inicio")
+        setStaffView("login", { preserveMessage: true })
         setMensaje("No existe un staff activo con ese Código de Bombero.", "warning")
         return
     }
@@ -570,7 +602,7 @@ async function buscarStaffPorCodigo() {
     staffPerfilEditando = false
     staffPerfilGuardando = false
     renderStaffCard(data)
-    actualizarEstadoVistaStaff("validado")
+    setStaffView("perfil")
     setMensaje("")
 }
 
@@ -633,7 +665,7 @@ async function registrarAsistenciaStaff() {
         return
     }
 
-    actualizarEstadoVistaStaff("registrado", {
+    setStaffView("exito", {
         hora: lima.hora,
         tipo_staff: payload.tipo_staff,
         nombres: staffSeleccionado.nombres,
@@ -692,7 +724,7 @@ async function init() {
     if (!cursoContextoValido) {
         setMensaje("El curso indicado no es válido para esta institución.", "error")
     }
-    actualizarEstadoVistaStaff("inicio")
+    setStaffView("login", { preserveMessage: !cursoContextoValido })
 }
 
 window.addEventListener("load", () => {
