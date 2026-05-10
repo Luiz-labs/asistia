@@ -234,6 +234,8 @@ let cacheReportesStaff = []
 let cacheDashboard = []
 let cacheRiesgoUbo = []
 let staffInstruccionCache = []
+let cacheDashboardStaff = []
+let staffReportExpandedKey = ""
 let editStaffInstruccionId = null
 let vistaAdminActual = "reportes"
 let vistaLuizLabsActual = "instituciones"
@@ -6990,6 +6992,74 @@ function renderBadgeTipoStaff(tipo) {
     return `<span class="badge ${cls}">${limpio || "APOYO"}</span>`
 }
 
+function normalizarFechaLimaISO(fechaBase = new Date()) {
+    return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Lima",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+    }).format(fechaBase)
+}
+
+function obtenerRangoStaffDashboard() {
+    const hoy = normalizarFechaLimaISO(new Date())
+    const base = new Date(`${hoy}T12:00:00-05:00`)
+    const day = base.getDay()
+    const diffToMonday = day === 0 ? 6 : day - 1
+    const mondayThisWeek = new Date(base)
+    mondayThisWeek.setDate(base.getDate() - diffToMonday)
+    const mondayLastWeek = new Date(mondayThisWeek)
+    mondayLastWeek.setDate(mondayThisWeek.getDate() - 7)
+    return {
+        hoy,
+        from: mondayLastWeek.toISOString().slice(0, 10),
+        to: hoy
+    }
+}
+
+function renderStaffAvatarCompact(row) {
+    const foto = normalizarTextoSimple(row?.foto_url)
+    const nombre = normalizarTextoSimple(row?.nombre) || obtenerNombreCompletoStaff(row) || "Staff"
+    if (foto) return `<img src="${escapeHtml(foto)}" alt="${escapeHtml(nombre)}" class="staff-avatar">`
+    return `<span class="staff-avatar-placeholder" aria-hidden="true">${escapeHtml(obtenerInicialesStaff(row))}</span>`
+}
+
+async function cargarFotosStaffPorCodigos(codigos = []) {
+    const unicos = Array.from(new Set((codigos || []).map(c => normalizarCodigoBombero(c)).filter(Boolean)))
+    if (!unicos.length || !haySupabase() || !tenantActivoId) return {}
+
+    const { data, error } = await withTenantScope(
+        supabaseClient
+            .from("staff_instruccion")
+            .select("codigo_bombero,foto_url,nombres,apellidos,grado,tipo_staff,ubo_origen")
+            .in("codigo_bombero", unicos)
+    )
+
+    if (error) {
+        console.warn("No se pudieron cargar fotos staff:", error.message)
+        return {}
+    }
+
+    return (filtrarDataTenantActivo(data) || []).reduce((acc, item) => {
+        const codigo = normalizarCodigoBombero(item.codigo_bombero)
+        if (!codigo) return acc
+        acc[codigo] = {
+            foto_url: normalizarTextoSimple(item.foto_url),
+            nombres: normalizarTextoSimple(item.nombres),
+            apellidos: normalizarTextoSimple(item.apellidos),
+            grado: normalizarTextoSimple(item.grado),
+            tipo_staff: normalizarTextoSimple(item.tipo_staff).toUpperCase(),
+            ubo_origen: normalizarTextoSimple(item.ubo_origen)
+        }
+        return acc
+    }, {})
+}
+
+function toggleHistorialStaffReporte(key) {
+    staffReportExpandedKey = staffReportExpandedKey === key ? "" : key
+    renderReportesStaff(cacheReportesStaff)
+}
+
 function renderStaffAvatar(row) {
     const nombre = obtenerNombreCompletoStaff(row) || "Staff"
     const foto = normalizarTextoSimple(row?.foto_url)
@@ -7350,12 +7420,25 @@ function renderReportesStaff(data) {
               <th>UBO origen</th>
               <th>Tipo staff</th>
               <th>Jornada</th>
+              <th>Historial</th>
             </tr>
           </thead>
           <tbody>
     `
 
-    rows.forEach(r => {
+    const grupos = rows.reduce((acc, row) => {
+        const key = normalizarCodigoBombero(row.codigo_bombero)
+        if (!key) return acc
+        if (!acc[key]) acc[key] = []
+        acc[key].push(row)
+        return acc
+    }, {})
+
+    rows.forEach((r, index) => {
+        const codigoKey = normalizarCodigoBombero(r.codigo_bombero) || `staff_${index}`
+        const rowKey = `${codigoKey}_${index}`
+        const historial = (grupos[codigoKey] || []).slice().sort((a, b) => `${b.fecha || ""} ${b.hora_ingreso || ""}`.localeCompare(`${a.fecha || ""} ${a.hora_ingreso || ""}`))
+        const expanded = staffReportExpandedKey === rowKey
         html += `
           <tr>
             <td>${escapeHtml(r.fecha || "")}</td>
@@ -7366,8 +7449,45 @@ function renderReportesStaff(data) {
             <td>${escapeHtml(r.ubo_origen || "-")}</td>
             <td>${renderBadgeTipoStaff(r.tipo_staff)}</td>
             <td>${escapeHtml(r.jornada || "-")}</td>
+            <td>
+              <button type="button" class="btn-link staff-history-toggle" onclick="toggleHistorialStaffReporte('${rowKey}')">
+                ${expanded ? "▼ Ocultar historial" : "▶ Ver historial"}
+              </button>
+            </td>
           </tr>
         `
+        if (expanded) {
+            html += `
+              <tr class="staff-history-row">
+                <td colspan="9">
+                  <div class="staff-history-card">
+                    <div class="staff-history-head">
+                      <div class="staff-cell">
+                        ${renderStaffAvatarCompact(r)}
+                        <div class="staff-cell-copy">
+                          <strong>${escapeHtml(r.nombre || "Staff")}</strong>
+                          <span>${escapeHtml(r.grado || "Sin grado")} · ${escapeHtml(r.codigo_bombero || "-")}</span>
+                        </div>
+                      </div>
+                      <div class="staff-history-meta">
+                        <div><strong>Tipo staff</strong><span>${escapeHtml(r.tipo_staff || "APOYO")}</span></div>
+                        <div><strong>UBO origen</strong><span>${escapeHtml(r.ubo_origen || "-")}</span></div>
+                        <div><strong>Total asistencias visibles</strong><span>${historial.length}</span></div>
+                      </div>
+                    </div>
+                    <div class="staff-history-list">
+                      ${historial.map(item => `
+                        <div class="staff-history-item">
+                          <strong>${escapeHtml(item.fecha || "-")}</strong>
+                          <span>${escapeHtml(item.hora_ingreso || "--:--")} · ${escapeHtml(item.jornada || "-")}</span>
+                        </div>
+                      `).join("")}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            `
+        }
     })
 
     html += `
@@ -7418,7 +7538,7 @@ async function cargarReportesStaff() {
         return
     }
 
-    const rows = filtrarDataTenantActivo(data).map(item => ({
+    const baseRows = filtrarDataTenantActivo(data).map(item => ({
         fecha: item.fecha || "",
         hora_ingreso: item.hora_ingreso || "",
         codigo_bombero: normalizarCodigoBombero(item.codigo_bombero),
@@ -7427,6 +7547,11 @@ async function cargarReportesStaff() {
         ubo_origen: normalizarTextoSimple(item.ubo_origen),
         tipo_staff: normalizarTextoSimple(item.tipo_staff).toUpperCase(),
         jornada: normalizarTextoSimple(item.jornada)
+    }))
+    const fotoMap = await cargarFotosStaffPorCodigos(baseRows.map(item => item.codigo_bombero))
+    const rows = baseRows.map(item => ({
+        ...item,
+        foto_url: fotoMap[item.codigo_bombero]?.foto_url || ""
     }))
     renderReportesStaff(rows)
 }
@@ -7437,6 +7562,7 @@ function limpiarFiltrosStaffReportes() {
     if (staffReporteHasta) staffReporteHasta.value = to
     if (staffReporteTipo) staffReporteTipo.value = ""
     if (staffReporteUbo) staffReporteUbo.value = ""
+    staffReportExpandedKey = ""
     void cargarReportesStaff()
 }
 
@@ -8990,6 +9116,107 @@ function limpiarFiltros() {
 
 }
 
+async function cargarDashboardStaffOperativo() {
+    const target = document.getElementById("staffOpsRecentTable")
+    const rangeLabel = document.getElementById("staffOpsRangeLabel")
+    const kPresentes = document.getElementById("staffOpsPresentesHoy")
+    const kAdjuntos = document.getElementById("staffOpsAdjuntosHoy")
+    const kApoyos = document.getElementById("staffOpsApoyosHoy")
+    const kUltHora = document.getElementById("staffOpsUltimaHora")
+    const kUltDetalle = document.getElementById("staffOpsUltimaDetalle")
+    if (!target || !rangeLabel) return
+
+    const { hoy, from, to } = obtenerRangoStaffDashboard()
+    rangeLabel.textContent = `${from} → ${to}`
+
+    if (!haySupabase() || !tenantActivoId) {
+        target.innerHTML = buildEmptyStateHTML("Sin conexión disponible", "No se pudo cargar el dashboard staff.", "⚠️", true)
+        return
+    }
+
+    let presentesQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("fecha", hoy))
+    let adjuntosQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("fecha", hoy).eq("tipo_staff", "ADJUNTO"))
+    let apoyosQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("fecha", hoy).eq("tipo_staff", "APOYO"))
+    let ultimaQ = withTenantScope(
+        supabaseClient
+            .from("staff_asistencias")
+            .select("fecha,hora_ingreso,codigo_bombero,nombre,tipo_staff,ubo_origen")
+            .order("fecha", { ascending: false })
+            .order("hora_ingreso", { ascending: false })
+            .limit(1)
+    )
+    let recientesQ = withTenantScope(
+        supabaseClient
+            .from("staff_asistencias")
+            .select("fecha,hora_ingreso,codigo_bombero,nombre,tipo_staff,jornada,ubo_origen")
+            .gte("fecha", from)
+            .lte("fecha", to)
+            .order("fecha", { ascending: false })
+            .order("hora_ingreso", { ascending: false })
+            .limit(10)
+    )
+
+    if (dashUbo?.value) {
+        presentesQ = presentesQ.eq("ubo_origen", dashUbo.value)
+        adjuntosQ = adjuntosQ.eq("ubo_origen", dashUbo.value)
+        apoyosQ = apoyosQ.eq("ubo_origen", dashUbo.value)
+        ultimaQ = ultimaQ.eq("ubo_origen", dashUbo.value)
+        recientesQ = recientesQ.eq("ubo_origen", dashUbo.value)
+    }
+
+    const [
+        { count: presentesCount },
+        { count: adjuntosCount },
+        { count: apoyosCount },
+        { data: ultimaData, error: ultimaError },
+        { data: recientesData, error: recientesError }
+    ] = await Promise.all([presentesQ, adjuntosQ, apoyosQ, ultimaQ, recientesQ])
+
+    if (kPresentes) kPresentes.textContent = String(presentesCount || 0)
+    if (kAdjuntos) kAdjuntos.textContent = String(adjuntosCount || 0)
+    if (kApoyos) kApoyos.textContent = String(apoyosCount || 0)
+
+    const ultima = filtrarDataTenantActivo(ultimaData || [])[0] || null
+    if (kUltHora) kUltHora.textContent = ultima?.hora_ingreso || "--:--"
+    if (kUltDetalle) kUltDetalle.textContent = ultima ? `${ultima.nombre || "Staff"} · ${ultima.codigo_bombero || "-"}` : "Sin registros recientes."
+
+    if (ultimaError || recientesError) {
+        target.innerHTML = buildEmptyStateHTML("Sin datos staff", "No se pudo cargar el resumen operativo staff.", "⚠️", true)
+        cacheDashboardStaff = []
+        return
+    }
+
+    const recientes = filtrarDataTenantActivo(recientesData || [])
+    cacheDashboardStaff = recientes
+    if (!recientes.length) {
+        target.innerHTML = buildEmptyStateHTML("Sin asistencias recientes", "No hay asistencias staff en el rango operativo consultado.", "👨‍🚒", true)
+        return
+    }
+
+    const fotoMap = await cargarFotosStaffPorCodigos(recientes.map(r => r.codigo_bombero))
+    let html = `<div class="staff-ops-list">`
+    recientes.forEach(item => {
+        const meta = fotoMap[normalizarCodigoBombero(item.codigo_bombero)] || {}
+        html += `
+          <div class="staff-ops-item">
+            <div class="staff-ops-item-main">
+              ${renderStaffAvatarCompact({ ...item, ...meta })}
+              <div class="staff-ops-item-copy">
+                <strong>${escapeHtml(item.nombre || "Staff")}</strong>
+                <span>${escapeHtml(item.codigo_bombero || "-")} · ${escapeHtml(normalizarTextoSimple(item.tipo_staff) || "APOYO")}</span>
+              </div>
+            </div>
+            <div class="staff-ops-item-meta">
+              <strong>${escapeHtml(item.hora_ingreso || "--:--")}</strong>
+              <span>${escapeHtml(item.jornada || "-")}</span>
+            </div>
+          </div>
+        `
+    })
+    html += `</div>`
+    target.innerHTML = html
+}
+
 async function cargarDashboard() {
 
     let q = withTenantScope(supabaseClient.from("asistencias").select("*"))
@@ -9180,6 +9407,21 @@ async function cargarDashboard() {
     topUbo.innerHTML = html
     semaforoInfo.innerText = "Semáforo: usa la primera marcación del último día y la compara con la hora_inicio de su sección (Verde: hasta +10m, Amarillo: +11 a +30m, Rojo: >+30m, fuera de día o sin configuración válida)."
     riesgoInfo.innerText = "Riesgo por UBO: cantidad de aspirantes en Rojo según la configuración de horario/días y el rango filtrado."
+
+    try {
+        await cargarDashboardStaffOperativo()
+    } catch (e) {
+        console.warn("No se pudo cargar dashboard staff operativo:", e)
+        const target = document.getElementById("staffOpsRecentTable")
+        if (target) {
+            target.innerHTML = buildEmptyStateHTML(
+                "Sin datos staff",
+                "No se pudo cargar el bloque operativo staff.",
+                "⚠️",
+                true
+            )
+        }
+    }
 }
 
 function verAlertasDispositivo() {

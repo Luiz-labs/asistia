@@ -11,6 +11,7 @@ let cursoContextoValido = true
 let staffSeleccionado = null
 let staffPerfilEditando = false
 let staffPerfilGuardando = false
+let staffSuccessResetTimer = null
 
 let tenantLabel
 let codigoBomberoInput
@@ -18,6 +19,7 @@ let staffLookupSection
 let staffCardSection
 let staffSuccessSection
 let mensaje
+let staffProfileModal
 
 function haySupabase() {
     return !!supabaseClient
@@ -30,6 +32,7 @@ function enlazarIds() {
     staffCardSection = document.getElementById("staffCardSection")
     staffSuccessSection = document.getElementById("staffSuccessSection")
     mensaje = document.getElementById("mensaje")
+    staffProfileModal = document.getElementById("staffProfileModal")
 }
 
 function setMensaje(texto, tipo = "") {
@@ -136,9 +139,6 @@ function renderStaffCard(row) {
     const nombre = `${normalizarTexto(row?.nombres)} ${normalizarTexto(row?.apellidos)}`.replace(/\s+/g, " ").trim()
     const tipo = normalizarTexto(row?.tipo_staff).toUpperCase() || "APOYO"
     const badgeClass = tipo === "ADJUNTO" ? "adjunto" : "apoyo"
-    const celular = normalizarTexto(row?.celular)
-    const correo = normalizarTexto(row?.correo)
-    const foto = normalizarTexto(row?.foto_url)
 
     staffCardSection.hidden = false
     staffCardSection.innerHTML = `
@@ -158,63 +158,16 @@ function renderStaffCard(row) {
         <div class="staff-field"><strong>Correo</strong>${escapeHtml(normalizarTexto(row?.correo) || "-")}</div>
       </div>
 
-      <div class="staff-profile-tools">
-        <button id="btnEditarPerfilStaff" class="tertiary-btn" type="button">${staffPerfilEditando ? "Ocultar edición" : "Editar perfil"}</button>
-      </div>
-
-      <form id="staffProfileForm" class="staff-profile-form${staffPerfilEditando ? " is-open" : ""}">
-        <div class="staff-profile-form-head">
-          <div>
-            <h3>Editar perfil</h3>
-            <p>Solo puedes actualizar foto, celular y correo.</p>
-          </div>
-        </div>
-
-        <div class="staff-photo-editor">
-          <div class="staff-photo-preview">
-            ${foto ? `<img src="${escapeHtml(foto)}" alt="${escapeHtml(nombre || "Foto staff")}" class="staff-photo-preview-img">` : `<div class="staff-photo-preview-empty">${escapeHtml(obtenerInicialesStaff(row))}</div>`}
-          </div>
-          <div class="staff-photo-copy">
-            <strong>Foto de perfil</strong>
-            <span>JPG, PNG o WEBP. Máximo 2 MB.</span>
-            <input id="staffFotoFile" type="file" accept="image/jpeg,image/png,image/webp">
-          </div>
-        </div>
-
-        <div class="staff-profile-grid">
-          <label class="staff-profile-field">
-            <span>Celular</span>
-            <input id="staffPerfilCelular" class="text-input" value="${escapeHtml(celular)}" placeholder="Solo números" inputmode="numeric" autocomplete="tel">
-          </label>
-          <label class="staff-profile-field">
-            <span>Correo</span>
-            <input id="staffPerfilCorreo" class="text-input" value="${escapeHtml(correo)}" placeholder="correo@dominio.com" type="email" autocomplete="email">
-          </label>
-        </div>
-
-        <p id="staffProfileMsg" class="inline-form-msg" aria-live="polite"></p>
-
-        <div class="staff-profile-actions">
-          <button id="btnGuardarPerfilStaff" class="primary-btn" type="submit" ${staffPerfilGuardando ? "disabled" : ""}>${staffPerfilGuardando ? "Guardando..." : "Guardar cambios"}</button>
-          <button id="btnCancelarPerfilStaff" class="secondary-btn" type="button" ${staffPerfilGuardando ? "disabled" : ""}>Cancelar</button>
-        </div>
-      </form>
-
       <div class="staff-card-actions">
         <button id="btnRegistrarStaff" class="primary-btn" type="button">Registrar asistencia</button>
-        <button id="btnResetStaff" class="secondary-btn" type="button">Registrar otro staff</button>
+        <button id="btnEditarPerfilStaff" class="secondary-btn" type="button">Editar perfil</button>
+        <button id="btnResetStaff" class="tertiary-btn staff-card-cancel" type="button">Cancelar</button>
       </div>
     `
 
     document.getElementById("btnRegistrarStaff")?.addEventListener("click", registrarAsistenciaStaff)
     document.getElementById("btnResetStaff")?.addEventListener("click", resetStaffSeleccionado)
-    document.getElementById("btnEditarPerfilStaff")?.addEventListener("click", toggleEdicionPerfilStaff)
-    document.getElementById("btnCancelarPerfilStaff")?.addEventListener("click", cancelarEdicionPerfilStaff)
-    document.getElementById("staffProfileForm")?.addEventListener("submit", guardarPerfilStaff)
-    document.getElementById("staffPerfilCelular")?.addEventListener("input", () => {
-        const input = document.getElementById("staffPerfilCelular")
-        if (input) input.value = normalizarCelular(input.value)
-    })
+    document.getElementById("btnEditarPerfilStaff")?.addEventListener("click", abrirModalPerfilStaff)
 }
 
 function setPerfilMsg(texto, tipo = "") {
@@ -232,10 +185,58 @@ function toggleEdicionPerfilStaff() {
 }
 
 function cancelarEdicionPerfilStaff() {
+    if (staffPerfilGuardando) return
     staffPerfilEditando = false
     staffPerfilGuardando = false
+    cerrarModalPerfilStaff()
+}
+
+function renderPreviewFotoModalStaff(row) {
+    const preview = document.getElementById("staffPhotoPreview")
+    if (!preview) return
+    const nombre = `${normalizarTexto(row?.nombres)} ${normalizarTexto(row?.apellidos)}`.trim() || "Staff"
+    const foto = normalizarTexto(row?.foto_url)
+    preview.innerHTML = foto
+        ? `<img src="${escapeHtml(foto)}" alt="${escapeHtml(nombre)}" class="staff-photo-preview-img">`
+        : `<div class="staff-photo-preview-empty">${escapeHtml(obtenerInicialesStaff(row))}</div>`
+}
+
+function actualizarEstadoModalPerfilStaff() {
+    const btnGuardar = document.getElementById("btnGuardarPerfilStaff")
+    const btnCancelar = document.getElementById("btnCancelarPerfilStaff")
+    if (btnGuardar) {
+        btnGuardar.disabled = !!staffPerfilGuardando
+        btnGuardar.textContent = staffPerfilGuardando ? "Guardando..." : "Guardar cambios"
+    }
+    if (btnCancelar) btnCancelar.disabled = !!staffPerfilGuardando
+}
+
+function abrirModalPerfilStaff() {
+    if (!staffProfileModal || !staffSeleccionado) return
+    const celularInput = document.getElementById("staffPerfilCelular")
+    const correoInput = document.getElementById("staffPerfilCorreo")
+    const fotoInput = document.getElementById("staffFotoFile")
+    staffPerfilEditando = true
+    staffProfileModal.hidden = false
+    staffProfileModal.setAttribute("aria-hidden", "false")
+    document.body.classList.add("staff-modal-open")
+    if (celularInput) celularInput.value = normalizarTexto(staffSeleccionado?.celular)
+    if (correoInput) correoInput.value = normalizarTexto(staffSeleccionado?.correo)
+    if (fotoInput) fotoInput.value = ""
+    renderPreviewFotoModalStaff(staffSeleccionado)
     setPerfilMsg("")
-    renderStaffCard(staffSeleccionado)
+    actualizarEstadoModalPerfilStaff()
+}
+
+function cerrarModalPerfilStaff() {
+    if (!staffProfileModal) return
+    staffPerfilEditando = false
+    staffPerfilGuardando = false
+    staffProfileModal.hidden = true
+    staffProfileModal.setAttribute("aria-hidden", "true")
+    document.body.classList.remove("staff-modal-open")
+    setPerfilMsg("")
+    actualizarEstadoModalPerfilStaff()
 }
 
 function obtenerArchivoFotoStaffValido() {
@@ -314,7 +315,7 @@ async function guardarPerfilStaff(event) {
     }
 
     staffPerfilGuardando = true
-    renderStaffCard(staffSeleccionado)
+    actualizarEstadoModalPerfilStaff()
     setPerfilMsg("Guardando cambios...", "ok")
 
     try {
@@ -354,13 +355,14 @@ async function guardarPerfilStaff(event) {
             ...staffSeleccionado,
             ...data
         }
-        staffPerfilEditando = false
         staffPerfilGuardando = false
         renderStaffCard(staffSeleccionado)
+        renderPreviewFotoModalStaff(staffSeleccionado)
+        cerrarModalPerfilStaff()
         setMensaje("Perfil actualizado correctamente.", "ok")
     } catch (error) {
         staffPerfilGuardando = false
-        renderStaffCard(staffSeleccionado)
+        actualizarEstadoModalPerfilStaff()
         setPerfilMsg(error.message || "No se pudo actualizar el perfil.", "error")
     }
 }
@@ -370,25 +372,36 @@ function actualizarEstadoVistaStaff(estado = "inicio", detalle = {}) {
     const esValidado = estado === "validado"
     const esRegistrado = estado === "registrado"
 
+    if (staffSuccessResetTimer) {
+        clearTimeout(staffSuccessResetTimer)
+        staffSuccessResetTimer = null
+    }
+
     if (staffLookupSection) {
-        staffLookupSection.hidden = esValidado || esRegistrado
-        staffLookupSection.classList.toggle("is-collapsed", esValidado || esRegistrado)
+        staffLookupSection.hidden = !esInicio
+        staffLookupSection.classList.toggle("is-collapsed", !esInicio)
     }
     if (staffCardSection) {
-        staffCardSection.hidden = !(esValidado || esRegistrado)
-        staffCardSection.classList.toggle("is-compact", esValidado || esRegistrado)
-        staffCardSection.classList.toggle("is-success", esRegistrado)
+        staffCardSection.hidden = !esValidado
+        staffCardSection.classList.toggle("is-compact", esValidado)
+        staffCardSection.classList.toggle("is-success", false)
     }
     if (staffSuccessSection) {
         staffSuccessSection.hidden = !esRegistrado
         if (esRegistrado) {
+            const nombre = `${normalizarTexto(detalle.nombres)} ${normalizarTexto(detalle.apellidos)}`.replace(/\s+/g, " ").trim()
             staffSuccessSection.innerHTML = `
               <div class="success-badge">Registro exitoso</div>
               <h3>Asistencia staff registrada correctamente</h3>
-              <p>Hora de marcación: <strong>${escapeHtml(detalle.hora || "--:--:--")}</strong></p>
-              <button id="btnSuccessResetStaff" class="secondary-btn" type="button">Registrar otro staff</button>
+              <div class="success-summary">
+                <div><strong>Nombre</strong><span>${escapeHtml(nombre || "Staff")}</span></div>
+                <div><strong>Hora</strong><span>${escapeHtml(detalle.hora || "--:--:--")}</span></div>
+                <div><strong>Tipo staff</strong><span>${escapeHtml(detalle.tipo_staff || "APOYO")}</span></div>
+              </div>
             `
-            document.getElementById("btnSuccessResetStaff")?.addEventListener("click", resetStaffSeleccionado)
+            staffSuccessResetTimer = setTimeout(() => {
+                resetStaffSeleccionado()
+            }, 3000)
         } else {
             staffSuccessSection.innerHTML = ""
         }
@@ -399,6 +412,7 @@ function resetStaffSeleccionado() {
     staffSeleccionado = null
     staffPerfilEditando = false
     staffPerfilGuardando = false
+    cerrarModalPerfilStaff()
     if (staffCardSection) {
         staffCardSection.hidden = true
         staffCardSection.innerHTML = ""
@@ -548,7 +562,7 @@ async function buscarStaffPorCodigo() {
     staffPerfilGuardando = false
     renderStaffCard(data)
     actualizarEstadoVistaStaff("validado")
-    setMensaje("Staff validado. Revisa la card y confirma tu ingreso.", "ok")
+    setMensaje("")
 }
 
 async function registrarAsistenciaStaff() {
@@ -610,8 +624,13 @@ async function registrarAsistenciaStaff() {
         return
     }
 
-    actualizarEstadoVistaStaff("registrado", { hora: lima.hora })
-    setMensaje(`Asistencia staff registrada correctamente a las ${lima.hora}.`, "ok")
+    actualizarEstadoVistaStaff("registrado", {
+        hora: lima.hora,
+        tipo_staff: payload.tipo_staff,
+        nombres: staffSeleccionado.nombres,
+        apellidos: staffSeleccionado.apellidos
+    })
+    setMensaje("")
 }
 
 function bindEventos() {
@@ -621,6 +640,17 @@ function bindEventos() {
     })
     codigoBomberoInput?.addEventListener("keydown", event => {
         if (event.key === "Enter") buscarStaffPorCodigo()
+    })
+    document.getElementById("staffProfileForm")?.addEventListener("submit", guardarPerfilStaff)
+    document.getElementById("btnCancelarPerfilStaff")?.addEventListener("click", cancelarEdicionPerfilStaff)
+    document.getElementById("btnCloseStaffModal")?.addEventListener("click", cancelarEdicionPerfilStaff)
+    document.querySelector('[data-close-staff-modal="true"]')?.addEventListener("click", cancelarEdicionPerfilStaff)
+    document.getElementById("staffPerfilCelular")?.addEventListener("input", () => {
+        const input = document.getElementById("staffPerfilCelular")
+        if (input) input.value = normalizarCelular(input.value)
+    })
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !staffProfileModal?.hidden) cancelarEdicionPerfilStaff()
     })
 }
 

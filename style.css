@@ -1745,6 +1745,186 @@ select {
   min-height: 120px;
 }
 
+.staff-history-toggle {
+  white-space: nowrap;
+}
+
+.staff-history-row td {
+  background: #fbfcff;
+}
+
+.staff-history-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fbfdff 0%, #f5f8fe 100%);
+  border: 1px solid #deebff;
+}
+
+.staff-history-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.staff-history-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  flex: 1 1 360px;
+}
+
+.staff-history-meta div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e3ebf8;
+}
+
+.staff-history-meta strong {
+  font-size: 11px;
+  color: #6a7f9e;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.staff-history-meta span {
+  color: #18345f;
+  font-weight: 700;
+}
+
+.staff-history-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.staff-history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.staff-ops-card {
+  margin-top: 20px;
+}
+
+.staff-ops-head h3 {
+  margin: 0 0 6px;
+}
+
+.staff-ops-kpis {
+  margin-top: 14px;
+  margin-bottom: 16px;
+}
+
+.staff-ops-kpi-note {
+  display: block;
+  margin-top: 6px;
+  color: #617391;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.staff-ops-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.staff-ops-recent-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.staff-ops-recent-head h4 {
+  margin: 0;
+  font-size: 15px;
+  color: #1a2945;
+}
+
+.staff-ops-range {
+  font-size: 12px;
+  color: #6b7f9f;
+}
+
+.staff-ops-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.staff-ops-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fbfdff 0%, #f5f8ff 100%);
+  border: 1px solid #dfe8f6;
+}
+
+.staff-ops-item-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.staff-ops-item-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.staff-ops-item-copy strong,
+.staff-ops-item-copy span {
+  overflow-wrap: anywhere;
+}
+
+.staff-ops-item-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  text-align: right;
+  color: #506381;
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .staff-history-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .staff-ops-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .staff-ops-item-meta {
+    align-items: flex-start;
+    text-align: left;
+  }
+}
+
 .staff-config-head,
 .staff-toolbar {
   display: flex;

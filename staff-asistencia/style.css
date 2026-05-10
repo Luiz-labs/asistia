@@ -25,6 +25,10 @@ body {
   color: #162033;
 }
 
+body.staff-modal-open {
+  overflow: hidden;
+}
+
 .public-shell {
   min-height: 100vh;
   display: flex;
@@ -154,13 +158,14 @@ button {
 }
 
 .staff-card-shell {
-  margin-top: 18px;
-  padding: 18px;
+  margin-top: 8px;
+  padding: 20px 18px;
   border-radius: 22px;
   background: linear-gradient(180deg, #fbfdff 0%, #f4f8ff 100%);
   border: 1px solid var(--line);
   align-items: center;
   text-align: center;
+  box-shadow: 0 16px 40px rgba(27, 45, 91, 0.1);
 }
 
 .staff-card-shell.is-compact {
@@ -269,26 +274,17 @@ button {
   width: 100%;
 }
 
-.staff-profile-tools {
-  width: 100%;
-  display: flex;
-  justify-content: flex-start;
+.staff-card-cancel {
+  justify-self: center;
+  color: #5b6d89;
 }
 
 .staff-profile-form {
-  display: none;
   width: 100%;
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  text-align: left;
-  gap: 12px;
-}
-
-.staff-profile-form.is-open {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+  text-align: left;
 }
 
 .staff-profile-form-head h3,
@@ -393,13 +389,86 @@ button {
   gap: 10px;
 }
 
+.staff-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.staff-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(6px);
+}
+
+.staff-modal-sheet {
+  position: relative;
+  width: min(100%, 520px);
+  max-height: min(88vh, 760px);
+  margin: 0 auto;
+  padding: 14px 16px 18px;
+  border-radius: 28px 28px 0 0;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(28, 47, 94, 0.08);
+  box-shadow: 0 -18px 44px rgba(15, 23, 42, 0.18);
+  overflow-y: auto;
+}
+
+.staff-modal-handle {
+  width: 42px;
+  height: 5px;
+  border-radius: 999px;
+  margin: 0 auto 14px;
+  background: #d8e2f0;
+}
+
+.staff-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.staff-modal-head h3,
+.staff-modal-head p {
+  margin: 0;
+}
+
+.staff-modal-head h3 {
+  font-size: 1.1rem;
+  color: #162033;
+}
+
+.staff-modal-head p {
+  margin-top: 4px;
+  color: #5a6780;
+  font-size: 0.9rem;
+}
+
+.staff-modal-close {
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: #f2f6fc;
+  color: #3a537b;
+  font-size: 24px;
+  line-height: 1;
+}
+
 .success-shell {
-  margin-top: 14px;
-  padding: 18px;
+  margin-top: 6px;
+  padding: 24px 18px;
   border-radius: 22px;
   background: linear-gradient(180deg, #f4fff8 0%, #ecfff4 100%);
   border: 1px solid rgba(22, 163, 74, 0.18);
   text-align: center;
+  box-shadow: 0 16px 40px rgba(22, 101, 52, 0.08);
 }
 
 .success-shell h3,
@@ -421,6 +490,38 @@ button {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.03em;
+}
+
+.success-summary {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 12px;
+  text-align: left;
+}
+
+.success-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(22, 163, 74, 0.12);
+}
+
+.success-summary strong {
+  font-size: 12px;
+  color: #4f6a57;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.success-summary span {
+  font-size: 0.98rem;
+  color: #12422b;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .public-footer {
@@ -452,12 +553,16 @@ button {
 
 @media (min-width: 560px) {
   .staff-card-actions {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .staff-profile-grid,
   .staff-profile-actions {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .success-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -467,7 +572,7 @@ button {
   }
 
   .public-card {
-    padding: 20px 16px;
+    padding: 22px 16px;
     border-radius: 24px;
   }
 
@@ -507,6 +612,11 @@ button {
 
   .staff-photo-preview {
     margin: 0 auto;
+  }
+
+  .staff-modal-sheet {
+    padding: 12px 14px 18px;
+    border-radius: 24px 24px 0 0;
   }
 
   .success-shell {

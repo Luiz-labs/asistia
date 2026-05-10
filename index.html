@@ -372,6 +372,43 @@
             <button class="btn-link" onclick="verCriterio('riesgo')">Ver criterio</button>
           </div>
 
+          <div class="card staff-ops-card">
+            <div class="staff-ops-head">
+              <div>
+                <h3>👨‍🚒 Staff Operativo</h3>
+                <p class="section-note">Resumen operativo de asistencia staff sin mezclarlo con aspirantes.</p>
+              </div>
+            </div>
+
+            <div class="dashboard-flex-row staff-ops-kpis">
+              <div class="card kpi-card">
+                <h3 id="staffOpsPresentesHoy">0</h3>
+                <p>Staff presente hoy</p>
+              </div>
+              <div class="card kpi-card">
+                <h3 id="staffOpsAdjuntosHoy">0</h3>
+                <p>Adjuntos presentes hoy</p>
+              </div>
+              <div class="card kpi-card">
+                <h3 id="staffOpsApoyosHoy">0</h3>
+                <p>Apoyos presentes hoy</p>
+              </div>
+              <div class="card kpi-card">
+                <h3 id="staffOpsUltimaHora">--:--</h3>
+                <p>Última marcación staff</p>
+                <span id="staffOpsUltimaDetalle" class="staff-ops-kpi-note">Sin registros recientes.</span>
+              </div>
+            </div>
+
+            <div class="staff-ops-recent">
+              <div class="staff-ops-recent-head">
+                <h4>Últimas asistencias staff</h4>
+                <span id="staffOpsRangeLabel" class="staff-ops-range"></span>
+              </div>
+              <div id="staffOpsRecentTable" class="staff-ops-table table-empty-copy">Sin registros recientes.</div>
+            </div>
+          </div>
+
         </div>
 
         <div id="vistaReportes" class="app-section">
