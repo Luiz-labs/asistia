@@ -2975,6 +2975,20 @@ select {
   max-height: clamp(280px, 46vh, 560px);
 }
 
+#luizBloqueLogs {
+  padding-bottom: 0;
+}
+
+#luizBloqueLogs .module-accordion,
+#luizBloqueLogs .section-card-activity,
+#luizBloqueLogs .user-table-wrap {
+  margin-bottom: 0;
+}
+
+#luizBloqueLogs .module-accordion-body {
+  padding-bottom: 14px;
+}
+
 #vistaActividad .table-wrap table {
   min-width: 840px;
 }

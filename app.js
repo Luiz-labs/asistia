@@ -7101,6 +7101,7 @@ function actualizarUIModoEdicionStaffInstruccion() {
     const banner = document.getElementById("staffEditBanner")
     const label = document.getElementById("staffEditLabel")
     const btnPrimary = document.getElementById("btnStaffPrimary")
+    const btnCancel = document.getElementById("btnStaffCancel")
     const module = document.getElementById("staffModuleGestion")
     const item = staffInstruccionCache.find(row => row.id === editStaffInstruccionId)
     const editando = !!item
@@ -7108,6 +7109,7 @@ function actualizarUIModoEdicionStaffInstruccion() {
     if (banner) banner.hidden = !editando
     if (label) label.textContent = editando ? `${item.codigo_bombero} · ${obtenerNombreCompletoStaff(item)}` : ""
     if (btnPrimary) btnPrimary.textContent = editando ? "GUARDAR CAMBIOS" : "GUARDAR STAFF"
+    if (btnCancel) btnCancel.textContent = editando ? "Cancelar edición" : "Limpiar formulario"
     if (module) module.classList.toggle("course-module--editing", editando)
 }
 
@@ -7563,7 +7565,28 @@ function limpiarFiltrosStaffReportes() {
     if (staffReporteTipo) staffReporteTipo.value = ""
     if (staffReporteUbo) staffReporteUbo.value = ""
     staffReportExpandedKey = ""
+    if (tablaStaffReportes) {
+        tablaStaffReportes.innerHTML = buildEmptyStateHTML(
+            "Recargando reporte staff",
+            "Aplicando rango y filtros por defecto del módulo.",
+            "↻",
+            true
+        )
+    }
     void cargarReportesStaff()
+}
+
+function limpiarCargaAspirantesUI() {
+    if (archivoAspirantes) archivoAspirantes.value = ""
+    if (msgCargaAspirantes) msgCargaAspirantes.innerText = ""
+    if (tablaAspirantesCargados) {
+        tablaAspirantesCargados.innerHTML = buildEmptyTableRow(
+            5,
+            "Vista limpiada",
+            "La carga local y el preview del módulo fueron restablecidos. No se modificaron datos guardados.",
+            "🧹"
+        )
+    }
 }
 
 function actualizarUIModoEdicionSeccion() {
