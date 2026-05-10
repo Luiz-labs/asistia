@@ -263,151 +263,176 @@
 
           <h2>Dashboard</h2>
 
-          <div class="card section-card section-card-tight">
+          <details class="module-accordion" open>
+            <summary class="module-accordion-summary">
+              <div class="module-accordion-copy">
+                <h3>Control de Aspirantes</h3>
+                <p>Seguimiento general de asistencia, cobertura, alertas y semáforo operativo del curso.</p>
+              </div>
+              <div class="module-accordion-meta">
+                <span class="module-accordion-tag">Aspirantes</span>
+                <span class="module-accordion-icon" aria-hidden="true"></span>
+              </div>
+            </summary>
+            <div class="module-accordion-body">
+              <div class="card section-card section-card-tight">
 
-            <h3 class="section-subtitle">Filtros</h3>
+                <h3 class="section-subtitle">Filtros</h3>
 
-            <div class="filtros">
+                <div class="filtros">
 
-              <div class="input-date">
-                <input type="date" id="dashDesde">
+                  <div class="input-date">
+                    <input type="date" id="dashDesde">
+                  </div>
+
+                  <div class="input-date">
+                    <input type="date" id="dashHasta">
+                  </div>
+
+                  <select id="dashUbo" class="filter-select-md">
+                    <option value="">Todas las UBO</option>
+                  </select>
+
+                  <select id="dashSeccion" class="filter-select-md">
+                    <option value="">Todas las Secciones</option>
+                  </select>
+
+                  <button onclick="cargarDashboard()">Filtrar</button>
+                  <button class="secondary" onclick="limpiarDashboard()">Limpiar</button>
+                  <button onclick="exportarDashboardPDF()">EXPORTAR PDF</button>
+                  <button class="secondary" onclick="exportarRiesgoUboExcel()">Riesgo UBO Excel</button>
+
+                </div>
+
               </div>
 
-              <div class="input-date">
-                <input type="date" id="dashHasta">
+              <div id="dashboardKpiCapture">
+                <div class="dashboard-flex-row">
+
+                  <div class="card kpi-card">
+                    <h3 id="kpiTotal">0</h3>
+                    <p>Total Activos</p>
+                  </div>
+
+                  <div class="card kpi-card">
+                    <h3 id="kpiAsistencia">0%</h3>
+                    <p>% Asistencia</p>
+                  </div>
+
+                  <div class="card kpi-card">
+                    <h3 id="kpiInasistencia">0</h3>
+                    <p>Inasistencias</p>
+                  </div>
+
+                  <div class="card kpi-card">
+                    <h3 id="kpiCobertura">0%</h3>
+                    <p>% Cobertura</p>
+                  </div>
+
+                  <div id="kpiDispCard" class="card kpi-card kpi-card-clickable"
+                    onclick="verAlertasDispositivo()">
+                    <h3 id="kpiDispNoHabitual">0</h3>
+                    <p>Alertas Dispositivo</p>
+                  </div>
+
+                </div>
+
+                <div class="dashboard-flex-row">
+
+                  <div class="card kpi-card kpi-card-clickable" onclick="verDetalle('verde')">
+                    <h3 id="verdeCount">0</h3>
+                    <p>🟢 Verde</p>
+                  </div>
+
+                  <div class="card kpi-card kpi-card-clickable" onclick="verDetalle('amarillo')">
+                    <h3 id="amarilloCount">0</h3>
+                    <p>🟡 Amarillo</p>
+                  </div>
+
+                  <div class="card kpi-card kpi-card-clickable" onclick="verDetalle('rojo')">
+                    <h3 id="rojoCount">0</h3>
+                    <p>🔴 Rojo</p>
+                  </div>
+
+                </div>
               </div>
 
-              <select id="dashUbo" class="filter-select-md">
-                <option value="">Todas las UBO</option>
-              </select>
-
-              <select id="dashSeccion" class="filter-select-md">
-                <option value="">Todas las Secciones</option>
-              </select>
-
-              <button onclick="cargarDashboard()">Filtrar</button>
-              <button class="secondary" onclick="limpiarDashboard()">Limpiar</button>
-              <button onclick="exportarDashboardPDF()">EXPORTAR PDF</button>
-              <button class="secondary" onclick="exportarRiesgoUboExcel()">Riesgo UBO Excel</button>
-
-            </div>
-
-          </div>
-
-          <div id="dashboardKpiCapture">
-            <!-- KPIs -->
-            <div class="dashboard-flex-row">
-
-              <div class="card kpi-card">
-                <h3 id="kpiTotal">0</h3>
-                <p>Total Activos</p>
+              <p id="semaforoInfo" class="section-note section-note-compact">
+                Semáforo: criterio de puntualidad por aspirante en el rango seleccionado.
+              </p>
+              <div class="dashboard-flex-row is-compact">
+                <div class="card kpi-card">
+                  <h3 id="kpiRojoTardanza">0</h3>
+                  <p>Rojo por tardanza</p>
+                </div>
+                <div class="card kpi-card">
+                  <h3 id="kpiRojoFueraDia">0</h3>
+                  <p>Rojo por fuera de día</p>
+                </div>
               </div>
+              <button class="btn-link section-link-spaced" onclick="verCriterio('semaforo')">Ver criterio</button>
 
-              <div class="card kpi-card">
-                <h3 id="kpiAsistencia">0%</h3>
-                <p>% Asistencia</p>
-              </div>
-
-              <div class="card kpi-card">
-                <h3 id="kpiInasistencia">0</h3>
-                <p>Inasistencias</p>
-              </div>
-
-              <div class="card kpi-card">
-                <h3 id="kpiCobertura">0%</h3>
-                <p>% Cobertura</p>
-              </div>
-
-              <div id="kpiDispCard" class="card kpi-card kpi-card-clickable"
-                onclick="verAlertasDispositivo()">
-                <h3 id="kpiDispNoHabitual">0</h3>
-                <p>Alertas Dispositivo</p>
-              </div>
-
-            </div>
-
-            <!-- SEMÁFORO -->
-            <div class="dashboard-flex-row">
-
-              <div class="card kpi-card kpi-card-clickable" onclick="verDetalle('verde')">
-                <h3 id="verdeCount">0</h3>
-                <p>🟢 Verde</p>
-              </div>
-
-              <div class="card kpi-card kpi-card-clickable" onclick="verDetalle('amarillo')">
-                <h3 id="amarilloCount">0</h3>
-                <p>🟡 Amarillo</p>
-              </div>
-
-              <div class="card kpi-card kpi-card-clickable" onclick="verDetalle('rojo')">
-                <h3 id="rojoCount">0</h3>
-                <p>🔴 Rojo</p>
-              </div>
-
-            </div>
-          </div>
-
-          <p id="semaforoInfo" class="section-note section-note-compact">
-            Semáforo: criterio de puntualidad por aspirante en el rango seleccionado.
-          </p>
-          <div class="dashboard-flex-row is-compact">
-            <div class="card kpi-card">
-              <h3 id="kpiRojoTardanza">0</h3>
-              <p>Rojo por tardanza</p>
-            </div>
-            <div class="card kpi-card">
-              <h3 id="kpiRojoFueraDia">0</h3>
-              <p>Rojo por fuera de día</p>
-            </div>
-          </div>
-          <button class="btn-link section-link-spaced" onclick="verCriterio('semaforo')">Ver criterio</button>
-
-          <!-- TOP RIESGO UBO -->
-          <div class="card">
-            <h3>⚠ Riesgo por UBO</h3>
-            <div id="topUbo"></div>
-            <p id="riesgoInfo" class="section-note">
-              Riesgo UBO: cantidad de aspirantes en estado rojo por UBO.
-            </p>
-            <button class="btn-link" onclick="verCriterio('riesgo')">Ver criterio</button>
-          </div>
-
-          <div class="card staff-ops-card">
-            <div class="staff-ops-head">
-              <div>
-                <h3>👨‍🚒 Staff Operativo</h3>
-                <p class="section-note">Resumen operativo de asistencia staff sin mezclarlo con aspirantes.</p>
-              </div>
-            </div>
-
-            <div class="dashboard-flex-row staff-ops-kpis">
-              <div class="card kpi-card">
-                <h3 id="staffOpsPresentesHoy">0</h3>
-                <p>Staff presente hoy</p>
-              </div>
-              <div class="card kpi-card">
-                <h3 id="staffOpsAdjuntosHoy">0</h3>
-                <p>Adjuntos presentes hoy</p>
-              </div>
-              <div class="card kpi-card">
-                <h3 id="staffOpsApoyosHoy">0</h3>
-                <p>Apoyos presentes hoy</p>
-              </div>
-              <div class="card kpi-card">
-                <h3 id="staffOpsUltimaHora">--:--</h3>
-                <p>Última marcación staff</p>
-                <span id="staffOpsUltimaDetalle" class="staff-ops-kpi-note">Sin registros recientes.</span>
+              <div class="card">
+                <h3>⚠ Riesgo por UBO</h3>
+                <div id="topUbo"></div>
+                <p id="riesgoInfo" class="section-note">
+                  Riesgo UBO: cantidad de aspirantes en estado rojo por UBO.
+                </p>
+                <button class="btn-link" onclick="verCriterio('riesgo')">Ver criterio</button>
               </div>
             </div>
+          </details>
 
-            <div class="staff-ops-recent">
-              <div class="staff-ops-recent-head">
-                <h4>Últimas asistencias staff</h4>
-                <span id="staffOpsRangeLabel" class="staff-ops-range"></span>
+          <details class="module-accordion" open>
+            <summary class="module-accordion-summary">
+              <div class="module-accordion-copy">
+                <h3>Staff Operativo</h3>
+                <p>Control operativo del staff de instrucción registrado para el curso activo.</p>
               </div>
-              <div id="staffOpsRecentTable" class="staff-ops-table table-empty-copy">Sin registros recientes.</div>
+              <div class="module-accordion-meta">
+                <span class="module-accordion-tag">Staff</span>
+                <span class="module-accordion-icon" aria-hidden="true"></span>
+              </div>
+            </summary>
+            <div class="module-accordion-body">
+              <div class="card staff-ops-card">
+                <div class="staff-ops-head">
+                  <div>
+                    <h3>👨‍🚒 Staff Operativo</h3>
+                    <p class="section-note">Control operativo del staff de instrucción registrado para el curso activo.</p>
+                  </div>
+                </div>
+
+                <div class="dashboard-flex-row staff-ops-kpis">
+                  <div class="card kpi-card">
+                    <h3 id="staffOpsPresentesHoy">0</h3>
+                    <p>Staff presente hoy</p>
+                  </div>
+                  <div class="card kpi-card">
+                    <h3 id="staffOpsAdjuntosHoy">0</h3>
+                    <p>Adjuntos presentes hoy</p>
+                  </div>
+                  <div class="card kpi-card">
+                    <h3 id="staffOpsApoyosHoy">0</h3>
+                    <p>Apoyos presentes hoy</p>
+                  </div>
+                  <div class="card kpi-card">
+                    <h3 id="staffOpsUltimaHora">--:--</h3>
+                    <p>Última marcación staff</p>
+                    <span id="staffOpsUltimaDetalle" class="staff-ops-kpi-note">Sin registros recientes.</span>
+                  </div>
+                </div>
+
+                <div class="staff-ops-recent">
+                  <div class="staff-ops-recent-head">
+                    <h4>Últimas asistencias staff</h4>
+                    <span id="staffOpsRangeLabel" class="staff-ops-range"></span>
+                  </div>
+                  <div id="staffOpsRecentTable" class="staff-ops-table table-empty-copy">Sin registros recientes.</div>
+                </div>
+              </div>
             </div>
-          </div>
+          </details>
 
         </div>
 
@@ -419,10 +444,10 @@
               <summary class="module-accordion-summary">
                 <div class="module-accordion-copy">
                   <h3>Reporte de Aspirantes</h3>
-                  <p>Filtros institucionales y tabla de asistencias de aspirantes.</p>
+                  <p>Consulta, filtra y exporta asistencias registradas por los aspirantes.</p>
                 </div>
                 <div class="module-accordion-meta">
-                  <span class="report-accordion-tag">Aspirantes</span>
+                  <span class="module-accordion-tag">Aspirantes</span>
                   <span class="module-accordion-icon" aria-hidden="true"></span>
                 </div>
               </summary>
@@ -451,10 +476,10 @@
               <summary class="module-accordion-summary">
                 <div class="module-accordion-copy">
                   <h3>Alertas de Marcación</h3>
-                  <p>Alertas detectadas por marcaciones fuera de criterio o dispositivo.</p>
+                  <p>Revisa alertas generadas por dispositivos, horarios o criterios de control.</p>
                 </div>
                 <div class="module-accordion-meta">
-                  <span class="report-accordion-tag">Alertas</span>
+                  <span class="module-accordion-tag">Alertas</span>
                   <span class="module-accordion-icon" aria-hidden="true"></span>
                 </div>
               </summary>
@@ -470,10 +495,10 @@
               <summary class="module-accordion-summary">
                 <div class="module-accordion-copy">
                   <h3>Reporte de Staff</h3>
-                  <p>Módulo separado para APOYO y ADJUNTO. No se mezcla con aspirantes.</p>
+                  <p>Consulta y exporta asistencias del personal de apoyo y adjuntos.</p>
                 </div>
                 <div class="module-accordion-meta">
-                  <span class="report-accordion-tag">Staff</span>
+                  <span class="module-accordion-tag">Staff</span>
                   <span class="module-accordion-icon" aria-hidden="true"></span>
                 </div>
               </summary>
@@ -534,9 +559,10 @@
             <summary class="module-accordion-summary">
               <div class="module-accordion-copy">
                 <h3>Crear usuario</h3>
-                <p>Registra o edita accesos administrativos de la institución.</p>
+                <p>Registra y administra accesos administrativos vinculados a la institución activa.</p>
               </div>
               <div class="module-accordion-meta">
+                <span class="module-accordion-tag">Admin</span>
                 <span class="module-accordion-icon" aria-hidden="true"></span>
               </div>
             </summary>
@@ -670,9 +696,10 @@
           <summary class="module-accordion-summary">
             <div class="module-accordion-copy">
               <h3>GPS</h3>
-              <p>Coordenadas UBO y validación geográfica de asistencia.</p>
+              <p>Configura ubicación, radio de validación y parámetros de marcación por GPS.</p>
             </div>
             <div class="module-accordion-meta">
+              <span class="module-accordion-tag">GPS</span>
               <span class="module-accordion-icon" aria-hidden="true"></span>
             </div>
           </summary>
@@ -698,9 +725,10 @@
           <summary class="module-accordion-summary">
             <div class="module-accordion-copy">
               <h3>Carga de Aspirantes</h3>
-              <p>Importa padrones y revisa el listado consolidado.</p>
+              <p>Importa, valida y administra el padrón oficial de aspirantes del curso.</p>
             </div>
             <div class="module-accordion-meta">
+              <span class="module-accordion-tag">Padrón</span>
               <span class="module-accordion-icon" aria-hidden="true"></span>
             </div>
           </summary>
@@ -737,9 +765,10 @@
           <summary class="module-accordion-summary">
             <div class="module-accordion-copy">
               <h3>Staff de instrucción</h3>
-              <p>Administra el padrón separado de APOYO y ADJUNTO.</p>
+              <p>Gestiona el personal de apoyo y adjuntos habilitados para registrar asistencia.</p>
             </div>
             <div class="module-accordion-meta">
+              <span class="module-accordion-tag">Staff</span>
               <span class="module-accordion-icon" aria-hidden="true"></span>
             </div>
           </summary>
@@ -866,9 +895,10 @@
           <summary class="module-accordion-summary">
             <div class="module-accordion-copy">
               <h3>Migración y Carga Histórica</h3>
-              <p>Valida reportes históricos de Google Forms o Excel antes de habilitar la importación.</p>
+              <p>Importa y concilia asistencias históricas desde Google Forms o archivos Excel.</p>
             </div>
             <div class="module-accordion-meta">
+              <span class="module-accordion-tag">Históricos</span>
               <span class="module-accordion-icon" aria-hidden="true"></span>
             </div>
           </summary>
@@ -1046,9 +1076,10 @@
           <summary class="module-accordion-summary">
             <div class="module-accordion-copy">
               <h3>Retirar Aspirante</h3>
-              <p>Busca aspirantes, retíralos y revisa el historial de retiros.</p>
+              <p>Gestiona retiros y consulta el historial de cambios del padrón institucional.</p>
             </div>
             <div class="module-accordion-meta">
+              <span class="module-accordion-tag">Retiros</span>
               <span class="module-accordion-icon" aria-hidden="true"></span>
             </div>
           </summary>
@@ -1089,9 +1120,10 @@
           <summary class="module-accordion-summary">
             <div class="module-accordion-copy">
               <h3>Configuración de Curso</h3>
-              <p>Nombre, fechas, radio GPS y acciones generales del curso.</p>
+              <p>Define parámetros generales, fechas y comportamiento operativo del curso.</p>
             </div>
             <div class="module-accordion-meta">
+              <span class="module-accordion-tag">Curso</span>
               <span class="module-accordion-icon" aria-hidden="true"></span>
             </div>
           </summary>
@@ -1143,9 +1175,10 @@
           <summary class="module-accordion-summary">
             <div class="module-accordion-copy">
               <h3>Secciones de Curso</h3>
-              <p>Alta, edición y listado de secciones del curso activo.</p>
+              <p>Administra jornadas, horarios y estructura de secciones del curso.</p>
             </div>
             <div class="module-accordion-meta">
+              <span class="module-accordion-tag">Secciones</span>
               <span class="module-accordion-icon" aria-hidden="true"></span>
             </div>
           </summary>
@@ -1219,9 +1252,10 @@
           <summary class="module-accordion-summary">
             <div class="module-accordion-copy">
               <h3>UBOs / Sedes por sección</h3>
-              <p>Asigna UBO sede, modalidad, horario y días por sección.</p>
+              <p>Configura compañías sede, modalidades y horarios asociados a cada sección.</p>
             </div>
             <div class="module-accordion-meta">
+              <span class="module-accordion-tag">UBO/Sedes</span>
               <span class="module-accordion-icon" aria-hidden="true"></span>
             </div>
           </summary>
@@ -1382,34 +1416,48 @@
 
       <div class="app-main">
         <div id="luizBloqueInstituciones" class="app-section">
-          <div class="card section-card-tight">
-            <h2 class="section-heading">Nueva institución</h2>
-            <div class="filtros luiz-inst-create-row">
-              <input id="luizInstNombre" placeholder="Nombre de institución">
-              <input id="luizInstLogoFile" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
-              <button onclick="crearInstitucionLuizLabs()">Crear institución</button>
-            </div>
-            <p class="hint">Logo institucional opcional (PNG/JPG/JPEG). Si no cargas uno, se usará el logo de asistIA.
-            </p>
-          </div>
+          <details class="module-accordion" open>
+            <summary class="module-accordion-summary">
+              <div class="module-accordion-copy">
+                <h3>Instituciones</h3>
+                <p>Crea, activa y administra instituciones conectadas a AsistIA.</p>
+              </div>
+              <div class="module-accordion-meta">
+                <span class="module-accordion-tag">Instituciones</span>
+                <span class="module-accordion-icon" aria-hidden="true"></span>
+              </div>
+            </summary>
+            <div class="module-accordion-body">
+              <div class="card section-card-tight">
+                <h2 class="section-heading">Nueva institución</h2>
+                <div class="filtros luiz-inst-create-row">
+                  <input id="luizInstNombre" placeholder="Nombre de institución">
+                  <input id="luizInstLogoFile" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
+                  <button onclick="crearInstitucionLuizLabs()">Crear institución</button>
+                </div>
+                <p class="hint">Logo institucional opcional (PNG/JPG/JPEG). Si no cargas uno, se usará el logo de asistIA.
+                </p>
+              </div>
 
-          <div class="card section-card-tight">
-            <h2 class="section-heading">Instituciones</h2>
-            <div class="table-wrap">
-              <table class="luiz-inst-table">
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Slug</th>
-                    <th>Estado</th>
-                    <th>Fecha</th>
-                    <th class="actions-col">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody id="tablaInstitucionesLuiz"></tbody>
-              </table>
+              <div class="card section-card-tight">
+                <h2 class="section-heading">Instituciones</h2>
+                <div class="table-wrap">
+                  <table class="luiz-inst-table">
+                    <thead>
+                      <tr>
+                        <th>Nombre</th>
+                        <th>Slug</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                        <th class="actions-col">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tablaInstitucionesLuiz"></tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-          </div>
+          </details>
         </div>
 
         <div id="luizBloqueUsuarios" class="app-section" style="display:none;">
@@ -1432,10 +1480,11 @@
               <summary class="module-accordion-summary">
                 <div class="module-accordion-copy">
                   <h3>Usuarios globales</h3>
-                  <p>Cuentas con acceso administrativo al sistema.</p>
+                  <p>Gestiona cuentas con acceso administrativo general al sistema.</p>
                 </div>
                 <div class="module-accordion-meta">
                   <div id="contadorGlobal" class="user-counter">Mostrando 0 usuarios globales</div>
+                  <span class="module-accordion-tag">Global</span>
                   <span class="module-accordion-icon" aria-hidden="true"></span>
                 </div>
               </summary>
@@ -1550,10 +1599,11 @@
               <summary class="module-accordion-summary">
                 <div class="module-accordion-copy">
                   <h3>Usuarios admin por institución</h3>
-                  <p>Accesos administrativos vinculados a cada institución.</p>
+                  <p>Asigna accesos administrativos vinculados a cada institución.</p>
                 </div>
                 <div class="module-accordion-meta">
                   <div id="contadorAdminLuiz" class="user-counter">Mostrando 0 usuarios</div>
+                  <span class="module-accordion-tag">Admin</span>
                   <span class="module-accordion-icon" aria-hidden="true"></span>
                 </div>
               </summary>
@@ -1684,82 +1734,110 @@
         </div>
 
         <div id="luizBloquePerfiles" class="app-section" style="display:none;">
-          <div class="card section-card-tight">
-            <div class="section-head section-head-compact">
-              <h2 class="section-heading">Perfiles de acceso</h2>
-              <p class="section-subtitle">Define permisos visibles por módulo con controles más compactos.</p>
-            </div>
-            <div class="config-grid section-grid-spaced">
-              <div>
-                <label for="luizPerfilNombre">Nombre del perfil</label>
-                <input id="luizPerfilNombre" placeholder="Ejemplo: Staff Noche">
+          <details class="module-accordion" open>
+            <summary class="module-accordion-summary">
+              <div class="module-accordion-copy">
+                <h3>Perfiles de acceso</h3>
+                <p>Define permisos visibles por módulo con controles compactos.</p>
               </div>
-              <div>
-                <label for="luizPerfilEstado">Estado</label>
-                <select id="luizPerfilEstado">
-                  <option value="activo">Activo</option>
-                  <option value="inactivo">Inactivo</option>
-                </select>
+              <div class="module-accordion-meta">
+                <span class="module-accordion-tag">Perfiles</span>
+                <span class="module-accordion-icon" aria-hidden="true"></span>
+              </div>
+            </summary>
+            <div class="module-accordion-body">
+              <div class="card section-card-tight">
+                <div class="section-head section-head-compact">
+                  <h2 class="section-heading">Perfiles de acceso</h2>
+                  <p class="section-subtitle">Define permisos visibles por módulo con controles más compactos.</p>
+                </div>
+                <div class="config-grid section-grid-spaced">
+                  <div>
+                    <label for="luizPerfilNombre">Nombre del perfil</label>
+                    <input id="luizPerfilNombre" placeholder="Ejemplo: Staff Noche">
+                  </div>
+                  <div>
+                    <label for="luizPerfilEstado">Estado</label>
+                    <select id="luizPerfilEstado">
+                      <option value="activo">Activo</option>
+                      <option value="inactivo">Inactivo</option>
+                    </select>
+                  </div>
+                </div>
+                <div id="luizPerfilPermisos" class="dias profile-permissions-grid"></div>
+                <div class="table-actions section-actions-spaced">
+                  <button onclick="guardarPerfilLuiz()">Guardar perfil</button>
+                  <button class="secondary" onclick="cancelarEdicionPerfilLuiz()">Cancelar edición</button>
+                  <button class="secondary" onclick="limpiarPerfilLuizForm()">Limpiar</button>
+                </div>
+                <div class="table-wrap">
+                  <table class="luiz-users-table">
+                    <thead>
+                      <tr>
+                        <th>Perfil</th>
+                        <th>Estado</th>
+                        <th>Permisos</th>
+                        <th>Fecha</th>
+                        <th class="actions-col">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tablaPerfilesLuiz"></tbody>
+                  </table>
+                </div>
               </div>
             </div>
-            <div id="luizPerfilPermisos" class="dias profile-permissions-grid"></div>
-            <div class="table-actions section-actions-spaced">
-              <button onclick="guardarPerfilLuiz()">Guardar perfil</button>
-              <button class="secondary" onclick="cancelarEdicionPerfilLuiz()">Cancelar edición</button>
-              <button class="secondary" onclick="limpiarPerfilLuizForm()">Limpiar</button>
-            </div>
-            <div class="table-wrap">
-              <table class="luiz-users-table">
-                <thead>
-                  <tr>
-                    <th>Perfil</th>
-                    <th>Estado</th>
-                    <th>Permisos</th>
-                    <th>Fecha</th>
-                    <th class="actions-col">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody id="tablaPerfilesLuiz"></tbody>
-              </table>
-            </div>
-          </div>
+          </details>
         </div>
 
         <div id="luizBloqueLogs" class="app-section" style="display:none;">
-          <div class="card section-card-activity">
-            <div class="section-head">
-              <h2 class="section-heading">Logs globales asistIA</h2>
-              <p class="section-subtitle">Auditoría operativa centralizada por institución, usuario y rango.</p>
+          <details class="module-accordion" open>
+            <summary class="module-accordion-summary">
+              <div class="module-accordion-copy">
+                <h3>Logs / Actividad</h3>
+                <p>Consulta eventos relevantes y acciones registradas en la plataforma.</p>
+              </div>
+              <div class="module-accordion-meta">
+                <span class="module-accordion-tag">Logs</span>
+                <span class="module-accordion-icon" aria-hidden="true"></span>
+              </div>
+            </summary>
+            <div class="module-accordion-body">
+              <div class="card section-card-activity">
+                <div class="section-head">
+                  <h2 class="section-heading">Logs globales asistIA</h2>
+                  <p class="section-subtitle">Auditoría operativa centralizada por institución, usuario y rango.</p>
+                </div>
+                <div class="logs-toolbar">
+                <p id="logsGlobalRangeLabel" class="hint section-range-label">Mostrando mes actual.</p>
+                <div class="config-row logs-filter-bar">
+                  <select id="filtroActividadGlobalTenant"></select>
+                  <input id="filtroActividadGlobalTexto" placeholder="Buscar acción/usuario/ruta">
+                  <input id="filtroActividadGlobalDesde" type="date">
+                  <input id="filtroActividadGlobalHasta" type="date">
+                  <button onclick="cargarActividadGlobal()">Filtrar</button>
+                  <button class="secondary" onclick="limpiarActividadGlobal()">Limpiar</button>
+                  <button class="secondary" onclick="exportarActividadCSV('global')">Exportar CSV</button>
+                </div>
+                </div>
+                <div class="table-wrap user-table-wrap">
+                  <table class="luiz-users-table">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Acción</th>
+                        <th>Usuario</th>
+                        <th>Dispositivo</th>
+                        <th>Rol</th>
+                        <th>Institución</th>
+                        <th>Detalle</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tablaActividadGlobal"></tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-            <div class="logs-toolbar">
-            <p id="logsGlobalRangeLabel" class="hint section-range-label">Mostrando mes actual.</p>
-            <div class="config-row logs-filter-bar">
-              <select id="filtroActividadGlobalTenant"></select>
-              <input id="filtroActividadGlobalTexto" placeholder="Buscar acción/usuario/ruta">
-              <input id="filtroActividadGlobalDesde" type="date">
-              <input id="filtroActividadGlobalHasta" type="date">
-              <button onclick="cargarActividadGlobal()">Filtrar</button>
-              <button class="secondary" onclick="limpiarActividadGlobal()">Limpiar</button>
-              <button class="secondary" onclick="exportarActividadCSV('global')">Exportar CSV</button>
-            </div>
-            </div>
-            <div class="table-wrap user-table-wrap">
-              <table class="luiz-users-table">
-                <thead>
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Acción</th>
-                    <th>Usuario</th>
-                    <th>Dispositivo</th>
-                    <th>Rol</th>
-                    <th>Institución</th>
-                    <th>Detalle</th>
-                  </tr>
-                </thead>
-                <tbody id="tablaActividadGlobal"></tbody>
-              </table>
-            </div>
-          </div>
+          </details>
         </div>
       </div>
     </div>

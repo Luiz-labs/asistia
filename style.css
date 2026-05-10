@@ -362,53 +362,62 @@ h2 {
 }
 
 .module-accordion {
-  border: 1px solid #dfe6f3;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+  border: 1px solid #d9e3f1;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(251, 253, 255, 0.96) 100%);
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
   overflow: hidden;
-  transition: box-shadow 0.24s ease, border-color 0.24s ease, transform 0.24s ease;
+  transition: box-shadow 0.24s ease, border-color 0.24s ease, transform 0.24s ease, background 0.24s ease;
   animation: uiFadeSlideUp 0.32s var(--motion-ease-premium);
 }
 
 .module-accordion + .module-accordion {
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 .module-accordion-summary {
   list-style: none;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  padding: 22px 22px;
+  gap: 16px;
+  padding: 22px 24px;
   cursor: pointer;
-  transition: background-color 0.22s ease, gap 0.22s ease;
+  transition: background-color 0.22s ease, gap 0.22s ease, padding 0.22s ease;
 }
 
 .module-accordion-summary:hover {
-  background: rgba(37, 99, 235, 0.035);
+  background: rgba(37, 99, 235, 0.045);
 }
 
 .module-accordion[open] {
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+  border-color: #cfdced;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.09);
 }
 
 .module-accordion-summary::-webkit-details-marker {
   display: none;
 }
 
+.module-accordion-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .module-accordion-copy h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
   color: #1a2945;
+  letter-spacing: -0.01em;
 }
 
 .module-accordion-copy p {
-  margin: 6px 0 0;
+  margin: 7px 0 0;
   font-size: 13px;
-  color: #667996;
-  line-height: 1.45;
+  color: #627694;
+  line-height: 1.5;
+  max-width: 72ch;
 }
 
 .module-accordion-meta {
@@ -416,14 +425,40 @@ h2 {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.module-accordion-meta .user-counter {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7f9d;
+}
+
+.module-accordion-tag,
+.report-accordion-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f5f8fd 0%, #edf3fb 100%);
+  border: 1px solid #d7e2f0;
+  color: #46617f;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .module-accordion-icon {
   width: 34px;
   height: 34px;
   border-radius: 999px;
-  background: #f3f6fb;
-  border: 1px solid #d7dfed;
+  background: #f4f7fb;
+  border: 1px solid #d5dfed;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -443,21 +478,30 @@ h2 {
 
 .module-accordion-summary:hover .module-accordion-icon {
   background: #eef4fd;
-  border-color: #cbd8ee;
+  border-color: #c8d7ee;
 }
 
 .module-accordion[open] .module-accordion-icon {
   transform: rotate(180deg);
+  background: #eaf2fd;
+  border-color: #c6d7f1;
 }
 
 .module-accordion-body {
-  padding: 18px 22px 22px;
-  border-top: 1px solid #ebf0f7;
-  background: #fbfcfe;
+  padding: 18px 24px 24px;
+  border-top: 1px solid #e7edf7;
+  background: linear-gradient(180deg, rgba(251, 253, 255, 0.98) 0%, rgba(247, 250, 255, 0.94) 100%);
 }
 
 .module-accordion[open] .module-accordion-body {
   animation: uiFadeSlideUp 0.28s var(--motion-ease-premium);
+}
+
+.module-accordion-body > .card + .card,
+.module-accordion-body > .user-form-card + .user-search-bar,
+.module-accordion-body > .user-search-bar + .user-table-card,
+.module-accordion-body > .card + .table-wrap {
+  margin-top: 16px;
 }
 
 #luizBloqueUsuarios .user-search-bar {
@@ -2615,7 +2659,7 @@ select {
 
   .module-accordion-meta {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
   }
 
   .module-accordion-body {
@@ -3300,19 +3344,6 @@ select {
 
 .report-accordion .module-accordion-copy h3 {
   font-size: 17px;
-}
-
-.report-accordion-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: #f1f5fb;
-  border: 1px solid #d8e1f0;
-  color: #48607f;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
 }
 
 .report-accordion-body {
