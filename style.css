@@ -147,14 +147,16 @@ h2 {
 
 .app-shell {
   display: flex;
-  min-height: calc(100dvh - 64px);
   min-width: 0;
   max-width: 100%;
   flex: 1 1 auto;
+  min-height: 0;
+  align-items: stretch;
 }
 
 .app-main {
   flex: 1 1 auto;
+  min-height: 0;
   min-width: 0;
   max-width: 100%;
   display: flex;
@@ -194,6 +196,20 @@ h2 {
 
 .section-card-lg {
   margin-bottom: 24px;
+}
+
+.app-section > .module-accordion:last-child,
+.section-card:last-child,
+.section-card-tight:last-child,
+.section-card-lg:last-child,
+.module-accordion-body > .card:last-child,
+.module-accordion-body > .config-card:last-child,
+.module-accordion-body > .table-wrap:last-child,
+.module-accordion-body > .user-form-card:last-child,
+.module-accordion-body > .user-search-bar:last-child,
+.module-accordion-body > .user-table-card:last-child,
+.module-accordion-body > .user-table-wrap:last-child {
+  margin-bottom: 0;
 }
 
 .section-heading,
@@ -5030,6 +5046,7 @@ body {
   color: #86868b;
   border-top: 1px solid #f0f0f2;
   margin-top: auto;
+  flex-shrink: 0;
 }
 
 .main-footer a {
