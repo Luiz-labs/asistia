@@ -21,6 +21,12 @@ let staffSuccessSection
 let mensaje
 let staffProfileModal
 
+function setSectionVisible(element, visible, display = "") {
+    if (!element) return
+    element.hidden = !visible
+    element.style.display = visible ? display : "none"
+}
+
 function haySupabase() {
     return !!supabaseClient
 }
@@ -140,7 +146,7 @@ function renderStaffCard(row) {
     const tipo = normalizarTexto(row?.tipo_staff).toUpperCase() || "APOYO"
     const badgeClass = tipo === "ADJUNTO" ? "adjunto" : "apoyo"
 
-    staffCardSection.hidden = false
+    setSectionVisible(staffCardSection, true)
     staffCardSection.innerHTML = `
       <div class="staff-card-head">
         ${renderStaffAvatar(row)}
@@ -164,10 +170,6 @@ function renderStaffCard(row) {
         <button id="btnResetStaff" class="tertiary-btn staff-card-cancel" type="button">Cancelar</button>
       </div>
     `
-
-    document.getElementById("btnRegistrarStaff")?.addEventListener("click", registrarAsistenciaStaff)
-    document.getElementById("btnResetStaff")?.addEventListener("click", resetStaffSeleccionado)
-    document.getElementById("btnEditarPerfilStaff")?.addEventListener("click", abrirModalPerfilStaff)
 }
 
 function setPerfilMsg(texto, tipo = "") {
@@ -217,7 +219,7 @@ function abrirModalPerfilStaff() {
     const correoInput = document.getElementById("staffPerfilCorreo")
     const fotoInput = document.getElementById("staffFotoFile")
     staffPerfilEditando = true
-    staffProfileModal.hidden = false
+    setSectionVisible(staffProfileModal, true, "flex")
     staffProfileModal.setAttribute("aria-hidden", "false")
     document.body.classList.add("staff-modal-open")
     if (celularInput) celularInput.value = normalizarTexto(staffSeleccionado?.celular)
@@ -233,7 +235,7 @@ function cerrarModalPerfilStaff() {
     if (!staffProfileModal) return
     staffPerfilEditando = false
     staffPerfilGuardando = false
-    staffProfileModal.hidden = true
+    setSectionVisible(staffProfileModal, false)
     staffProfileModal.setAttribute("aria-hidden", "true")
     document.body.classList.remove("staff-modal-open")
     setPerfilMsg("")
@@ -384,16 +386,16 @@ function actualizarEstadoVistaStaff(estado = "inicio", detalle = {}) {
     }
 
     if (staffLookupSection) {
-        staffLookupSection.hidden = !esInicio
+        setSectionVisible(staffLookupSection, esInicio)
         staffLookupSection.classList.toggle("is-collapsed", !esInicio)
     }
     if (staffCardSection) {
-        staffCardSection.hidden = !esValidado
+        setSectionVisible(staffCardSection, esValidado)
         staffCardSection.classList.toggle("is-compact", esValidado)
         staffCardSection.classList.toggle("is-success", false)
     }
     if (staffSuccessSection) {
-        staffSuccessSection.hidden = !esRegistrado
+        setSectionVisible(staffSuccessSection, esRegistrado)
         if (esRegistrado) {
             const nombre = `${normalizarTexto(detalle.nombres)} ${normalizarTexto(detalle.apellidos)}`.replace(/\s+/g, " ").trim()
             staffSuccessSection.innerHTML = `
@@ -420,15 +422,15 @@ function resetStaffSeleccionado() {
     staffPerfilGuardando = false
     cerrarModalPerfilStaff()
     if (staffCardSection) {
-        staffCardSection.hidden = true
+        setSectionVisible(staffCardSection, false)
         staffCardSection.innerHTML = ""
     }
     if (staffSuccessSection) {
-        staffSuccessSection.hidden = true
+        setSectionVisible(staffSuccessSection, false)
         staffSuccessSection.innerHTML = ""
     }
     if (staffLookupSection) {
-        staffLookupSection.hidden = false
+        setSectionVisible(staffLookupSection, true)
         staffLookupSection.classList.remove("is-collapsed")
     }
     if (codigoBomberoInput) {
@@ -556,7 +558,7 @@ async function buscarStaffPorCodigo() {
         staffPerfilEditando = false
         staffPerfilGuardando = false
         if (staffCardSection) {
-            staffCardSection.hidden = true
+            setSectionVisible(staffCardSection, false)
             staffCardSection.innerHTML = ""
         }
         actualizarEstadoVistaStaff("inicio")
@@ -642,6 +644,13 @@ async function registrarAsistenciaStaff() {
 
 function bindEventos() {
     document.getElementById("btnBuscarStaff")?.addEventListener("click", buscarStaffPorCodigo)
+    staffCardSection?.addEventListener("click", event => {
+        const target = event.target.closest("button")
+        if (!target) return
+        if (target.id === "btnRegistrarStaff") registrarAsistenciaStaff()
+        if (target.id === "btnResetStaff") resetStaffSeleccionado()
+        if (target.id === "btnEditarPerfilStaff") abrirModalPerfilStaff()
+    })
     codigoBomberoInput?.addEventListener("input", () => {
         if (codigoBomberoInput) codigoBomberoInput.value = normalizarCodigoBombero(codigoBomberoInput.value)
     })

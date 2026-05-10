@@ -72,6 +72,7 @@ body.staff-modal-open {
 
 .brand-subtitle,
 .tenant-label,
+.step-copy,
 .staff-card-meta,
 .staff-card-copy p {
   margin: 0;
@@ -103,10 +104,21 @@ body.staff-modal-open {
   transition: opacity 0.22s ease, transform 0.22s ease;
 }
 
+.step-copy {
+  margin-bottom: 2px;
+}
+
 .step-block.is-collapsed {
   opacity: 0;
   transform: translateY(-6px);
   pointer-events: none;
+}
+
+.step-block[hidden],
+.staff-card-shell[hidden],
+.success-shell[hidden],
+.staff-modal[hidden] {
+  display: none !important;
 }
 
 .public-card[data-staff-state="login"] #staffCardSection,
@@ -404,7 +416,7 @@ button {
 .staff-modal {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: 999;
   display: flex;
   align-items: flex-end;
   justify-content: center;
