@@ -7567,13 +7567,11 @@ function limpiarFiltrosStaffReportes() {
     staffReportExpandedKey = ""
     if (tablaStaffReportes) {
         tablaStaffReportes.innerHTML = buildEmptyStateHTML(
-            "Recargando reporte staff",
-            "Aplicando rango y filtros por defecto del módulo.",
-            "↻",
-            true
+            "Filtros restablecidos",
+            "Presiona Aplicar para consultar nuevamente el reporte staff.",
+            "📋"
         )
     }
-    void cargarReportesStaff()
 }
 
 function limpiarCargaAspirantesUI() {
@@ -8921,13 +8919,10 @@ function renderTabla(data) {
     cacheReportes = []
 
     if (!activos.length) {
-        const msg = hayFiltroUbo
-            ? "No hay registros para la UBO seleccionada en el rango indicado."
-            : "No hay datos para el rango seleccionado."
         tabla.innerHTML = buildEmptyStateHTML(
-            "Sin resultados para reportes",
-            msg,
-            "📊"
+            "No hay registros disponibles",
+            "Ajusta los filtros para consultar asistencias registradas.",
+            "🔎"
         )
         return
     }
@@ -9130,7 +9125,11 @@ function limpiarFiltros() {
     fechaDesde.value = from
     fechaHasta.value = to
 
-    tabla.innerHTML = ""
+    tabla.innerHTML = buildEmptyStateHTML(
+        "No hay registros disponibles",
+        "Ajusta los filtros para consultar asistencias registradas.",
+        "🔎"
+    )
     tablaAlertasContenido.innerHTML = buildEmptyStateHTML(
         "Sin alertas registradas",
         "Ajusta los filtros para consultar un periodo con actividad.",

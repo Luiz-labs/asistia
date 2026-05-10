@@ -54,7 +54,7 @@ body.staff-modal-open {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .brand-logo {
@@ -72,7 +72,6 @@ body.staff-modal-open {
 
 .brand-subtitle,
 .tenant-label,
-.step-copy,
 .staff-card-meta,
 .staff-card-copy p {
   margin: 0;
@@ -81,10 +80,12 @@ body.staff-modal-open {
 }
 
 .tenant-label {
-  margin-top: 6px;
-  font-size: 0.8rem;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--brand-dark);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
 }
 
 .step-block,
@@ -98,6 +99,7 @@ body.staff-modal-open {
 }
 
 .step-block {
+  min-height: 0;
   transition: opacity 0.22s ease, transform 0.22s ease;
 }
 
@@ -105,6 +107,16 @@ body.staff-modal-open {
   opacity: 0;
   transform: translateY(-6px);
   pointer-events: none;
+}
+
+.public-card[data-staff-state="login"] #staffCardSection,
+.public-card[data-staff-state="login"] #staffSuccessSection {
+  display: none !important;
+}
+
+.public-card[data-staff-state="validado"] #staffLookupSection,
+.public-card[data-staff-state="registrado"] #staffLookupSection {
+  display: none !important;
 }
 
 .text-input {
@@ -398,6 +410,10 @@ button {
   justify-content: center;
 }
 
+.staff-modal[hidden] {
+  display: none !important;
+}
+
 .staff-modal-backdrop {
   position: absolute;
   inset: 0;
@@ -537,6 +553,10 @@ button {
   margin: 14px 0 0;
   font-size: 0.92rem;
   font-weight: 600;
+}
+
+.message-box:empty {
+  display: none;
 }
 
 .message-box.error {

@@ -56,7 +56,7 @@ function detectarTenantDesdeRuta() {
 }
 
 function aplicarTenantEnUI() {
-    const label = tenantActivoId ? `Institución: ${tenantActivoId}` : "Institución no detectada"
+    const label = tenantActivoId ? String(tenantActivoId).toUpperCase() : "INSTITUCIÓN"
     if (tenantLabel) tenantLabel.textContent = label
     document.title = tenantActivoId ? `${tenantActivoId} - asistIA Staff` : "asistIA Staff"
 }
@@ -226,6 +226,7 @@ function abrirModalPerfilStaff() {
     renderPreviewFotoModalStaff(staffSeleccionado)
     setPerfilMsg("")
     actualizarEstadoModalPerfilStaff()
+    celularInput?.focus()
 }
 
 function cerrarModalPerfilStaff() {
@@ -371,10 +372,15 @@ function actualizarEstadoVistaStaff(estado = "inicio", detalle = {}) {
     const esInicio = estado === "inicio"
     const esValidado = estado === "validado"
     const esRegistrado = estado === "registrado"
+    const publicCard = document.querySelector(".public-card")
 
     if (staffSuccessResetTimer) {
         clearTimeout(staffSuccessResetTimer)
         staffSuccessResetTimer = null
+    }
+
+    if (publicCard) {
+        publicCard.dataset.staffState = estado
     }
 
     if (staffLookupSection) {
@@ -553,6 +559,7 @@ async function buscarStaffPorCodigo() {
             staffCardSection.hidden = true
             staffCardSection.innerHTML = ""
         }
+        actualizarEstadoVistaStaff("inicio")
         setMensaje("No existe un staff activo con ese Código de Bombero.", "warning")
         return
     }
