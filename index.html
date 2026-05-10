@@ -377,71 +377,104 @@
         <div id="vistaReportes" class="app-section">
 
           <h2>Reportes</h2>
-          <!-- CARD FILTROS -->
-          <div class="card section-card">
-
-            <h3 class="section-subtitle">Filtros</h3>
-
-            <div class="filtros">
-
-              <select id="filtroUbo" class="filter-select-sm"></select>
-
-              <div class="input-date">
-                <input type="date" id="fechaDesde">
+          <div class="reportes-accordion-list">
+            <details class="module-accordion report-accordion" open>
+              <summary class="module-accordion-summary">
+                <div class="module-accordion-copy">
+                  <h3>Reporte de Aspirantes</h3>
+                  <p>Filtros institucionales y tabla de asistencias de aspirantes.</p>
+                </div>
+                <div class="module-accordion-meta">
+                  <span class="report-accordion-tag">Aspirantes</span>
+                  <span class="module-accordion-icon" aria-hidden="true"></span>
+                </div>
+              </summary>
+              <div class="module-accordion-body report-accordion-body">
+                <div class="card section-card report-section-card">
+                  <h3 class="section-subtitle">Filtros</h3>
+                  <div class="filtros">
+                    <select id="filtroUbo" class="filter-select-sm"></select>
+                    <div class="input-date">
+                      <input type="date" id="fechaDesde">
+                    </div>
+                    <div class="input-date">
+                      <input type="date" id="fechaHasta">
+                    </div>
+                    <button onclick="aplicarFiltros()">Aplicar</button>
+                    <button class="secondary" onclick="limpiarFiltros()">Limpiar</button>
+                    <button onclick="cargarDatos()">Todos</button>
+                    <button onclick="exportarReportesExcel()">Exportar Excel</button>
+                  </div>
+                </div>
+                <div id="tabla" class="card report-table-card"></div>
               </div>
+            </details>
 
-              <div class="input-date">
-                <input type="date" id="fechaHasta">
+            <details class="module-accordion report-accordion">
+              <summary class="module-accordion-summary">
+                <div class="module-accordion-copy">
+                  <h3>Alertas de Marcación</h3>
+                  <p>Alertas detectadas por marcaciones fuera de criterio o dispositivo.</p>
+                </div>
+                <div class="module-accordion-meta">
+                  <span class="report-accordion-tag">Alertas</span>
+                  <span class="module-accordion-icon" aria-hidden="true"></span>
+                </div>
+              </summary>
+              <div class="module-accordion-body report-accordion-body">
+                <div id="tablaAlertas" class="card report-table-card">
+                  <h3 class="section-subtitle">Alertas de Marcación</h3>
+                  <div id="tablaAlertasContenido" class="table-empty-copy">Sin alertas registradas.</div>
+                </div>
               </div>
+            </details>
 
-              <button onclick="aplicarFiltros()">Aplicar</button>
-              <button class="secondary" onclick="limpiarFiltros()">Limpiar</button>
-              <button onclick="cargarDatos()">Todos</button>
-              <button onclick="exportarReportesExcel()">Exportar Excel</button>
+            <details class="module-accordion report-accordion">
+              <summary class="module-accordion-summary">
+                <div class="module-accordion-copy">
+                  <h3>Reporte de Staff</h3>
+                  <p>Módulo separado para APOYO y ADJUNTO. No se mezcla con aspirantes.</p>
+                </div>
+                <div class="module-accordion-meta">
+                  <span class="report-accordion-tag">Staff</span>
+                  <span class="module-accordion-icon" aria-hidden="true"></span>
+                </div>
+              </summary>
+              <div class="module-accordion-body report-accordion-body">
+                <div class="card section-card section-card-lg report-section-card">
+                  <div class="staff-report-head">
+                    <div>
+                      <h3 class="section-subtitle">Asistencia Staff</h3>
+                      <p class="hint">Filtros y tabla exclusivos para staff de instrucción.</p>
+                    </div>
+                  </div>
 
-            </div>
+                  <div class="filtros staff-filtros">
+                    <div class="input-date">
+                      <input type="date" id="staffReporteDesde">
+                    </div>
 
-          </div>
+                    <div class="input-date">
+                      <input type="date" id="staffReporteHasta">
+                    </div>
 
-          <!-- 🔥 TABLA RESULTADOS (AQUI VA) -->
-          <div id="tabla" class="card"></div>
+                    <select id="staffReporteTipo" class="filter-select-sm">
+                      <option value="">Todos los tipos</option>
+                      <option value="APOYO">APOYO</option>
+                      <option value="ADJUNTO">ADJUNTO</option>
+                    </select>
 
-          <div id="tablaAlertas" class="card">
-            <h3 class="section-subtitle">Alertas de Marcación</h3>
-            <div id="tablaAlertasContenido" class="table-empty-copy">Sin alertas registradas.</div>
-          </div>
+                    <input id="staffReporteUbo" placeholder="UBO origen" autocomplete="off">
 
-          <div class="card section-card section-card-lg">
-            <div class="staff-report-head">
-              <div>
-                <h3 class="section-subtitle">Asistencia Staff</h3>
-                <p class="hint">Módulo separado para APOYO y ADJUNTO. No se mezcla con aspirantes.</p>
+                    <button type="button" onclick="cargarReportesStaff()">Aplicar</button>
+                    <button type="button" class="secondary" onclick="limpiarFiltrosStaffReportes()">Limpiar</button>
+                    <button type="button" onclick="exportarReportesStaffExcel()">Exportar Excel</button>
+                  </div>
+
+                  <div id="tablaStaffReportes" class="staff-report-table table-empty-copy">Sin registros consultados.</div>
+                </div>
               </div>
-            </div>
-
-            <div class="filtros staff-filtros">
-              <div class="input-date">
-                <input type="date" id="staffReporteDesde">
-              </div>
-
-              <div class="input-date">
-                <input type="date" id="staffReporteHasta">
-              </div>
-
-              <select id="staffReporteTipo" class="filter-select-sm">
-                <option value="">Todos los tipos</option>
-                <option value="APOYO">APOYO</option>
-                <option value="ADJUNTO">ADJUNTO</option>
-              </select>
-
-              <input id="staffReporteUbo" placeholder="UBO origen" autocomplete="off">
-
-              <button type="button" onclick="cargarReportesStaff()">Aplicar</button>
-              <button type="button" class="secondary" onclick="limpiarFiltrosStaffReportes()">Limpiar</button>
-              <button type="button" onclick="exportarReportesStaffExcel()">Exportar Excel</button>
-            </div>
-
-            <div id="tablaStaffReportes" class="staff-report-table table-empty-copy">Sin registros consultados.</div>
+            </details>
           </div>
 
 

@@ -21,7 +21,7 @@
         </div>
       </div>
 
-      <section class="step-block">
+      <section id="staffLookupSection" class="step-block">
         <p class="step-copy">Ingresa tu Código de Bombero para validar tu padrón institucional.</p>
         <input id="codigoBomberoInput" class="text-input" placeholder="Ejemplo: A17200" autocomplete="off">
         <button id="btnBuscarStaff" class="primary-btn" type="button">Ingresar</button>
@@ -29,7 +29,9 @@
 
       <section id="staffCardSection" class="staff-card-shell" hidden></section>
 
-      <p id="mensaje" class="message-box"></p>
+      <section id="staffSuccessSection" class="success-shell" hidden></section>
+
+      <p id="mensaje" class="message-box" aria-live="polite"></p>
     </section>
     <footer class="public-footer">Desarrollado por Luiz-Labs © 2026</footer>
   </main>

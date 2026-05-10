@@ -85,11 +85,22 @@ body {
 
 .step-block,
 .staff-card-shell,
+.success-shell,
 .staff-card-copy,
 .staff-card-fields {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.step-block {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.step-block.is-collapsed {
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
 }
 
 .text-input {
@@ -138,12 +149,24 @@ button {
   border-radius: 22px;
   background: linear-gradient(180deg, #fbfdff 0%, #f4f8ff 100%);
   border: 1px solid var(--line);
+  align-items: center;
+  text-align: center;
+}
+
+.staff-card-shell.is-compact {
+  margin-top: 16px;
+  padding: 16px;
+}
+
+.staff-card-shell.is-success {
+  margin-bottom: 12px;
 }
 
 .staff-card-head {
   display: flex;
   align-items: center;
   gap: 14px;
+  width: 100%;
 }
 
 .staff-avatar,
@@ -175,6 +198,8 @@ button {
   margin: 0;
   font-size: 1.35rem;
   line-height: 1.15;
+  word-break: break-word;
+  text-wrap: balance;
 }
 
 .staff-card-copy p {
@@ -206,6 +231,8 @@ button {
 
 .staff-card-fields {
   gap: 8px;
+  width: 100%;
+  text-align: left;
 }
 
 .staff-field {
@@ -213,6 +240,7 @@ button {
   border-radius: 14px;
   background: #fff;
   border: 1px solid rgba(148, 163, 184, 0.18);
+  overflow-wrap: anywhere;
 }
 
 .staff-field strong {
@@ -228,6 +256,37 @@ button {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
+  width: 100%;
+}
+
+.success-shell {
+  margin-top: 14px;
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #f4fff8 0%, #ecfff4 100%);
+  border: 1px solid rgba(22, 163, 74, 0.18);
+  text-align: center;
+}
+
+.success-shell h3,
+.success-shell p {
+  margin: 0;
+}
+
+.success-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  margin: 0 auto 4px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.1);
+  border: 1px solid rgba(22, 163, 74, 0.18);
+  color: #166534;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
 .public-footer {
@@ -260,5 +319,50 @@ button {
 @media (min-width: 560px) {
   .staff-card-actions {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 430px) {
+  .public-shell {
+    padding: 14px;
+  }
+
+  .public-card {
+    padding: 20px 16px;
+    border-radius: 24px;
+  }
+
+  .brand-block {
+    align-items: flex-start;
+  }
+
+  .staff-card-head {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .staff-avatar,
+  .staff-avatar-placeholder {
+    width: 64px;
+    height: 64px;
+    flex-basis: 64px;
+  }
+
+  .staff-card-copy h2 {
+    font-size: clamp(1.05rem, 5vw, 1.25rem);
+  }
+
+  .staff-field {
+    padding: 10px 11px;
+    font-size: 0.92rem;
+  }
+
+  .staff-field:last-child {
+    font-size: 0.86rem;
+  }
+
+  .success-shell {
+    padding: 16px 14px;
   }
 }

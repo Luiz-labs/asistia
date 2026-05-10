@@ -3108,6 +3108,48 @@ select {
   margin-top: 20px;
 }
 
+.reportes-accordion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.report-accordion {
+  margin-top: 0;
+}
+
+.report-accordion .module-accordion-copy h3 {
+  font-size: 17px;
+}
+
+.report-accordion-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f1f5fb;
+  border: 1px solid #d8e1f0;
+  color: #48607f;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.report-accordion-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.report-section-card,
+.report-table-card {
+  margin: 0;
+}
+
+.report-table-card > .section-subtitle:first-child {
+  margin-top: 0;
+}
+
 #vistaMovil {
   max-width: 420px;
   margin: 0 auto;

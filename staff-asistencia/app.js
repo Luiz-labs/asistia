@@ -12,7 +12,9 @@ let staffSeleccionado = null
 
 let tenantLabel
 let codigoBomberoInput
+let staffLookupSection
 let staffCardSection
+let staffSuccessSection
 let mensaje
 
 function haySupabase() {
@@ -22,7 +24,9 @@ function haySupabase() {
 function enlazarIds() {
     tenantLabel = document.getElementById("tenantLabel")
     codigoBomberoInput = document.getElementById("codigoBomberoInput")
+    staffLookupSection = document.getElementById("staffLookupSection")
     staffCardSection = document.getElementById("staffCardSection")
+    staffSuccessSection = document.getElementById("staffSuccessSection")
     mensaje = document.getElementById("mensaje")
 }
 
@@ -126,7 +130,7 @@ function renderStaffCard(row) {
 
       <div class="staff-card-actions">
         <button id="btnRegistrarStaff" class="primary-btn" type="button">Registrar asistencia</button>
-        <button id="btnResetStaff" class="secondary-btn" type="button">Buscar otro código</button>
+        <button id="btnResetStaff" class="secondary-btn" type="button">Registrar otro staff</button>
       </div>
     `
 
@@ -134,11 +138,49 @@ function renderStaffCard(row) {
     document.getElementById("btnResetStaff")?.addEventListener("click", resetStaffSeleccionado)
 }
 
+function actualizarEstadoVistaStaff(estado = "inicio", detalle = {}) {
+    const esInicio = estado === "inicio"
+    const esValidado = estado === "validado"
+    const esRegistrado = estado === "registrado"
+
+    if (staffLookupSection) {
+        staffLookupSection.hidden = esValidado || esRegistrado
+        staffLookupSection.classList.toggle("is-collapsed", esValidado || esRegistrado)
+    }
+    if (staffCardSection) {
+        staffCardSection.hidden = !(esValidado || esRegistrado)
+        staffCardSection.classList.toggle("is-compact", esValidado || esRegistrado)
+        staffCardSection.classList.toggle("is-success", esRegistrado)
+    }
+    if (staffSuccessSection) {
+        staffSuccessSection.hidden = !esRegistrado
+        if (esRegistrado) {
+            staffSuccessSection.innerHTML = `
+              <div class="success-badge">Registro exitoso</div>
+              <h3>Asistencia staff registrada correctamente</h3>
+              <p>Hora de marcación: <strong>${escapeHtml(detalle.hora || "--:--:--")}</strong></p>
+              <button id="btnSuccessResetStaff" class="secondary-btn" type="button">Registrar otro staff</button>
+            `
+            document.getElementById("btnSuccessResetStaff")?.addEventListener("click", resetStaffSeleccionado)
+        } else {
+            staffSuccessSection.innerHTML = ""
+        }
+    }
+}
+
 function resetStaffSeleccionado() {
     staffSeleccionado = null
     if (staffCardSection) {
         staffCardSection.hidden = true
         staffCardSection.innerHTML = ""
+    }
+    if (staffSuccessSection) {
+        staffSuccessSection.hidden = true
+        staffSuccessSection.innerHTML = ""
+    }
+    if (staffLookupSection) {
+        staffLookupSection.hidden = false
+        staffLookupSection.classList.remove("is-collapsed")
     }
     if (codigoBomberoInput) {
         codigoBomberoInput.value = ""
@@ -272,6 +314,7 @@ async function buscarStaffPorCodigo() {
 
     staffSeleccionado = data
     renderStaffCard(data)
+    actualizarEstadoVistaStaff("validado")
     setMensaje("Staff validado. Revisa la card y confirma tu ingreso.", "ok")
 }
 
@@ -334,7 +377,8 @@ async function registrarAsistenciaStaff() {
         return
     }
 
-    setMensaje(`Asistencia staff registrada a las ${lima.hora}.`, "ok")
+    actualizarEstadoVistaStaff("registrado", { hora: lima.hora })
+    setMensaje(`Asistencia staff registrada correctamente a las ${lima.hora}.`, "ok")
 }
 
 function bindEventos() {
@@ -369,6 +413,7 @@ async function init() {
     if (!cursoContextoValido) {
         setMensaje("El curso indicado no es válido para esta institución.", "error")
     }
+    actualizarEstadoVistaStaff("inicio")
 }
 
 window.addEventListener("load", () => {
