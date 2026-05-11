@@ -5045,8 +5045,7 @@ body {
   font-size: 13px;
   color: #86868b;
   border-top: 1px solid #f0f0f2;
-  margin-top: auto;
-  flex-shrink: 0;
+  margin-top: 0;
 }
 
 .main-footer a {
