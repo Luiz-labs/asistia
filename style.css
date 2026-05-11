@@ -15,6 +15,7 @@
   --app-content-pad-y: 24px;
   --app-content-pad-x: 32px;
   --app-content-pad-mobile: 16px;
+  --app-layout-bg: #f3f6fb;
   --motion-ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -76,7 +77,7 @@ h6,
 body {
   margin: 0;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: var(--bg);
+  background: var(--app-layout-bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
@@ -162,6 +163,19 @@ h2 {
   display: flex;
   flex-direction: column;
   padding: var(--app-content-pad-y) var(--app-content-pad-x);
+}
+
+#vistaDesktop,
+#vistaLuizLabs,
+.app-shell,
+.app-main {
+  background: var(--app-layout-bg);
+}
+
+.app-section,
+.content-wrapper,
+.module-content {
+  background: transparent;
 }
 
 .app-section {
@@ -4700,8 +4714,7 @@ body {
 
 /* Fondo general un poco más fino */
 body {
-  background:
-    radial-gradient(circle at top center, #f8fbff 0%, #eef2f7 58%, #e9edf5 100%);
+  background: var(--app-layout-bg);
 }
 
 /* Vista principal móvil */
@@ -5051,7 +5064,11 @@ body {
   padding: 30px 20px;
   font-size: 13px;
   color: #86868b;
-  border-top: 1px solid #f0f0f2;
+  background: rgba(255, 255, 255, 0.72);
+  border-top: 1px solid rgba(220, 225, 235, 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
   margin-top: 0;
 }
 
