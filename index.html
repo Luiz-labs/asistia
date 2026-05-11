@@ -1158,6 +1158,49 @@
               </div>
             </div>
           </div>
+          <div class="course-module course-qr-module">
+            <div class="course-qr-head">
+              <div>
+                <h4>QR del Curso</h4>
+                <p class="course-module-hint">Cada curso reutiliza su token persistente actual para generar enlaces públicos permanentes de Aspirantes y Staff.</p>
+              </div>
+            </div>
+            <p id="msgCursoQr" class="course-inline-msg" role="status" aria-live="polite"></p>
+            <div id="courseQrGrid" class="course-qr-grid">
+              <article class="course-qr-card">
+                <div class="course-qr-card-head">
+                  <h5>QR Aspirantes</h5>
+                  <span class="course-qr-badge">Público</span>
+                </div>
+                <div id="qrAspirantes" class="course-qr-canvas" aria-label="QR de Aspirantes"></div>
+                <div class="course-qr-url-block">
+                  <label for="urlQrAspirantes">URL pública</label>
+                  <textarea id="urlQrAspirantes" class="course-qr-url" rows="3" readonly></textarea>
+                </div>
+                <div class="course-qr-actions">
+                  <button type="button" class="secondary" onclick="copiarUrlCursoQr('aspirantes')">Copiar URL</button>
+                  <button type="button" onclick="descargarQrCurso('aspirantes')">Descargar PNG</button>
+                  <button type="button" class="secondary" onclick="imprimirQrCurso('aspirantes')">Imprimir</button>
+                </div>
+              </article>
+              <article class="course-qr-card">
+                <div class="course-qr-card-head">
+                  <h5>QR Staff</h5>
+                  <span class="course-qr-badge">Público</span>
+                </div>
+                <div id="qrStaff" class="course-qr-canvas" aria-label="QR de Staff"></div>
+                <div class="course-qr-url-block">
+                  <label for="urlQrStaff">URL pública</label>
+                  <textarea id="urlQrStaff" class="course-qr-url" rows="3" readonly></textarea>
+                </div>
+                <div class="course-qr-actions">
+                  <button type="button" class="secondary" onclick="copiarUrlCursoQr('staff')">Copiar URL</button>
+                  <button type="button" onclick="descargarQrCurso('staff')">Descargar PNG</button>
+                  <button type="button" class="secondary" onclick="imprimirQrCurso('staff')">Imprimir</button>
+                </div>
+              </article>
+            </div>
+          </div>
           <div class="config-actions course-footer-actions">
             <p class="hint course-footer-hint">Guarda nombre, fechas, radio y configuraciones generales del curso. Las
               secciones y sedes se gestionan en los módulos superiores.</p>
@@ -1850,6 +1893,7 @@
 
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>

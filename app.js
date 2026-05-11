@@ -258,6 +258,12 @@ const HISTORICAL_IMPORT_ALIASES = Object.freeze({
 let historicalImportState = createHistoricalImportState()
 const VISTA_MODO_KEY = "vistaModoManual"
 const ADMIN_SESSION_KEY = "asistia_admin_session_v1"
+const COURSE_QR_BASE_URL = "https://asistia.pages.dev"
+let cursoQrState = {
+    token: "",
+    aspirantesUrl: "",
+    staffUrl: ""
+}
 const LUIZLABS_STORE_KEY = "asistia_luizlabs_v1"
 const ACTIVITY_LOGS_KEY = "asistia_activity_logs_v1"
 const ACTIVITY_LOGS_MAX = 1200
@@ -3875,7 +3881,8 @@ function normalizarCursoBaseSupabase(row) {
         tenant_id: String(row?.tenant_id || "").trim().toLowerCase(),
         estado: String(row?.estado || "activo").trim().toLowerCase(),
         fecha_inicio: row?.fecha_inicio || null,
-        fecha_fin: row?.fecha_fin || null
+        fecha_fin: row?.fecha_fin || null,
+        qr_token: String(row?.qr_token || "").trim()
     }
 }
 
@@ -3886,7 +3893,7 @@ async function cargarCursoBaseDesdeSupabase() {
     let q = withTenantScope(
         supabaseClient
             .from("cursos")
-            .select("id,nombre,tenant_id,estado,fecha_inicio,fecha_fin")
+            .select("id,nombre,tenant_id,estado,fecha_inicio,fecha_fin,qr_token")
     )
 
     const { data, error } = await q
@@ -3927,7 +3934,7 @@ async function guardarCursoBaseEnSupabase(payload = {}) {
     const { data, error } = await supabaseClient
         .from("cursos")
         .upsert(payloadCurso, { onConflict: "tenant_id,id" })
-        .select("id,nombre,tenant_id,estado,fecha_inicio,fecha_fin")
+        .select("id,nombre,tenant_id,estado,fecha_inicio,fecha_fin,qr_token")
         .single()
 
     if (error) {
@@ -4013,6 +4020,204 @@ async function resolverCursoDesdeURL() {
         console.warn("No se pudo resolver curso desde URL.")
     }
     return ok
+}
+
+function obtenerHostPublicoCursoQr() {
+    const origin = String(window.location.origin || "").trim()
+    if (!origin) return COURSE_QR_BASE_URL
+    if (/localhost|127\.0\.0\.1/i.test(origin)) return COURSE_QR_BASE_URL
+    return origin.replace(/\/$/, "")
+}
+
+function obtenerTokenPersistenteCursoActual() {
+    return String(cursoBaseActual?.qr_token || "").trim()
+}
+
+function construirUrlPublicaCurso(tipo, token) {
+    const tenant = String(tenantActivoId || "").trim().toLowerCase()
+    const tokenLimpio = String(token || "").trim()
+    if (!tenant || !tokenLimpio) return ""
+    const base = obtenerHostPublicoCursoQr()
+    const path = tipo === "staff" ? "staff-asistencia" : "asistencia"
+    return `${base}/${encodeURIComponent(tenant)}/${path}/?curso=${encodeURIComponent(tokenLimpio)}`
+}
+
+function obtenerNodoQrCurso(tipo) {
+    return document.getElementById(tipo === "staff" ? "qrStaff" : "qrAspirantes")
+}
+
+function obtenerInputUrlQrCurso(tipo) {
+    return document.getElementById(tipo === "staff" ? "urlQrStaff" : "urlQrAspirantes")
+}
+
+function obtenerUrlCursoQr(tipo) {
+    return tipo === "staff" ? cursoQrState.staffUrl : cursoQrState.aspirantesUrl
+}
+
+function renderPlaceholderQrCurso(tipo, texto) {
+    const mount = obtenerNodoQrCurso(tipo)
+    if (!mount) return
+    mount.innerHTML = `<p class="course-qr-placeholder">${texto}</p>`
+}
+
+function limpiarRenderQrCurso() {
+    ;["aspirantes", "staff"].forEach(tipo => {
+        const mount = obtenerNodoQrCurso(tipo)
+        if (mount) mount.innerHTML = ""
+        const input = obtenerInputUrlQrCurso(tipo)
+        if (input) input.value = ""
+    })
+}
+
+function renderQrCursoEnNodo(tipo, url) {
+    const mount = obtenerNodoQrCurso(tipo)
+    if (!mount) return
+    mount.innerHTML = ""
+    if (!url) {
+        renderPlaceholderQrCurso(tipo, "No se pudo construir la URL pública del curso.")
+        return
+    }
+    if (typeof window.QRCode !== "function") {
+        renderPlaceholderQrCurso(tipo, "No se pudo cargar la librería QR en esta sesión.")
+        return
+    }
+    new window.QRCode(mount, {
+        text: url,
+        width: 220,
+        height: 220,
+        correctLevel: window.QRCode.CorrectLevel ? window.QRCode.CorrectLevel.M : undefined
+    })
+}
+
+function renderModuloQrCurso() {
+    limpiarRenderQrCurso()
+    cursoQrState = {
+        token: "",
+        aspirantesUrl: "",
+        staffUrl: ""
+    }
+
+    const token = obtenerTokenPersistenteCursoActual()
+    const mensajeId = "msgCursoQr"
+    if (!tenantActivoId) {
+        mostrarMsgCursoModulo(mensajeId, "No se pudo identificar el tenant activo para construir las URLs públicas.", "warning")
+        renderPlaceholderQrCurso("aspirantes", "Tenant no disponible.")
+        renderPlaceholderQrCurso("staff", "Tenant no disponible.")
+        return
+    }
+    if (!token) {
+        mostrarMsgCursoModulo(
+            mensajeId,
+            "Este curso aún no tiene qr_token configurado.",
+            "warning"
+        )
+        renderPlaceholderQrCurso("aspirantes", "Este curso aún no tiene qr_token configurado.")
+        renderPlaceholderQrCurso("staff", "Este curso aún no tiene qr_token configurado.")
+        return
+    }
+
+    const aspirantesUrl = construirUrlPublicaCurso("aspirantes", token)
+    const staffUrl = construirUrlPublicaCurso("staff", token)
+    cursoQrState = {
+        token,
+        aspirantesUrl,
+        staffUrl
+    }
+
+    const inputAspirantes = obtenerInputUrlQrCurso("aspirantes")
+    const inputStaff = obtenerInputUrlQrCurso("staff")
+    if (inputAspirantes) inputAspirantes.value = aspirantesUrl
+    if (inputStaff) inputStaff.value = staffUrl
+
+    renderQrCursoEnNodo("aspirantes", aspirantesUrl)
+    renderQrCursoEnNodo("staff", staffUrl)
+    mostrarMsgCursoModulo(mensajeId, "QRs públicos listos para copiar, descargar o imprimir.", "ok")
+}
+
+function obtenerDataUrlQrCurso(tipo) {
+    const mount = obtenerNodoQrCurso(tipo)
+    if (!mount) return ""
+    const canvas = mount.querySelector("canvas")
+    if (canvas?.toDataURL) return canvas.toDataURL("image/png")
+    const img = mount.querySelector("img")
+    return String(img?.src || "")
+}
+
+async function copiarUrlCursoQr(tipo) {
+    const url = obtenerUrlCursoQr(tipo)
+    if (!url) {
+        mostrarMsgCursoModulo("msgCursoQr", "No hay URL pública disponible para copiar.", "warning")
+        return
+    }
+    try {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(url)
+        } else {
+            const input = obtenerInputUrlQrCurso(tipo)
+            input?.focus()
+            input?.select()
+            document.execCommand("copy")
+        }
+        mostrarMsgCursoModulo("msgCursoQr", `URL de ${tipo === "staff" ? "Staff" : "Aspirantes"} copiada al portapapeles.`, "ok")
+    } catch (e) {
+        mostrarMsgCursoModulo("msgCursoQr", "No se pudo copiar la URL. Intenta copiarla manualmente.", "warning")
+    }
+}
+
+function descargarQrCurso(tipo) {
+    const dataUrl = obtenerDataUrlQrCurso(tipo)
+    if (!dataUrl) {
+        mostrarMsgCursoModulo("msgCursoQr", "No se pudo generar el PNG del QR.", "warning")
+        return
+    }
+    const tenant = String(tenantActivoId || "tenant").trim().toLowerCase()
+    const suffix = tipo === "staff" ? "staff" : "aspirantes"
+    const link = document.createElement("a")
+    link.href = dataUrl
+    link.download = `qr-${tenant}-${suffix}.png`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    mostrarMsgCursoModulo("msgCursoQr", `PNG de ${tipo === "staff" ? "Staff" : "Aspirantes"} descargado.`, "ok")
+}
+
+function imprimirQrCurso(tipo) {
+    const dataUrl = obtenerDataUrlQrCurso(tipo)
+    const url = obtenerUrlCursoQr(tipo)
+    if (!dataUrl || !url) {
+        mostrarMsgCursoModulo("msgCursoQr", "No se pudo preparar la impresión del QR.", "warning")
+        return
+    }
+    const titulo = tipo === "staff" ? "QR Staff" : "QR Aspirantes"
+    const win = window.open("", "_blank", "noopener,noreferrer,width=720,height=860")
+    if (!win) {
+        mostrarMsgCursoModulo("msgCursoQr", "El navegador bloqueó la ventana de impresión.", "warning")
+        return
+    }
+    win.document.write(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>${titulo}</title>
+  <style>
+    body { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 32px; color: #172033; }
+    .sheet { max-width: 520px; margin: 0 auto; text-align: center; }
+    .sheet h1 { font-size: 24px; margin: 0 0 8px; }
+    .sheet p { font-size: 13px; line-height: 1.5; color: #52627f; word-break: break-word; }
+    .sheet img { width: 280px; height: 280px; display: block; margin: 22px auto; }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <h1>${titulo}</h1>
+    <p>${url}</p>
+    <img src="${dataUrl}" alt="${titulo}">
+  </div>
+</body>
+</html>`)
+    win.document.close()
+    win.focus()
+    win.print()
 }
 
 async function asegurarUsuariosAdminPrevioLogin(usuario) {
@@ -7699,6 +7904,7 @@ async function aplicarCursoEnUI(cfg) {
     renderSedesUbo()
     actualizarUIModoEdicionSeccion()
     actualizarUIModoEdicionSede()
+    renderModuloQrCurso()
 }
 
 async function cargarConfigCurso() {

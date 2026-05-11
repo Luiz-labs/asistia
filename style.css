@@ -2904,6 +2904,137 @@ select {
   max-width: 720px;
 }
 
+.course-qr-module {
+  background: linear-gradient(180deg, rgba(250, 252, 255, 0.98) 0%, rgba(245, 249, 255, 0.96) 100%);
+}
+
+.course-qr-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.course-qr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.course-qr-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(209, 219, 236, 0.92);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.course-qr-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.course-qr-card-head h5 {
+  margin: 0;
+  font-size: 15px;
+  color: #1a2945;
+}
+
+.course-qr-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  background: rgba(37, 99, 235, 0.08);
+  color: #2859b8;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.course-qr-canvas {
+  min-height: 236px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px dashed rgba(188, 202, 223, 0.95);
+  background: linear-gradient(180deg, rgba(252, 253, 255, 0.98) 0%, rgba(245, 248, 253, 0.95) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.course-qr-canvas img,
+.course-qr-canvas canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.course-qr-placeholder {
+  margin: 0;
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 32ch;
+}
+
+.course-qr-url-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.course-qr-url-block label {
+  font-size: 12px;
+  color: #5f6f8f;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.course-qr-url {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  border-radius: 14px;
+  border: 1px solid #d7e0ef;
+  background: rgba(248, 250, 253, 0.94);
+  padding: 12px 13px;
+  color: #233252;
+  font: inherit;
+  line-height: 1.45;
+}
+
+.course-qr-url:focus {
+  outline: none;
+  border-color: rgba(37, 99, 235, 0.32);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.course-qr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.course-qr-actions button {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+
 .course-footer-actions-row {
   display: flex;
   flex-wrap: wrap;
