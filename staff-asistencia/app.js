@@ -22,6 +22,10 @@ let staffSuccessSection
 let mensaje
 let staffProfileModal
 
+function getBuscarStaffButton() {
+    return document.getElementById("btnBuscarStaff")
+}
+
 function setSectionVisible(element, visible, display = "") {
     if (!element) return
     element.hidden = !visible
@@ -67,7 +71,7 @@ function setStaffView(view, detalle = {}) {
 
     if (view === "editar") {
         setSectionVisible(staffLookupSection, false)
-        setSectionVisible(staffCardSection, true)
+        setSectionVisible(staffCardSection, false)
         setSectionVisible(staffSuccessSection, false)
         setSectionVisible(staffProfileModal, true, "flex")
         return
@@ -117,6 +121,13 @@ function setMensaje(texto, tipo = "") {
     mensaje.className = "message-box"
     mensaje.innerText = texto || ""
     if (texto && tipo) mensaje.classList.add(tipo)
+}
+
+function actualizarDisponibilidadIngresoStaff() {
+    const disabled = !cursoContextoValido
+    if (codigoBomberoInput) codigoBomberoInput.disabled = disabled
+    const btnBuscar = getBuscarStaffButton()
+    if (btnBuscar) btnBuscar.disabled = disabled
 }
 
 function detectarTenantDesdeRuta() {
@@ -481,16 +492,52 @@ function obtenerCursoTokenDesdeURL() {
     }
 }
 
+async function resolverCursoPorId(cursoId) {
+    cursoActualId = null
+    if (!cursoId || !haySupabase() || !tenantActivoId) {
+        cursoContextoValido = false
+        return false
+    }
+
+    const { data, error } = await withTenantScope(
+        supabaseClient
+            .from("cursos")
+            .select("id, estado")
+    )
+        .eq("id", cursoId)
+        .eq("estado", "activo")
+        .limit(1)
+
+    if (error) {
+        cursoContextoValido = false
+        return false
+    }
+
+    const row = Array.isArray(data) ? data[0] : null
+    if (!row?.id) {
+        cursoContextoValido = false
+        return false
+    }
+
+    cursoActualId = Number(row.id) || null
+    cursoContextoValido = !!cursoActualId
+    return !!cursoActualId
+}
+
+function withTenantScope(query) {
+    if (!tenantActivoId) return query
+    return query.eq("tenant_id", tenantActivoId)
+}
+
 async function resolverCursoDesdeURL() {
     const token = obtenerCursoTokenDesdeURL()
     cursoActualId = null
-    cursoContextoValido = true
+    cursoContextoValido = false
 
-    if (!token || !haySupabase() || !tenantActivoId) return
+    if (!token || !haySupabase() || !tenantActivoId) return false
 
     if (/^\d+$/.test(token)) {
-        cursoActualId = Number(token)
-        return
+        return resolverCursoPorId(Number(token))
     }
 
     try {
@@ -502,13 +549,16 @@ async function resolverCursoDesdeURL() {
         if (error || !data?.success) {
             cursoContextoValido = false
             cursoActualId = null
-            return
+            return false
         }
 
         cursoActualId = Number(data.curso_id || 0) || null
+        cursoContextoValido = !!cursoActualId
+        return !!cursoActualId
     } catch (e) {
         cursoContextoValido = false
         cursoActualId = null
+        return false
     }
 }
 
@@ -675,7 +725,7 @@ async function registrarAsistenciaStaff() {
 }
 
 function bindEventos() {
-    document.getElementById("btnBuscarStaff")?.addEventListener("click", buscarStaffPorCodigo)
+    getBuscarStaffButton()?.addEventListener("click", buscarStaffPorCodigo)
     staffCardSection?.addEventListener("click", event => {
         const target = event.target.closest("button")
         if (!target) return
@@ -720,6 +770,7 @@ async function init() {
     }
 
     await resolverCursoDesdeURL()
+    actualizarDisponibilidadIngresoStaff()
 
     if (!cursoContextoValido) {
         setMensaje("El curso indicado no es válido para esta institución.", "error")
