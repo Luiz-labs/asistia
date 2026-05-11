@@ -4649,6 +4649,13 @@ body {
   flex-direction: column;
 }
 
+#vistaDesktop[style*="display: block"],
+#vistaDesktop[style*="display:block"],
+#vistaLuizLabs[style*="display: block"],
+#vistaLuizLabs[style*="display:block"] {
+  display: flex !important;
+}
+
 /* Pantallas principales */
 #loginScreen,
 .tenant-screen,
