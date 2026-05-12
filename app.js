@@ -3886,6 +3886,61 @@ function normalizarCursoBaseSupabase(row) {
     }
 }
 
+function normalizarSegmentoQrCurso(value = "") {
+    return String(value || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "")
+}
+
+function resolverAnioQrCurso(row = {}) {
+    const fecha = String(row?.fecha_inicio || "").trim()
+    const fromDate = fecha.match(/^(\d{4})-/)?.[1]
+    if (fromDate) return fromDate
+    return String(new Date().getFullYear())
+}
+
+function generarQrTokenCurso(tenantId = "", row = {}) {
+    const tenant = normalizarSegmentoQrCurso(tenantId || row?.tenant_id || tenantActivoId) || "tenant"
+    const year = resolverAnioQrCurso(row)
+    const randomLeft = Math.random().toString(36).slice(2, 4)
+    const randomRight = Math.random().toString(36).slice(2, 9)
+    return `asistia_${tenant}_${year}_${randomLeft}-${randomRight}`
+}
+
+async function asegurarQrTokenCurso(row = null) {
+    if (!haySupabase()) return row
+    if (soporteCursosSupabase === false) return row
+
+    const base = normalizarCursoBaseSupabase(row || cursoBaseActual || {})
+    if (!base?.id || !base?.tenant_id) return row || cursoBaseActual || null
+    if (base.qr_token) {
+        cursoBaseActual = base
+        cursoActualId = base.id || 1
+        return base
+    }
+
+    const qrToken = generarQrTokenCurso(base.tenant_id, base)
+    const { data, error } = await supabaseClient
+        .from("cursos")
+        .update({ qr_token: qrToken })
+        .eq("tenant_id", base.tenant_id)
+        .eq("id", base.id)
+        .select("id,nombre,tenant_id,estado,fecha_inicio,fecha_fin,qr_token")
+        .single()
+
+    if (error) {
+        console.warn("No se pudo asegurar qr_token del curso:", error.message || error)
+        return base
+    }
+
+    cursoBaseActual = normalizarCursoBaseSupabase(data || Object.assign({}, base, { qr_token: qrToken }))
+    cursoActualId = cursoBaseActual.id || 1
+    return cursoBaseActual
+}
+
 async function cargarCursoBaseDesdeSupabase() {
     if (!haySupabase()) return null
     if (soporteCursosSupabase === false) return null
@@ -3916,19 +3971,21 @@ async function cargarCursoBaseDesdeSupabase() {
 
     cursoBaseActual = normalizarCursoBaseSupabase(row)
     cursoActualId = cursoBaseActual.id || 1
-    return cursoBaseActual
+    return asegurarQrTokenCurso(cursoBaseActual)
 }
 
 async function guardarCursoBaseEnSupabase(payload = {}) {
     if (!haySupabase()) return false
     if (soporteCursosSupabase === false) return false
 
+    const qrTokenExistente = String(payload.qr_token || cursoBaseActual?.qr_token || "").trim()
     const payloadCurso = withTenantPayload({
         id: Number(payload.id || cursoActualId || 1) || 1,
         nombre: String(payload.nombre || "").trim() || null,
         fecha_inicio: payload.fecha_inicio || null,
         fecha_fin: payload.fecha_fin || null,
-        estado: "activo"
+        estado: "activo",
+        qr_token: qrTokenExistente || generarQrTokenCurso(tenantActivoId, payload)
     })
 
     const { data, error } = await supabaseClient
@@ -3949,6 +4006,7 @@ async function guardarCursoBaseEnSupabase(payload = {}) {
     soporteCursosSupabase = true
     cursoBaseActual = normalizarCursoBaseSupabase(data || payloadCurso)
     cursoActualId = cursoBaseActual.id || 1
+    await asegurarQrTokenCurso(cursoBaseActual)
     return true
 }
 
