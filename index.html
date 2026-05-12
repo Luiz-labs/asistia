@@ -1132,7 +1132,14 @@
         <div class="card config-card">
 
           <div class="course-module">
-            <h4>Nombre de Curso</h4>
+            <div class="course-module-head">
+              <div>
+                <h4>Curso activo</h4>
+                <p class="course-module-hint">Esta pantalla edita el curso activo actual del tenant. Guardar cambios actualiza nombre, fechas y radio GPS del curso en uso; no crea un curso nuevo.</p>
+              </div>
+              <span class="course-section-badge">Activo</span>
+            </div>
+            <h5 class="course-subsection-title">Nombre del curso</h5>
             <div class="config-grid">
               <div>
                 <input id="cursoNombre" placeholder="ESBAS 2026 - I" aria-label="Nombre de curso"
@@ -1142,7 +1149,7 @@
           </div>
 
           <div class="course-module">
-            <h4>Rango de Duración</h4>
+            <h5 class="course-subsection-title">Parámetros del curso activo</h5>
             <div class="config-grid">
               <div>
                 <label for="cursoInicio">Fecha inicio</label>
@@ -1161,8 +1168,9 @@
           <div class="course-module course-qr-module">
             <div class="course-qr-head">
               <div>
-                <h4>QR del Curso</h4>
+                <h4>QR del curso activo</h4>
                 <p class="course-module-hint">Cada curso reutiliza su token persistente actual para generar enlaces públicos permanentes de Aspirantes y Staff.</p>
+                <p class="course-qr-assurance">El QR pertenece al curso activo y no cambia al guardar nombre, fechas o radio GPS.</p>
               </div>
             </div>
             <p id="msgCursoQr" class="course-inline-msg" role="status" aria-live="polite"></p>
@@ -1200,13 +1208,25 @@
                 </div>
               </article>
             </div>
+            <p class="course-qr-footnote">El QR es permanente para este curso. Copiar, descargar o imprimir no modifica el token.</p>
           </div>
           <div class="config-actions course-footer-actions">
-            <p class="hint course-footer-hint">Guarda nombre, fechas, radio y configuraciones generales del curso. Las
-              secciones y sedes se gestionan en los módulos superiores.</p>
+            <p class="hint course-footer-hint">Guarda cambios del curso activo. Las secciones y sedes se gestionan en los módulos superiores.</p>
             <p id="msgCursoFooter" class="course-inline-msg" role="status" aria-live="polite"></p>
             <div class="course-footer-actions-row">
-              <button type="button" onclick="guardarCurso()">Guardar curso</button>
+              <button type="button" onclick="guardarCurso()">Guardar cambios del curso activo</button>
+            </div>
+          </div>
+
+          <div class="course-module course-module-danger">
+            <div class="course-module-head">
+              <div>
+                <h4>Acciones peligrosas</h4>
+                <p class="course-module-hint">Estas acciones afectan la estructura operativa del curso activo. No modifican el QR ni el token del curso, pero sí eliminan secciones y sedes UBO configuradas.</p>
+              </div>
+              <span class="course-section-badge danger">Cuidado</span>
+            </div>
+            <div class="course-footer-actions-row">
               <button type="button" class="btn-danger-outline" id="btnVaciarSeccionesSedes"
                 onclick="confirmarLimpiarListasCurso()">Vaciar secciones y sedes…</button>
             </div>
