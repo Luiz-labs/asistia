@@ -4657,6 +4657,15 @@ function descargarExcelDesdeJSON(filename, rows) {
     XLSX.writeFile(wb, filename)
 }
 
+function normalizarOrigenRegistroLabel(origen) {
+    const raw = String(origen || "").trim().toLowerCase()
+    if (!raw) return ""
+    if (raw === "importacion_historica") return "Importado"
+    if (raw === "qr" || raw === "qr_aspirantes" || raw === "qr_publico" || raw === "qr_staff") return "QR / Actual"
+    if (raw.includes("offline")) return "Offline"
+    return raw.replace(/_/g, " ").replace(/\b\w/g, char => char.toUpperCase())
+}
+
 function exportarReportesExcel() {
     if (!cacheReportes.length) {
         alert("No hay datos para exportar")
@@ -4671,6 +4680,11 @@ function exportarReportesExcel() {
         Seccion: r.seccion || "-",
         Fecha: r.fecha || "",
         Hora: r.hora || "",
+        Origen: r.origen || "",
+        Import_Batch_ID: r.import_batch_id || "",
+        Fuente_Importacion: r.fuente_importacion || r.archivo_origen || "",
+        Importado_En: r.importado_en || "",
+        Importado_Por: r.importado_por || "",
         Alerta: r.alerta || ""
     }))
 
@@ -5517,7 +5531,7 @@ function updateHistoricalActionState() {
     if (!canValidate) {
         prepareButton.disabled = true
         prepareButton.innerText = "Preparar importación"
-        actionHint.innerText = "En esta fase no se insertan datos en Supabase. Solo se habilita el archivo para una fase posterior."
+        actionHint.innerText = "La importación histórica insertará registros conciliados en asistencias solo después de validar el archivo y confirmar la acción."
         if (reportsButton) reportsButton.hidden = true
         return
     }
@@ -5525,7 +5539,7 @@ function updateHistoricalActionState() {
     if (historicalImportState.importing) {
         prepareButton.disabled = true
         prepareButton.innerText = "Importando..."
-        actionHint.innerText = "La importación histórica está en progreso. No cierres esta vista hasta que termine."
+        actionHint.innerText = "La importación histórica está en progreso. Los registros importados quedarán integrados en reportes y exportaciones con trazabilidad."
         if (reportsButton) reportsButton.hidden = true
         return
     }
@@ -5533,7 +5547,7 @@ function updateHistoricalActionState() {
     if (importDone) {
         prepareButton.disabled = false
         prepareButton.innerText = "Nueva carga"
-        actionHint.innerText = "Importación histórica completada correctamente. Puedes iniciar una nueva carga o revisar reportes."
+        actionHint.innerText = "Importación histórica completada correctamente. Los registros ya forman parte de reportes y exportaciones con trazabilidad."
         if (reportsButton) reportsButton.hidden = false
         return
     }
@@ -5541,8 +5555,8 @@ function updateHistoricalActionState() {
     prepareButton.disabled = false
     prepareButton.innerText = importableRows.length ? "Importar registros conciliados" : "Preparar importación"
     actionHint.innerText = importableRows.length
-        ? `Hay ${importableRows.length} registro(s) conciliado(s) listos para importar sin sobrescribir datos existentes.`
-        : "La importación real requiere filas válidas, conciliadas y con DNI sugerido."
+        ? `Hay ${importableRows.length} registro(s) conciliado(s) listos para insertarse en asistencias con trazabilidad y sin sobrescribir datos existentes.`
+        : "La importación real requiere filas válidas, conciliadas y con DNI sugerido antes de confirmar la inserción."
     if (reportsButton) reportsButton.hidden = true
 }
 
@@ -6231,7 +6245,11 @@ async function importarRegistrosHistoricosConciliados() {
         return
     }
 
-    const ok = confirm(`Se importarán ${importableRows.length} registros históricos conciliados. Esta acción insertará datos en AsistIA. ¿Deseas continuar?`)
+    const ok = confirm(
+        `Se importarán ${importableRows.length} registros históricos conciliados.\n\n` +
+        `Esta acción insertará filas reales en la tabla asistencias, quedarán visibles en reportes y saldrán en exportaciones Excel con trazabilidad del lote.\n\n` +
+        `¿Deseas continuar con la importación?`
+    )
     if (!ok) return
 
     historicalImportState.importing = true
@@ -6647,15 +6665,15 @@ async function validateHistoricalRows() {
     }
 
     setHistoricalImportMessage(
-        `Validación completada: ${stats.valid} válido(s), ${stats.observed} observado(s) y ${previewWithConciliation.length - stats.valid - stats.observed} con error.`,
+        `Validación completada: ${stats.valid} válido(s), ${stats.observed} observado(s) y ${previewWithConciliation.length - stats.valid - stats.observed} con error. Si confirmas la importación, los registros se insertarán en asistencias.`,
         stats.invalidDates || stats.missingUbo || stats.incompleteName ? "warning" : "ok"
     )
     setHistoricalPrepareMessage(
         getHistoricalImportableRows().length > 0
-            ? `Hay ${getHistoricalImportableRows().length} registro(s) conciliado(s) listo(s) para importar.`
+            ? `Hay ${getHistoricalImportableRows().length} registro(s) conciliado(s) listo(s) para insertarse en asistencias con trazabilidad.`
             : historicalImportState.reconciliation.conciliated > 0
-                ? "Hay conciliaciones, pero todavía faltan campos obligatorios para importar."
-                : "Preview validado. La importación real requiere conciliación previa.",
+                ? "Hay conciliaciones, pero todavía faltan campos obligatorios antes de insertar los registros."
+                : "Preview validado. La importación real insertará registros en asistencias cuando haya conciliación previa.",
         getHistoricalImportableRows().length > 0 ? "info" : "warning"
     )
     updateHistoricalActionState()
@@ -9144,6 +9162,7 @@ function renderTabla(data) {
         <th>Sección</th>
         <th>Fecha</th>
         <th>Hora</th>
+        <th>Origen</th>
         <th>Alerta</th>
       </tr>
     </thead>
@@ -9161,6 +9180,12 @@ function renderTabla(data) {
             seccion: r.seccion || "-",
             fecha: r.fecha || "",
             hora: r.hora || "",
+            origen: normalizarOrigenRegistroLabel(r.origen_registro),
+            import_batch_id: r.import_batch_id || "",
+            fuente_importacion: r.fuente_importacion || "",
+            archivo_origen: r.archivo_origen || "",
+            importado_en: r.importado_en || "",
+            importado_por: r.importado_por || "",
             alerta: hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta"
         })
 
@@ -9173,6 +9198,7 @@ function renderTabla(data) {
         <td>${r.seccion || "-"}</td>
         <td>${r.fecha}</td>
         <td>${r.hora}</td>
+        <td>${escapeHtml(normalizarOrigenRegistroLabel(r.origen_registro) || "-")}</td>
         <td>
           <span class="badge-alerta ${hayAlerta ? "warn" : "ok"}">
             ${hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta"}

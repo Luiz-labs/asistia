@@ -616,11 +616,16 @@ async function buscarStaffPorCodigo() {
         setMensaje("El curso indicado no es válido para esta institución.", "error")
         return
     }
+    if (!cursoActualId) {
+        setMensaje("No se pudo resolver el curso del QR actual. Intenta escanear nuevamente el QR oficial.", "error")
+        return
+    }
 
     const { data, error } = await supabaseClient
         .from("staff_instruccion")
         .select("*")
         .eq("tenant_id", tenantActivoId)
+        .eq("curso_id", cursoActualId)
         .eq("codigo_bombero", codigo)
         .eq("activo", true)
         .maybeSingle()
