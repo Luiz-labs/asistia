@@ -227,23 +227,33 @@ function renderStaffCard(row) {
     const nombre = `${normalizarTexto(row?.nombres)} ${normalizarTexto(row?.apellidos)}`.replace(/\s+/g, " ").trim()
     const tipo = normalizarTexto(row?.tipo_staff).toUpperCase() || "APOYO"
     const badgeClass = tipo === "ADJUNTO" ? "adjunto" : "apoyo"
+    const grado = normalizarTexto(row?.grado) || "Sin grado"
+    const codigo = normalizarTexto(row?.codigo_bombero) || "-"
+    const ubo = normalizarTexto(row?.ubo_origen) || "-"
+    const celular = normalizarTexto(row?.celular) || "-"
+    const correo = normalizarTexto(row?.correo) || "-"
 
     setSectionVisible(staffCardSection, true)
     staffCardSection.innerHTML = `
       <div class="staff-card-head">
-        ${renderStaffAvatar(row)}
+        <div class="staff-avatar-shell">
+          ${renderStaffAvatar(row)}
+        </div>
         <div class="staff-card-copy">
-          <p class="staff-card-meta">${escapeHtml(normalizarTexto(row?.grado) || "Sin grado")}</p>
+          <p class="staff-card-meta">${escapeHtml(grado)}</p>
           <h2>${escapeHtml(nombre || "Staff")}</h2>
-          <span class="staff-badge ${badgeClass}">${escapeHtml(tipo)}</span>
+          <div class="staff-card-tags">
+            <span class="staff-badge ${badgeClass}">${escapeHtml(tipo)}</span>
+            <span class="staff-inline-code">CBP ${escapeHtml(codigo)}</span>
+          </div>
         </div>
       </div>
 
       <div class="staff-card-fields">
-        <div class="staff-field"><strong>Código de Bombero</strong>${escapeHtml(normalizarTexto(row?.codigo_bombero) || "-")}</div>
-        <div class="staff-field"><strong>UBO origen</strong>${escapeHtml(normalizarTexto(row?.ubo_origen) || "-")}</div>
-        <div class="staff-field"><strong>Celular</strong>${escapeHtml(normalizarTexto(row?.celular) || "-")}</div>
-        <div class="staff-field"><strong>Correo</strong>${escapeHtml(normalizarTexto(row?.correo) || "-")}</div>
+        <div class="staff-field staff-field-primary"><strong>Código de Bombero</strong><span>${escapeHtml(codigo)}</span></div>
+        <div class="staff-field"><strong>UBO origen</strong><span>${escapeHtml(ubo)}</span></div>
+        <div class="staff-field"><strong>Celular</strong><span>${escapeHtml(celular)}</span></div>
+        <div class="staff-field"><strong>Correo</strong><span>${escapeHtml(correo)}</span></div>
       </div>
 
       <div class="staff-card-actions">
