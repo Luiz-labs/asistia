@@ -4611,6 +4611,21 @@ function formatearTipoJornada(valor) {
     return jornada || "SECCION_REGULAR"
 }
 
+function formatearTipoJornadaAmigable(valor) {
+    const jornada = normalizarTipoJornada(valor)
+    if (jornada === "DOMINICAL_GRUPAL") return "Dominical grupal"
+    if (jornada === "SECCION_REGULAR") return "Regular de sección"
+    if (jornada === "GENERAL_LEGACY") return "General (legacy)"
+    return jornada || "Regular de sección"
+}
+
+function formatearModalidadAmigable(valor) {
+    const modalidad = normalizarModalidad(valor)
+    if (modalidad === "VIRTUAL") return "Virtual"
+    if (modalidad === "PRESENCIAL") return "Presencial"
+    return ""
+}
+
 function formatearSeccionRegistro(seccionValor, jornadaValor) {
     const seccionNormalizada = normalizarCodigoSeccion(seccionValor)
     if (!seccionNormalizada) return "-"
@@ -4637,6 +4652,15 @@ function resolverContextoAsistencia(fecha = new Date(), seccionRegistro = "") {
         modalidad: esDomingo ? "PRESENCIAL" : normalizarModalidad(regla?.modalidad),
         jornada_label: esDomingo ? "DOMINICAL_GRUPAL" : "SECCION_REGULAR"
     }
+}
+
+function resolverModalidadRegistro(row = {}) {
+    const modalidadActual = normalizarModalidad(row.modalidad || "")
+    if (modalidadActual) return modalidadActual
+    const jornada = normalizarTipoJornada(row.tipo_jornada || row.jornada || "")
+    if (jornada === "DOMINICAL_GRUPAL") return "PRESENCIAL"
+    const regla = obtenerReglaSeccion(row.seccion || "")
+    return normalizarModalidad(regla?.modalidad)
 }
 
 function horaATotalMinutos(hora) {
@@ -4810,9 +4834,9 @@ function exportarReportesExcel() {
         DNI: r.dni || "",
         Nombre: r.nombre || "",
         UBO: r.ubo || "",
-        Jornada: formatearTipoJornada(r.jornada),
+        Jornada: formatearTipoJornadaAmigable(r.jornada),
         Seccion_Aspirante: formatearSeccionRegistro(r.seccion, r.jornada),
-        Modalidad: r.modalidad || "",
+        Modalidad: formatearModalidadAmigable(r.modalidad),
         Fecha: r.fecha || "",
         Hora: r.hora || "",
         Origen: r.origen || "",
@@ -8945,13 +8969,13 @@ function renderSeccionesMovil() {
     let html = `<p style="font-size:14px;color:#555;margin-bottom:4px;font-weight:700;text-transform:uppercase;">${nombre}</p>`
     const nombreCompleto = `${String(nombres?.value || "").trim()} ${String(apellidos?.value || "").trim()}`.replace(/\s+/g, " ").trim()
     if (nombreCompleto) {
-        html += `<p style="font-size:13px;color:#777;margin-bottom:8px;">Aspirante: ${nombreCompleto}</p>`
+        html += `<p style="font-size:16px;color:#27364f;margin-bottom:8px;font-weight:700;">${nombreCompleto}</p>`
     }
     if (seccionDetectada) {
-        html += `<p style="font-size:13px;color:#777;margin-bottom:8px;">Sección del aspirante: ${seccionDetectada}</p>`
+        html += `<p style="font-size:13px;color:#777;margin-bottom:8px;">Sección ${seccionDetectada}</p>`
     }
-    html += `<p style="font-size:13px;color:#777;margin-bottom:8px;">Jornada de hoy: ${contexto.jornada_label}</p>`
-    html += `<p style="font-size:13px;color:#777;margin-bottom:12px;">Modalidad: ${contexto.modalidad || "Pendiente de resolver"}</p>`
+    html += `<p style="font-size:13px;color:#777;margin-bottom:8px;">Jornada de hoy: ${formatearTipoJornadaAmigable(contexto.jornada_label)}</p>`
+    html += `<p style="font-size:13px;color:#777;margin-bottom:12px;">Modalidad: ${formatearModalidadAmigable(contexto.modalidad) || "Pendiente de resolver"}</p>`
 
     if (!cursoSecciones || cursoSecciones.length === 0) {
         if (!seccionDetectada) {
@@ -8971,7 +8995,8 @@ function renderSeccionesMovil() {
         : "<p style=\"font-size:13px;color:#777;margin-bottom:12px;\">Selecciona tu sección de aspirante para registrar asistencia.</p>"
     cursoSecciones.forEach(sec => {
         const d = Array.isArray(sec.dias) ? sec.dias.join(", ") : ""
-        const label = `Sección ${sec.seccion} (${d} ${sec.modalidad})`
+        const modalidadLabel = formatearModalidadAmigable(sec.modalidad)
+        const label = `Sección ${sec.seccion}${d ? ` · ${d}` : ""}${modalidadLabel ? ` · ${modalidadLabel}` : ""}`
         html += `<button class="mobile-section-btn" data-seccion="${sec.seccion}" onclick="setSeccion('${sec.seccion}')">${label}</button>`
     })
 
@@ -9354,9 +9379,9 @@ function renderTabla(data) {
             dni: r.dni || "",
             nombre: r.nombre || "",
             ubo: r.ubo || "",
-            jornada: formatearTipoJornada(r.tipo_jornada),
-            seccion: formatearSeccionRegistro(r.seccion, r.tipo_jornada),
-            modalidad: normalizarModalidad(r.modalidad || ""),
+            jornada: normalizarTipoJornada(r.tipo_jornada),
+            seccion: r.seccion || "",
+            modalidad: resolverModalidadRegistro(r),
             fecha: r.fecha || "",
             hora: r.hora || "",
             origen: normalizarOrigenRegistroLabel(r.origen_registro),
@@ -9373,9 +9398,9 @@ function renderTabla(data) {
         <td>${r.dni}</td>
         <td>${r.nombre}</td>
         <td>${r.ubo}</td>
-        <td>${formatearTipoJornada(r.tipo_jornada)}</td>
+        <td>${formatearTipoJornadaAmigable(r.tipo_jornada)}</td>
         <td>${formatearSeccionRegistro(r.seccion, r.tipo_jornada)}</td>
-        <td>${normalizarModalidad(r.modalidad || "") || "-"}</td>
+        <td>${formatearModalidadAmigable(resolverModalidadRegistro(r)) || "-"}</td>
         <td>${r.fecha}</td>
         <td>${r.hora}</td>
         <td>${escapeHtml(normalizarOrigenRegistroLabel(r.origen_registro) || "-")}</td>

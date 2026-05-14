@@ -168,6 +168,21 @@ function normalizarModalidad(valor) {
     return modalidad ? "PRESENCIAL" : ""
 }
 
+function formatearTipoJornadaAmigable(valor) {
+    const jornada = String(valor || "").trim().toUpperCase()
+    if (jornada === "DOMINICAL" || jornada === "DOMINICAL_GRUPAL") return "Dominical grupal"
+    if (jornada === "SECCION" || jornada === "SECCION_REGULAR") return "Regular de sección"
+    if (jornada === "GENERAL") return "General (legacy)"
+    return jornada || "Regular de sección"
+}
+
+function formatearModalidadAmigable(valor) {
+    const modalidad = normalizarModalidad(valor)
+    if (modalidad === "VIRTUAL") return "Virtual"
+    if (modalidad === "PRESENCIAL") return "Presencial"
+    return ""
+}
+
 function obtenerTipoJornadaAspirante(weekday) {
     return weekday === "sunday" ? "DOMINICAL_GRUPAL" : "SECCION_REGULAR"
 }
@@ -573,13 +588,13 @@ function renderSeccionesMovil() {
         .replace(/\s+/g, " ")
         .trim()
     if (nombreCompleto) {
-        html += `<p class="tenant-label">Aspirante: ${nombreCompleto}</p>`
+        html += `<p class="step-copy">${nombreCompleto}</p>`
     }
     if (seccionDetectada) {
-        html += `<p class="tenant-label">Sección del aspirante: ${seccionDetectada}</p>`
+        html += `<p class="tenant-label">Sección ${seccionDetectada}</p>`
     }
-    html += `<p class="tenant-label">Jornada de hoy: ${contexto.jornada_label}</p>`
-    html += `<p class="tenant-label">Modalidad: ${contexto.modalidad || "Pendiente de resolver"}</p>`
+    html += `<p class="tenant-label">Jornada de hoy: ${formatearTipoJornadaAmigable(contexto.jornada_label)}</p>`
+    html += `<p class="tenant-label">Modalidad: ${formatearModalidadAmigable(contexto.modalidad) || "Pendiente de resolver"}</p>`
 
     if (!cursoSecciones.length) {
         if (!seccionDetectada) {
@@ -600,7 +615,8 @@ function renderSeccionesMovil() {
 
     cursoSecciones.forEach(sec => {
         const dias = Array.isArray(sec.dias) ? sec.dias.join(", ") : ""
-        const label = `Sección ${sec.seccion}${dias ? ` · ${dias}` : ""}${sec.modalidad ? ` · ${sec.modalidad}` : ""}`
+        const modalidadLabel = formatearModalidadAmigable(sec.modalidad)
+        const label = `Sección ${sec.seccion}${dias ? ` · ${dias}` : ""}${modalidadLabel ? ` · ${modalidadLabel}` : ""}`
         html += `<button class="mobile-section-btn" type="button" data-seccion="${sec.seccion}">${label}</button>`
     })
 
