@@ -197,6 +197,16 @@ function normalizarEstadoAsistencia(valor) {
     return estado || null
 }
 
+function tieneContextoRPCActivo() {
+    return String(contextoAsistenciaActual?.origen_contexto || "").trim() === "rpc_resolver_contexto_asistencia"
+}
+
+function contextoCorrespondeADni(dniValor) {
+    const dniNormalizado = limpiarDni(dniValor)
+    const dniContexto = limpiarDni(contextoAsistenciaActual?.aspirante?.dni || dniMovil || "")
+    return !!dniNormalizado && !!dniContexto && dniNormalizado === dniContexto
+}
+
 function obtenerTipoJornadaAspirante(weekday) {
     return weekday === "sunday" ? "DOMINICAL_GRUPAL" : "SECCION_REGULAR"
 }
@@ -502,6 +512,14 @@ function aplicarContextoResueltoEnFormulario(contexto) {
     }
 
     contextoAsistenciaActual = {
+        aspirante: aspirante
+            ? {
+                dni: limpiarDni(aspirante.dni || dniMovil || ""),
+                nombres: String(aspirante.nombres || "").trim(),
+                apellidos: String(aspirante.apellidos || "").trim(),
+                ubo: String(aspirante.ubo || "").trim()
+            }
+            : null,
         seccion: seccionContexto || null,
         tipo_jornada: String(contexto.jornada_codigo || "").trim().toUpperCase() || null,
         tipo_jornada_label: String(contexto.jornada_label || "").trim() || formatearTipoJornadaAmigable(contexto.jornada_codigo),
@@ -691,10 +709,13 @@ function renderSeccionesMovil() {
 
     const seccionDetectada = obtenerSeccionAspiranteDetectada()
     const contextoRemoto = contextoAsistenciaActual
-    seccion = normalizarCodigoSeccion(contextoRemoto?.seccion || seccionDetectada) || ""
+    const usarContextoRPC = tieneContextoRPCActivo()
+    seccion = normalizarCodigoSeccion((usarContextoRPC ? contextoRemoto?.seccion : "") || seccionDetectada) || ""
     seleccionarBotonSeccion(seccion)
     mobileSectionsContainer.innerHTML = ""
-    const contexto = contextoRemoto || construirContextoLocalAsistencia(new Date(), seccionDetectada)
+    const contexto = usarContextoRPC
+        ? contextoRemoto
+        : (contextoRemoto || construirContextoLocalAsistencia(new Date(), seccionDetectada))
     const title = cursoConfigCache?.nombre_curso || "Curso"
     let html = `<p class="step-copy">${title}</p>`
     const nombreCompleto = `${String(nombres?.value || "").trim()} ${String(apellidos?.value || "").trim()}`
@@ -710,6 +731,11 @@ function renderSeccionesMovil() {
     html += `<p class="tenant-label">Modalidad: ${contexto?.modalidad_label || formatearModalidadAmigable(contexto?.modalidad) || "Pendiente de resolver"}</p>`
     if (contexto?.estado_asistencia) {
         html += `<p class="tenant-label">Estado asistencia: ${contexto?.estado_asistencia_label || formatearEstadoAsistenciaAmigable(contexto.estado_asistencia)}</p>`
+    }
+
+    if (usarContextoRPC) {
+        mobileSectionsContainer.innerHTML = html
+        return
     }
 
     if (!cursoSecciones.length) {
@@ -758,6 +784,7 @@ async function ingresarMovilInicio() {
 
     dniMovil = dniLimpio
     try {
+        clearTimeout(debounceTimerAutocompletar)
         await cargarConfigCurso()
         contextoAsistenciaActual = null
         const contextoRPC = await resolverContextoAsistenciaRPC(dniLimpio)
@@ -815,14 +842,15 @@ function getDeviceId() {
 
 async function procesarAutocompletadoDni(dniValue) {
     const dniLimpio = limpiarDni(dniValue)
+    const preservarContextoRPC = tieneContextoRPCActivo() && contextoCorrespondeADni(dniLimpio)
 
     if (mobileDniInicio && document.activeElement === mobileDniInicio) {
         mobileDniInicio.value = dniLimpio
     }
 
     if (dniLimpio.length !== 8) {
-        contextoAsistenciaActual = null
-        limpiarCamposAspirante()
+        if (!preservarContextoRPC) contextoAsistenciaActual = null
+        limpiarCamposAspirante(!preservarContextoRPC)
         setMensaje("")
         return
     }
@@ -855,9 +883,9 @@ async function procesarAutocompletadoDni(dniValue) {
             }
 
             if (error || !data) {
-                contextoAsistenciaActual = null
+                if (!preservarContextoRPC) contextoAsistenciaActual = null
                 perfilAspiranteActual = { dni: "", seccion: "" }
-                limpiarCamposAspirante()
+                limpiarCamposAspirante(!preservarContextoRPC)
                 setMensaje("⚠ El DNI ingresado no existe en el padrón de la institución.", "warning")
                 return
             }
@@ -865,7 +893,7 @@ async function procesarAutocompletadoDni(dniValue) {
             const cursoAspirante = data.curso_id == null ? null : Number(data.curso_id)
 
             if (cursoAspirante != null && cursoAspirante !== cursoEsperado) {
-                contextoAsistenciaActual = null
+                if (!preservarContextoRPC) contextoAsistenciaActual = null
                 perfilAspiranteActual = { dni: "", seccion: "" }
                 validacionCursoAspirante = {
                     dni: dniLimpio,
@@ -892,7 +920,7 @@ async function procesarAutocompletadoDni(dniValue) {
                 dni: dniLimpio,
                 seccion: esSeccionLegacy(data.seccion) ? "" : normalizarCodigoSeccion(data.seccion)
             }
-            contextoAsistenciaActual = null
+            if (!preservarContextoRPC) contextoAsistenciaActual = null
 
             nombres.value = data.nombres || ""
             apellidos.value = data.apellidos || ""
@@ -904,15 +932,15 @@ async function procesarAutocompletadoDni(dniValue) {
             nombres.style.backgroundColor = "#f3f6fb"
             apellidos.style.backgroundColor = "#f3f6fb"
             ubo.style.backgroundColor = "#f3f6fb"
-            if (formulario?.style.display !== "none") {
+            if (formulario?.style.display !== "none" && !preservarContextoRPC) {
                 renderSeccionesMovil()
             }
             setMensaje("")
         } catch (e) {
             console.error("Error validando DNI de aspirante:", e)
-            contextoAsistenciaActual = null
+            if (!preservarContextoRPC) contextoAsistenciaActual = null
             perfilAspiranteActual = { dni: "", seccion: "" }
-            limpiarCamposAspirante()
+            limpiarCamposAspirante(!preservarContextoRPC)
             setMensaje(mensajeAmigable(e, "No se pudo cargar la información."), "error")
         }
     }, 300)
