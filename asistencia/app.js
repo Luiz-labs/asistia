@@ -181,9 +181,12 @@ function actualizarContadorPendientes() {
     if (!pendingCounter) return
     const cantidad = leerColaPendientes().filter(item => item?.estado_sync === "pendiente").length
     pendingCounter.textContent = cantidad > 0
-        ? `Pendientes por sincronizar: ${cantidad}`
+        ? (cantidad === 1
+            ? "1 asistencia pendiente por sincronizar. Si cierras la app, quedará guardada en este dispositivo y se sincronizará cuando vuelvas a abrir asistIA con internet."
+            : `${cantidad} asistencias pendientes por sincronizar. Si cierras la app, quedarán guardadas en este dispositivo y se sincronizarán cuando vuelvas a abrir asistIA con internet.`)
         : ""
     pendingCounter.hidden = cantidad === 0
+    pendingCounter.classList.toggle("has-pending", cantidad > 0)
 }
 
 function agregarPendienteOffline(registro) {
@@ -271,7 +274,8 @@ async function sincronizarPendientes({ notificar = false } = {}) {
                     p_longitud: item?.longitud == null ? 0 : Number(item.longitud),
                     p_device_id: String(item?.device_id || getDeviceId()).trim(),
                     p_timestamp_local: item?.timestamp_local || item?.created_local_at || new Date().toISOString(),
-                    p_curso_id: Number(item?.curso_id || 1) || 1
+                    p_curso_id: Number(item?.curso_id || 1) || 1,
+                    p_origen_registro: String(item?.origen_registro || "offline").trim() || "offline"
                 })
 
                 if (error || !data?.success) {
@@ -315,9 +319,9 @@ async function guardarAsistenciaOffline({ dniRegistro, nombresValor, apellidosVa
     }
 
     if (resultado.duplicate) {
-        setMensaje("Sin conexión. Ya existe una asistencia pendiente para este DNI hoy y se sincronizará cuando vuelva internet.", "warning")
+        setMensaje("Sin conexión. Ya existe una asistencia pendiente para este DNI hoy. Si cierras la app, quedará guardada en este dispositivo y se sincronizará cuando vuelvas a abrir asistIA con internet.", "warning")
     } else {
-        setMensaje("Sin conexión. La asistencia fue guardada en modo contingencia y se sincronizará cuando vuelva internet.", "warning")
+        setMensaje("Sin conexión. La asistencia fue guardada en modo contingencia. Si cierras la app, quedará guardada en este dispositivo y se sincronizará cuando vuelvas a abrir asistIA con internet.", "warning")
     }
 
     resetFormularioAsistencia()
@@ -733,7 +737,8 @@ async function guardarAsistencia() {
             p_longitud: 0,
             p_device_id: getDeviceId(),
             p_timestamp_local: new Date().toISOString(),
-            p_curso_id: cursoActualId || 1
+            p_curso_id: cursoActualId || 1,
+            p_origen_registro: "qr_publico"
         })
 
         if (error) {
@@ -838,5 +843,5 @@ window.addEventListener("online", () => {
 })
 
 window.addEventListener("offline", () => {
-    setMensaje("Sin internet. Si registras asistencia ahora, se guardará en modo contingencia.", "warning")
+    setMensaje("Sin internet. Si registras asistencia ahora, se guardará en modo contingencia. Si cierras la app, quedará guardada en este dispositivo y se sincronizará cuando vuelvas a abrir asistIA con internet.", "warning")
 })

@@ -4720,7 +4720,7 @@ function normalizarOrigenRegistroLabel(origen) {
     if (!raw) return ""
     if (raw === "importacion_historica") return "Importado"
     if (raw === "qr" || raw === "qr_aspirantes" || raw === "qr_publico" || raw === "qr_staff") return "QR / Actual"
-    if (raw.includes("offline")) return "Offline"
+    if (raw.includes("offline")) return "Offline / Contingencia"
     return raw.replace(/_/g, " ").replace(/\b\w/g, char => char.toUpperCase())
 }
 
@@ -9136,7 +9136,8 @@ async function guardarAsistencia() {
         p_longitud: lng,
         p_device_id: deviceId,
         p_timestamp_local: new Date().toISOString(),
-        p_curso_id: cursoActualId || 1
+        p_curso_id: cursoActualId || 1,
+        p_origen_registro: "qr_publico"
     });
 
     if (error) {
