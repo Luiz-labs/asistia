@@ -35,7 +35,7 @@
       <h1 class="brand-main">asist<span style="color: #2563eb;">IA</span></h1>
       <p class="tenant-subtitle">Control Inteligente de Asistencia</p>
     </div>
-    <p class="tenant-caption">Selecciona la institución para continuar</p>
+    <p class="tenant-caption">Selecciona una institución para continuar</p>
     <div id="tenantGrid" class="tenant-grid"></div>
     <p class="tenant-note">Puedes cambiar de institución más adelante desde esta misma pantalla.</p>
   </div>
@@ -57,13 +57,13 @@
       <img id="tenantLogoLoginCard" class="tenant-dynamic-logo login-card-logo" src="/asistIA_logo.png">
 
       <h2 id="tenantCardTituloLogin" class="login-card-title">ESBAS 2026</h2>
-      <p id="loginCardCaption" class="login-card-caption">Control Inteligente de Asistencia</p>
+      <p id="loginCardCaption" class="login-card-caption">Panel de acceso institucional</p>
 
       <!-- INPUTS EN LINEA -->
       <div class="login-input-row">
-        <input id="loginUser" placeholder="Usuario">
+        <input id="loginUser" placeholder="Usuario o correo">
         <div class="password-field-wrap">
-          <input id="loginPass" type="password" placeholder="Clave">
+          <input id="loginPass" type="password" placeholder="Contraseña">
           <button
             type="button"
             class="password-toggle-btn"
@@ -77,7 +77,7 @@
       </div>
 
       <!-- BOTON -->
-      <button class="login-submit-btn" onclick="login()">Ingresar</button>
+      <button class="login-submit-btn" onclick="login()">Acceder</button>
       <button type="button" class="login-help-link" onclick="abrirModalRecuperacionAcceso()">¿Olvidaste tu clave?</button>
 
       <p id="loginMsg" class="login-message"></p>
@@ -97,14 +97,14 @@
       <img id="tenantLogoMovilInicio" class="mobile-qr-logo" src="/asistIA_logo.png" alt="asistIA">
       <div class="mobile-qr-brandcopy">
         <h1 class="mobile-asistia-wordmark">asist<span style="color: #2563eb;">IA</span></h1>
-        <p class="mobile-qr-title">Asistencia Aspirantes</p>
-        <p class="mobile-qr-subtitle">Escaneo QR</p>
+        <p class="mobile-qr-title">Asistencia de aspirantes</p>
+        <p class="mobile-qr-subtitle">Acceso con QR</p>
       </div>
     </div>
     <div class="mobile-step">
       <p>Ingresa tu DNI para continuar</p>
-      <input id="mobileDniInicio" placeholder="Ingrese DNI" inputmode="numeric" pattern="[0-9]*" maxlength="8">
-      <button onclick="ingresarMovilInicio()">INGRESAR</button>
+      <input id="mobileDniInicio" placeholder="DNI (8 dígitos)" inputmode="numeric" pattern="[0-9]*" maxlength="8">
+      <button onclick="ingresarMovilInicio()">Continuar</button>
     </div>
   </div>
 
@@ -114,8 +114,8 @@
         alt="Logo institucional">
       <div class="mobile-qr-brandcopy">
         <h1 class="mobile-asistia-wordmark">asist<span style="color: #2563eb;">IA</span></h1>
-        <p class="mobile-qr-title">Asistencia Aspirantes</p>
-        <p class="mobile-qr-subtitle">Escaneo QR</p>
+        <p class="mobile-qr-title">Asistencia de aspirantes</p>
+        <p class="mobile-qr-subtitle">Acceso con QR</p>
       </div>
     </div>
 
@@ -133,7 +133,7 @@
 
     <div id="mobileStepIngreso" class="mobile-step">
       <p>Ingresa tu DNI para iniciar</p>
-      <input id="mobileDni" placeholder="Ingrese DNI" inputmode="numeric" pattern="[0-9]*" maxlength="8">
+      <input id="mobileDni" placeholder="DNI (8 dígitos)" inputmode="numeric" pattern="[0-9]*" maxlength="8">
       <button onclick="ingresarMovil()">INGRESAR</button>
     </div>
 
@@ -149,7 +149,7 @@
   <div id="formulario" style="display:none;padding:20px;text-align:center;">
     <div class="form-header">
       <img id="tenantLogoFormulario" class="tenant-dynamic-logo" src="/asistIA_logo.png" alt="Logo institucional">
-      <h3>Registro de Asistencia de Aspirantes</h3>
+      <h3>Registro de asistencia de aspirantes</h3>
     </div>
 
     <input id="nombres" placeholder="Nombres">
@@ -159,7 +159,7 @@
     <div id="mobileSectionsContainer" class="mobile-sections-container"></div>
 
     <div class="mobile-actions">
-      <button class="mobile-primary" onclick="guardarAsistencia()">REGISTRAR ASISTENCIA</button>
+      <button class="mobile-primary" onclick="guardarAsistencia()">Registrar asistencia</button>
       <button class="mobile-exit" onclick="volverInicio()">Salir</button>
     </div>
 
@@ -1452,7 +1452,7 @@
     </div>
 
     <div class="main-footer">
-      <span>asistIA v0.9.3-beta · Plataforma de control de asistencia · Luiz-Labs © 2026 · </span><a href="https://wa.me/51983230353?text=Hola%20Luiz-Labs%2C%20necesito%20soporte%20con%20AsistIA" target="_blank" rel="noopener noreferrer">Soporte</a>
+      <span>asistIA v0.9.3-beta · Control de asistencia · Luiz-Labs © 2026 · </span><a href="https://wa.me/51983230353?text=Hola%20Luiz-Labs%2C%20necesito%20soporte%20con%20AsistIA" target="_blank" rel="noopener noreferrer">Soporte</a>
     </div>
 
   </div>
@@ -1914,7 +1914,7 @@
     </div>
 
     <div class="main-footer">
-      <span>asistIA v0.9.3-beta · Plataforma de control de asistencia · Luiz-Labs © 2026 · </span><a href="https://wa.me/51983230353?text=Hola%20Luiz-Labs%2C%20necesito%20soporte%20con%20AsistIA" target="_blank" rel="noopener noreferrer">Soporte</a>
+      <span>asistIA v0.9.3-beta · Control de asistencia · Luiz-Labs © 2026 · </span><a href="https://wa.me/51983230353?text=Hola%20Luiz-Labs%2C%20necesito%20soporte%20con%20AsistIA" target="_blank" rel="noopener noreferrer">Soporte</a>
     </div>
   </div>
 

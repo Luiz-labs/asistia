@@ -30,8 +30,8 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  gap: 14px;
+  padding: 22px 18px;
+  gap: 16px;
 }
 
 .public-card {
@@ -41,7 +41,7 @@ body {
   border: 1px solid rgba(28, 47, 94, 0.08);
   border-radius: 28px;
   box-shadow: 0 18px 48px rgba(27, 45, 91, 0.12);
-  padding: 24px 20px;
+  padding: 26px 20px 22px;
   backdrop-filter: blur(14px);
 }
 
@@ -49,7 +49,7 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 
 .brand-logo {
@@ -74,14 +74,16 @@ body {
 .step-copy {
   margin: 0;
   color: #5a6780;
-  font-size: 0.92rem;
+  font-size: 0.91rem;
+  line-height: 1.45;
 }
 
 .tenant-label {
   margin-top: 6px;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
 }
 
 .step-block {
@@ -92,12 +94,17 @@ body {
 
 .text-input {
   width: 100%;
+  min-height: 48px;
   border: 1px solid #d5def1;
-  border-radius: 16px;
+  border-radius: 15px;
   padding: 14px 15px;
   font: inherit;
-  background: #fff;
+  background: #fbfcff;
   color: #162033;
+}
+
+.text-input::placeholder {
+  color: #8c99b2;
 }
 
 .text-input:focus {
@@ -115,7 +122,8 @@ body {
 button {
   font: inherit;
   border: 0;
-  border-radius: 16px;
+  border-radius: 15px;
+  min-height: 48px;
   padding: 14px 16px;
   cursor: pointer;
 }
@@ -161,17 +169,20 @@ button {
 
 .public-footer {
   width: 100%;
+  max-width: 460px;
   text-align: center;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.55;
   color: var(--footer);
 }
 
 .message-box {
   min-height: 22px;
   margin: 14px 0 0;
-  font-size: 0.92rem;
+  padding: 0;
+  font-size: 0.9rem;
   font-weight: 600;
+  line-height: 1.45;
 }
 
 .message-box.error {
@@ -196,12 +207,12 @@ button {
 }
 
 .pending-counter.has-pending {
-  padding: 12px 14px;
+  padding: 11px 13px;
   border-radius: 14px;
   background: #eef4ff;
   border: 1px solid #bfd3ff;
   color: #173d7a;
-  line-height: 1.45;
+  line-height: 1.4;
   box-shadow: 0 8px 20px rgba(37, 99, 235, 0.08);
 }
 

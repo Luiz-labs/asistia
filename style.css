@@ -291,8 +291,8 @@ h2 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 28px 22px;
+  gap: 9px;
+  padding: 30px 24px;
   border: 1px dashed #d9e2f0;
   border-radius: 18px;
   background: linear-gradient(180deg, #fcfdff 0%, #f6f9fd 100%);
@@ -320,7 +320,7 @@ h2 {
 }
 
 .empty-state-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: #223457;
   letter-spacing: -0.01em;
@@ -329,7 +329,7 @@ h2 {
 .empty-state-text {
   max-width: 460px;
   font-size: 13px;
-  line-height: 1.55;
+  line-height: 1.6;
   color: #607092;
 }
 
@@ -1063,12 +1063,12 @@ button {
   color: white;
   border: none;
   padding: 0 18px;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   min-width: 110px;
-  height: 40px;
+  height: 42px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1095,7 +1095,7 @@ select:focus-visible {
 }
 
 button.secondary {
-  background: #f5f5f7;
+  background: #f7f8fb;
   color: #1d1d1f;
   border: 1px solid #e5e5ea;
   box-shadow: none;
@@ -1494,13 +1494,13 @@ select {
 
 .tenant-screen#loginScreen {
   justify-content: center;
-  padding: 32px 20px;
+  padding: 32px 20px 28px;
 }
 
 .login-head-wrap {
   text-align: center;
   width: min(100%, 520px);
-  margin: 0 auto 22px;
+  margin: 0 auto 18px;
 }
 
 .login-tenant-title {
@@ -1526,8 +1526,8 @@ select {
 
 .login-card {
   width: min(100%, 460px);
-  padding: 34px 34px 28px;
-  border-radius: 18px;
+  padding: 32px 30px 26px;
+  border-radius: 22px;
   border: 1px solid rgba(196, 207, 226, 0.72);
   background: rgba(255, 255, 255, 0.96);
   box-shadow:
@@ -1551,9 +1551,9 @@ select {
 }
 
 .login-card-logo {
-  width: 84px;
-  height: 84px;
-  margin: 0 auto 14px;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 12px;
   display: block;
   object-fit: contain;
   border-radius: 18px;
@@ -1667,19 +1667,19 @@ select {
 }
 
 .login-card-caption {
-  margin: -8px 0 18px;
+  margin: -6px 0 18px;
   font-size: 13px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.35;
   letter-spacing: 0.01em;
   color: #61728f;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 #loginScreen .login-card input {
   width: 100%;
-  height: 48px;
-  border-radius: 12px;
+  height: 50px;
+  border-radius: 14px;
   border: 1px solid #d4deee;
   background: #fbfcff;
   padding: 0 14px;
@@ -1691,7 +1691,7 @@ select {
 
 .login-submit-btn {
   width: 100%;
-  min-height: 46px;
+  min-height: 48px;
   border-radius: 14px;
   font-size: 15px;
   font-weight: 700;
@@ -1728,6 +1728,7 @@ select {
   color: #c2362b;
   font-size: 13px;
   font-weight: 600;
+  line-height: 1.45;
 }
 
 .login-powered {
@@ -1768,12 +1769,12 @@ select {
 
   .login-head-wrap {
     width: min(100%, 460px);
-    margin-bottom: 18px;
+    margin-bottom: 16px;
   }
 
   .login-card {
     width: min(100%, 460px);
-    padding: 26px 22px 22px;
+    padding: 24px 20px 20px;
   }
 
   .login-card-logo {
@@ -5256,9 +5257,9 @@ body {
 
 .main-footer {
   text-align: center;
-  padding: 30px 20px;
+  padding: 24px 20px 28px;
   font-size: 13px;
-  color: #86868b;
+  color: #7a8496;
   background: rgba(255, 255, 255, 0.72);
   border-top: 1px solid rgba(220, 225, 235, 0.65);
   backdrop-filter: blur(10px);

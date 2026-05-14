@@ -23,14 +23,14 @@
         <img class="brand-logo" src="/asistIA_logo.png" alt="asistIA">
         <div>
           <h1 class="brand-title">asist<span>IA</span></h1>
-          <p class="brand-subtitle">Marcación de asistencia</p>
+          <p class="brand-subtitle">Registro de asistencia</p>
           <p id="tenantLabel" class="tenant-label"></p>
         </div>
       </div>
 
       <section id="stepIngreso" class="step-block">
         <p class="step-copy">Ingresa tu DNI para continuar</p>
-        <input id="mobileDniInicio" class="text-input" placeholder="Ingrese DNI" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
+        <input id="mobileDniInicio" class="text-input" placeholder="DNI (8 dígitos)" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
         <button id="btnIngresarInicio" class="primary-btn" type="button">Continuar</button>
       </section>
 
@@ -38,7 +38,7 @@
         <p class="step-copy">Completa y confirma tu registro</p>
         <input id="nombres" class="text-input" placeholder="Nombres" autocomplete="off">
         <input id="apellidos" class="text-input" placeholder="Apellidos" autocomplete="off">
-        <input id="ubo" class="text-input" placeholder="UBO" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off">
+        <input id="ubo" class="text-input" placeholder="UBO (4 dígitos)" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off">
         <div id="mobileSectionsContainer" class="mobile-sections-container"></div>
         <div class="step-actions">
           <button id="btnRegistrar" class="primary-btn" type="button">Registrar asistencia</button>
@@ -49,7 +49,7 @@
       <p id="mensaje" class="message-box"></p>
       <p id="pendingCounter" class="pending-counter" hidden></p>
     </section>
-    <footer class="public-footer">asistIA v0.9.3-beta · Desarrollado por Luiz-Labs © 2026</footer>
+    <footer class="public-footer">asistIA v0.9.3-beta · Control de asistencia · Luiz-Labs © 2026</footer>
   </main>
 
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>

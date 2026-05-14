@@ -22,16 +22,16 @@
       <div class="brand-block">
         <img class="brand-logo" src="/asistIA_logo.png" alt="asistIA">
         <div>
-          <h1 class="brand-title">Asistencia Staff</h1>
+          <h1 class="brand-title">asist<span>IA</span></h1>
           <p id="tenantLabel" class="tenant-label"></p>
-          <p class="brand-subtitle">Registro del Staff de APOYO y ADJUNTO.</p>
+          <p class="brand-subtitle">Registro de asistencia staff</p>
         </div>
       </div>
 
       <section id="staffLookupSection" class="step-block">
-        <p class="step-copy">Ingresa tu Código CBP.</p>
-        <input id="codigoBomberoInput" class="text-input" placeholder="Ejemplo: A17200" autocomplete="off">
-        <button id="btnBuscarStaff" class="primary-btn" type="button">Ingresar</button>
+        <p class="step-copy">Ingresa tu código CBP para continuar.</p>
+        <input id="codigoBomberoInput" class="text-input" placeholder="Código CBP · Ej. A17200" autocomplete="off">
+        <button id="btnBuscarStaff" class="primary-btn" type="button">Continuar</button>
       </section>
 
       <section id="staffCardSection" class="staff-card-shell" hidden></section>
@@ -40,7 +40,7 @@
 
       <p id="mensaje" class="message-box" aria-live="polite"></p>
     </section>
-    <footer class="public-footer">asistIA v0.9.3-beta · Desarrollado por Luiz-Labs © 2026</footer>
+    <footer class="public-footer">asistIA v0.9.3-beta · Control de asistencia · Luiz-Labs © 2026</footer>
   </main>
 
   <div id="staffProfileModal" class="staff-modal" hidden aria-hidden="true">
@@ -50,7 +50,7 @@
       <div class="staff-modal-head">
         <div>
           <h3>Editar perfil</h3>
-          <p>Actualiza foto, celular y correo.</p>
+          <p>Actualiza tu foto, celular y correo.</p>
         </div>
         <button id="btnCloseStaffModal" class="staff-modal-close" type="button" aria-label="Cerrar">×</button>
       </div>
@@ -60,7 +60,7 @@
           <div id="staffPhotoPreview" class="staff-photo-preview"></div>
           <div class="staff-photo-copy">
             <strong>Foto de perfil</strong>
-            <span>JPG, PNG o WEBP. Máximo 2 MB.</span>
+            <span>JPG, PNG o WEBP · máximo 2 MB.</span>
             <input id="staffFotoFile" class="staff-file-input" type="file" accept="image/jpeg,image/png,image/webp">
           </div>
         </div>
@@ -68,7 +68,7 @@
         <div class="staff-profile-grid">
           <label class="staff-profile-field">
             <span>Celular</span>
-            <input id="staffPerfilCelular" class="text-input" placeholder="Solo números" inputmode="numeric" autocomplete="tel">
+            <input id="staffPerfilCelular" class="text-input" placeholder="Celular" inputmode="numeric" autocomplete="tel">
           </label>
           <label class="staff-profile-field">
             <span>Correo</span>

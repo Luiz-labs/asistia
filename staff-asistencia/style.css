@@ -39,8 +39,8 @@ body.staff-modal-open {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  gap: 14px;
+  padding: 22px 18px;
+  gap: 16px;
 }
 
 .public-card {
@@ -50,7 +50,7 @@ body.staff-modal-open {
   border: 1px solid rgba(28, 47, 94, 0.08);
   border-radius: 28px;
   box-shadow: 0 18px 48px rgba(27, 45, 91, 0.12);
-  padding: 24px 20px;
+  padding: 26px 20px 22px;
   backdrop-filter: blur(14px);
 }
 
@@ -89,7 +89,8 @@ body.staff-modal-open {
 .staff-card-copy p {
   margin: 0;
   color: #5a6780;
-  font-size: 0.92rem;
+  font-size: 0.91rem;
+  line-height: 1.45;
 }
 
 .tenant-label {
@@ -157,11 +158,16 @@ body.staff-modal-open {
 .text-input {
   width: 100%;
   border: 1px solid #d5def1;
-  border-radius: 16px;
+  border-radius: 15px;
+  min-height: 48px;
   padding: 14px 15px;
   font: inherit;
-  background: #fff;
+  background: #fbfcff;
   color: #162033;
+}
+
+.text-input::placeholder {
+  color: #8c99b2;
 }
 
 .text-input:focus {
@@ -179,7 +185,8 @@ button:disabled {
 button {
   font: inherit;
   border: 0;
-  border-radius: 16px;
+  border-radius: 15px;
+  min-height: 48px;
   padding: 14px 16px;
   cursor: pointer;
 }
@@ -690,16 +697,17 @@ button {
 
 .public-footer {
   width: 100%;
+  max-width: 480px;
   text-align: center;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.55;
   color: var(--footer);
 }
 
 .message-box {
   min-height: 22px;
   margin: 14px 0 0;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 600;
   line-height: 1.45;
 }
