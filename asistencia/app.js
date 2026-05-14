@@ -16,6 +16,7 @@ let cursoSecciones = []
 let debounceTimerAutocompletar = null
 let validacionCursoAspirante = { dni: "", permitido: true, legacy: false, bloqueado: false }
 let perfilAspiranteActual = { dni: "", seccion: "" }
+let contextoAsistenciaActual = null
 let sincronizacionPendientesEnCurso = false
 let ultimoEstadoCurso = { code: "idle", message: "" }
 const OFFLINE_QUEUE_KEY = "asistia_aspirantes_offline_queue_v1"
@@ -183,12 +184,42 @@ function formatearModalidadAmigable(valor) {
     return ""
 }
 
+function formatearEstadoAsistenciaAmigable(valor) {
+    const estado = String(valor || "").trim().toUpperCase()
+    if (estado === "PUNTUAL") return "Puntual"
+    if (estado === "TARDANZA") return "Tardanza"
+    if (estado === "FUERA_DE_HORARIO") return "Fuera de horario"
+    return ""
+}
+
+function normalizarEstadoAsistencia(valor) {
+    const estado = String(valor || "").trim().toUpperCase()
+    return estado || null
+}
+
 function obtenerTipoJornadaAspirante(weekday) {
     return weekday === "sunday" ? "DOMINICAL_GRUPAL" : "SECCION_REGULAR"
 }
 
 function obtenerSeccionAspiranteDetectada() {
     return esSeccionLegacy(perfilAspiranteActual?.seccion) ? "" : normalizarCodigoSeccion(perfilAspiranteActual?.seccion)
+}
+
+function construirContextoLocalAsistencia(fecha = new Date(), seccionRegistro = "") {
+    const contexto = resolverContextoAsistencia(fecha, seccionRegistro)
+    return {
+        seccion: contexto.seccion || null,
+        tipo_jornada: contexto.tipo_jornada || null,
+        tipo_jornada_label: formatearTipoJornadaAmigable(contexto.jornada_label || contexto.tipo_jornada),
+        modalidad: contexto.modalidad || null,
+        modalidad_label: formatearModalidadAmigable(contexto.modalidad),
+        estado_asistencia: null,
+        estado_asistencia_label: "",
+        regla_jornada_id: null,
+        origen_contexto: "frontend_fallback",
+        warnings: [],
+        bloqueos: []
+    }
 }
 
 function obtenerReglaSeccionCurso(seccionRegistro) {
@@ -283,12 +314,14 @@ function puedeGuardarOfflinePorContingencia() {
 
 function resetFormularioAsistencia() {
     limpiarCamposAspirante()
+    contextoAsistenciaActual = null
     seccion = ""
     seleccionarBotonSeccion("")
 }
 
 function crearRegistroOffline({ dniRegistro, nombresValor, apellidosValor, seccionRegistro, modalidadRegistro, deviceId }) {
-    const contexto = resolverContextoAsistencia(new Date(), seccionRegistro)
+    const contexto = contextoAsistenciaActual || construirContextoLocalAsistencia(new Date(), seccionRegistro)
+    const fechaHora = resolverContextoAsistencia(new Date(), seccionRegistro)
     const nombreCompleto = `${String(nombresValor || "").trim()} ${String(apellidosValor || "").trim()}`
         .replace(/\s+/g, " ")
         .trim()
@@ -299,14 +332,17 @@ function crearRegistroOffline({ dniRegistro, nombresValor, apellidosValor, secci
         tenant_id: tenantActivoId,
         curso_id: cursoActualId || 1,
         qr_token: obtenerCursoTokenDesdeURL(),
-        fecha_local: contexto.fecha,
-        hora_local: contexto.hora,
-        timestamp_local: contexto.timestamp,
+        fecha_local: fechaHora.fecha,
+        hora_local: fechaHora.hora,
+        timestamp_local: fechaHora.timestamp,
         latitud: null,
         longitud: null,
         seccion: contexto.seccion || null,
-        tipo_jornada: contexto.tipo_jornada,
+        tipo_jornada: contexto.tipo_jornada || fechaHora.tipo_jornada,
         modalidad: normalizarModalidad(modalidadRegistro) || contexto.modalidad || null,
+        estado_asistencia: normalizarEstadoAsistencia(contexto.estado_asistencia),
+        regla_jornada_id: contexto.regla_jornada_id || null,
+        origen_contexto: contexto.origen_contexto || "frontend_fallback",
         device_id: deviceId || getDeviceId(),
         origen_registro: "offline",
         estado_sync: "pendiente",
@@ -404,6 +440,82 @@ async function guardarAsistenciaOffline({ dniRegistro, nombresValor, apellidosVa
 
     resetFormularioAsistencia()
     return true
+}
+
+function extraerMensajesContexto(items) {
+    if (!Array.isArray(items)) return []
+    return items
+        .map(item => String(item?.message || item || "").trim())
+        .filter(Boolean)
+}
+
+async function resolverContextoAsistenciaRPC(dniLimpio) {
+    if (!haySupabase() || !tenantActivoId || !cursoQRValido) return null
+    const tokenCurso = obtenerCursoTokenDesdeURL()
+    if (!tokenCurso) return null
+
+    try {
+        const { data, error } = await supabaseClient.rpc("rpc_resolver_contexto_asistencia", {
+            p_qr_token: tokenCurso,
+            p_dni: dniLimpio,
+            p_timestamp: new Date().toISOString()
+        })
+
+        if (error) {
+            if (/does not exist|42883|rpc_resolver_contexto_asistencia/i.test(String(error.message || ""))) {
+                return null
+            }
+            throw error
+        }
+
+        return data && typeof data === "object" ? data : null
+    } catch (error) {
+        if (esErrorConexion(error)) return null
+        throw error
+    }
+}
+
+function aplicarContextoResueltoEnFormulario(contexto) {
+    if (!contexto || typeof contexto !== "object") return
+
+    const aspirante = contexto.aspirante && typeof contexto.aspirante === "object"
+        ? contexto.aspirante
+        : null
+
+    if (aspirante) {
+        nombres.value = String(aspirante.nombres || nombres.value || "").trim()
+        apellidos.value = String(aspirante.apellidos || apellidos.value || "").trim()
+        ubo.value = String(aspirante.ubo || ubo.value || "").trim()
+        nombres.readOnly = true
+        apellidos.readOnly = true
+        ubo.readOnly = true
+        nombres.style.backgroundColor = "#f3f6fb"
+        apellidos.style.backgroundColor = "#f3f6fb"
+        ubo.style.backgroundColor = "#f3f6fb"
+    }
+
+    const seccionContexto = normalizarCodigoSeccion(contexto.seccion)
+    if (seccionContexto) {
+        perfilAspiranteActual = { dni: dniMovil || "", seccion: seccionContexto }
+        seccion = seccionContexto
+        seleccionarBotonSeccion(seccion)
+    }
+
+    contextoAsistenciaActual = {
+        seccion: seccionContexto || null,
+        tipo_jornada: String(contexto.jornada_codigo || "").trim().toUpperCase() || null,
+        tipo_jornada_label: String(contexto.jornada_label || "").trim() || formatearTipoJornadaAmigable(contexto.jornada_codigo),
+        modalidad: normalizarModalidad(contexto.modalidad),
+        modalidad_label: String(contexto.modalidad_label || "").trim() || formatearModalidadAmigable(contexto.modalidad),
+        estado_asistencia: normalizarEstadoAsistencia(contexto.estado_asistencia),
+        estado_asistencia_label: String(contexto.estado_asistencia || "").trim()
+            ? formatearEstadoAsistenciaAmigable(contexto.estado_asistencia)
+            : "",
+        regla_jornada_id: contexto.regla_jornada_id || null,
+        origen_contexto: String(contexto.origen_contexto || "rpc_resolver_contexto_asistencia").trim(),
+        warnings: Array.isArray(contexto.warnings) ? contexto.warnings : [],
+        bloqueos: Array.isArray(contexto.bloqueos) ? contexto.bloqueos : []
+    }
 }
 
 async function resolverCursoPorToken(token) {
@@ -578,10 +690,11 @@ function renderSeccionesMovil() {
     if (!mobileSectionsContainer) return
 
     const seccionDetectada = obtenerSeccionAspiranteDetectada()
-    seccion = seccionDetectada || ""
+    const contextoRemoto = contextoAsistenciaActual
+    seccion = normalizarCodigoSeccion(contextoRemoto?.seccion || seccionDetectada) || ""
     seleccionarBotonSeccion(seccion)
     mobileSectionsContainer.innerHTML = ""
-    const contexto = resolverContextoAsistencia(new Date(), seccionDetectada)
+    const contexto = contextoRemoto || construirContextoLocalAsistencia(new Date(), seccionDetectada)
     const title = cursoConfigCache?.nombre_curso || "Curso"
     let html = `<p class="step-copy">${title}</p>`
     const nombreCompleto = `${String(nombres?.value || "").trim()} ${String(apellidos?.value || "").trim()}`
@@ -590,21 +703,24 @@ function renderSeccionesMovil() {
     if (nombreCompleto) {
         html += `<p class="step-copy">${nombreCompleto}</p>`
     }
-    if (seccionDetectada) {
-        html += `<p class="tenant-label">Sección ${seccionDetectada}</p>`
+    if (contexto?.seccion || seccionDetectada) {
+        html += `<p class="tenant-label">Sección ${contexto?.seccion || seccionDetectada}</p>`
     }
-    html += `<p class="tenant-label">Jornada de hoy: ${formatearTipoJornadaAmigable(contexto.jornada_label)}</p>`
-    html += `<p class="tenant-label">Modalidad: ${formatearModalidadAmigable(contexto.modalidad) || "Pendiente de resolver"}</p>`
+    html += `<p class="tenant-label">Jornada de hoy: ${contexto?.tipo_jornada_label || formatearTipoJornadaAmigable(contexto?.jornada_label || contexto?.tipo_jornada)}</p>`
+    html += `<p class="tenant-label">Modalidad: ${contexto?.modalidad_label || formatearModalidadAmigable(contexto?.modalidad) || "Pendiente de resolver"}</p>`
+    if (contexto?.estado_asistencia) {
+        html += `<p class="tenant-label">Estado asistencia: ${contexto?.estado_asistencia_label || formatearEstadoAsistenciaAmigable(contexto.estado_asistencia)}</p>`
+    }
 
     if (!cursoSecciones.length) {
-        if (!seccionDetectada) {
+        if (!contexto?.seccion && !seccionDetectada) {
             html += `<p class="tenant-label">No hay secciones configuradas para este curso.</p>`
         }
         mobileSectionsContainer.innerHTML = html
         return
     }
 
-    if (seccionDetectada) {
+    if (contextoRemoto?.seccion || seccionDetectada) {
         mobileSectionsContainer.innerHTML = html
         return
     }
@@ -643,8 +759,36 @@ async function ingresarMovilInicio() {
     dniMovil = dniLimpio
     try {
         await cargarConfigCurso()
+        contextoAsistenciaActual = null
+        const contextoRPC = await resolverContextoAsistenciaRPC(dniLimpio)
+
+        if (contextoRPC?.success === true) {
+            if (!contextoRPC.permitido) {
+                const msgBloqueo = String(contextoRPC.message || extraerMensajesContexto(contextoRPC.bloqueos)[0] || "No se pudo resolver el contexto de asistencia.").trim()
+                formulario.style.display = "none"
+                if (stepIngreso) stepIngreso.style.display = "flex"
+                setMensaje(msgBloqueo, "error")
+                return
+            }
+
+            aplicarContextoResueltoEnFormulario(contextoRPC)
+            const warnings = extraerMensajesContexto(contextoRPC.warnings)
+            const estadoAmigable = formatearEstadoAsistenciaAmigable(contextoRPC.estado_asistencia)
+            if (contextoRPC.estado_asistencia === "TARDANZA") {
+                warnings.unshift(`Registro en ${estadoAmigable.toLowerCase()}.`)
+            } else if (contextoRPC.estado_asistencia === "FUERA_DE_HORARIO") {
+                warnings.unshift(`Registro ${estadoAmigable.toLowerCase()}.`)
+            }
+            if (warnings.length > 0) {
+                setMensaje(warnings.join(" | "), "warning")
+            } else {
+                setMensaje("")
+            }
+        } else {
+            setMensaje("")
+        }
+
         renderSeccionesMovil()
-        setMensaje("")
         if (stepIngreso) stepIngreso.style.display = "none"
         formulario.style.display = "flex"
     } catch (error) {
@@ -677,6 +821,7 @@ async function procesarAutocompletadoDni(dniValue) {
     }
 
     if (dniLimpio.length !== 8) {
+        contextoAsistenciaActual = null
         limpiarCamposAspirante()
         setMensaje("")
         return
@@ -710,6 +855,7 @@ async function procesarAutocompletadoDni(dniValue) {
             }
 
             if (error || !data) {
+                contextoAsistenciaActual = null
                 perfilAspiranteActual = { dni: "", seccion: "" }
                 limpiarCamposAspirante()
                 setMensaje("⚠ El DNI ingresado no existe en el padrón de la institución.", "warning")
@@ -719,6 +865,7 @@ async function procesarAutocompletadoDni(dniValue) {
             const cursoAspirante = data.curso_id == null ? null : Number(data.curso_id)
 
             if (cursoAspirante != null && cursoAspirante !== cursoEsperado) {
+                contextoAsistenciaActual = null
                 perfilAspiranteActual = { dni: "", seccion: "" }
                 validacionCursoAspirante = {
                     dni: dniLimpio,
@@ -745,6 +892,7 @@ async function procesarAutocompletadoDni(dniValue) {
                 dni: dniLimpio,
                 seccion: esSeccionLegacy(data.seccion) ? "" : normalizarCodigoSeccion(data.seccion)
             }
+            contextoAsistenciaActual = null
 
             nombres.value = data.nombres || ""
             apellidos.value = data.apellidos || ""
@@ -762,6 +910,7 @@ async function procesarAutocompletadoDni(dniValue) {
             setMensaje("")
         } catch (e) {
             console.error("Error validando DNI de aspirante:", e)
+            contextoAsistenciaActual = null
             perfilAspiranteActual = { dni: "", seccion: "" }
             limpiarCamposAspirante()
             setMensaje(mensajeAmigable(e, "No se pudo cargar la información."), "error")
@@ -785,6 +934,7 @@ function limpiarCamposAspirante(resetValidacion = true) {
     if (resetValidacion) {
         validacionCursoAspirante = { dni: "", permitido: true, legacy: false, bloqueado: false }
         perfilAspiranteActual = { dni: "", seccion: "" }
+        contextoAsistenciaActual = null
     }
 }
 
@@ -794,8 +944,8 @@ async function guardarAsistencia() {
     const apellidosValor = String(apellidos.value || "").trim()
     const uboValor = String(ubo.value || "").replace(/\D/g, "")
     const seccionBase = seccion || obtenerSeccionAspiranteDetectada()
-    const contextoAsistencia = resolverContextoAsistencia(new Date(), seccionBase)
-    const seccionRegistro = contextoAsistencia.seccion
+    const contextoAsistencia = contextoAsistenciaActual || construirContextoLocalAsistencia(new Date(), seccionBase)
+    const seccionRegistro = normalizarCodigoSeccion(contextoAsistencia.seccion || seccionBase)
 
     if (!dniRegistro) {
         setMensaje("⚠ DNI no válido", "error")
