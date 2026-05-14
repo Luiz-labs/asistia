@@ -62,6 +62,22 @@ function can(permission) {
     return !!ROLE_PERMISSIONS[role]?.[permission];
 }
 
+function esErrorConexionAsistIA(error) {
+    const texto = String(error?.message || error || "").toLowerCase();
+    return /failed to fetch|fetch failed|networkerror|network request failed|load failed|timeout|temporarily unavailable|connection|offline/i.test(texto);
+}
+
+function esErrorSesionAsistIA(error) {
+    const texto = String(error?.message || error || "").toLowerCase();
+    return /jwt|session|auth session missing|refresh token|token/i.test(texto);
+}
+
+function mensajeUsuarioAsistIA(error, fallback = "Ocurrió un problema al procesar la solicitud.") {
+    if (esErrorSesionAsistIA(error)) return "La sesión expiró. Vuelve a iniciar sesión.";
+    if (esErrorConexionAsistIA(error)) return "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente.";
+    return fallback;
+}
+
 async function loadCurrentProfile() {
     try {
         if (!supabaseClient) {
@@ -6895,7 +6911,7 @@ async function cargarAspirantesCargados() {
                 "No se pudo cargar el listado porque Supabase no esta disponible.",
                 "☁️"
             )
-            if (msgEl) msgEl.innerText = "No se pudo conectar con Supabase."
+            if (msgEl) msgEl.innerText = "No se pudo conectar con asistIA."
             return
         }
 
@@ -6928,13 +6944,14 @@ async function cargarAspirantesCargados() {
         }
 
         if (errorAspirantes) {
+            console.error("Error cargando aspirantes desde Supabase:", errorAspirantes)
             tablaEl.innerHTML = buildEmptyTableRow(
                 5,
                 "No se pudo cargar el listado",
-                "Ocurrio un problema al consultar aspirantes para esta institucion.",
+                "No se pudo cargar la información.",
                 "⚠️"
             )
-            if (msgEl) msgEl.innerText = `Error listando aspirantes: ${errorAspirantes.message || "desconocido"}`
+            if (msgEl) msgEl.innerText = mensajeUsuarioAsistIA(errorAspirantes, "No se pudo cargar la información.")
             return
         }
 
@@ -7015,7 +7032,7 @@ async function cargarAspirantesCargados() {
             "No se pudo completar la carga del listado de aspirantes.",
             "⚠️"
         )
-        if (msgEl) msgEl.innerText = "Error cargando listado de aspirantes."
+        if (msgEl) msgEl.innerText = mensajeUsuarioAsistIA(e, "No se pudo cargar la información.")
     }
 }
 
@@ -7805,16 +7822,30 @@ async function cargarReportesStaff() {
     if (staffReporteTipo?.value) q = q.eq("tipo_staff", staffReporteTipo.value)
     if (staffReporteUbo?.value) q = q.ilike("ubo_origen", `%${String(staffReporteUbo.value || "").trim()}%`)
 
-    const { data, error } = await q
-        .order("fecha", { ascending: false })
-        .order("hora_ingreso", { ascending: false })
+    let data = []
+    try {
+        const response = await q
+            .order("fecha", { ascending: false })
+            .order("hora_ingreso", { ascending: false })
+        data = response.data || []
 
-    if (error) {
+        if (response.error) {
+            console.error("Error cargando reportes staff:", response.error)
+            tablaStaffReportes.innerHTML = buildEmptyStateHTML(
+                "No se pudo cargar el reporte",
+                esTablaNoExiste(response.error)
+                    ? "No se pudo cargar la información."
+                    : mensajeUsuarioAsistIA(response.error, "No se pudo cargar la información."),
+                "⚠️"
+            )
+            cacheReportesStaff = []
+            return
+        }
+    } catch (error) {
+        console.error("Error inesperado cargando reportes staff:", error)
         tablaStaffReportes.innerHTML = buildEmptyStateHTML(
-            "Tabla staff_asistencias no disponible",
-            esTablaNoExiste(error)
-                ? "Aplica primero el SQL sugerido para habilitar el reporte staff."
-                : `No se pudo cargar el reporte: ${error.message || "error desconocido"}`,
+            "No se pudo cargar el reporte",
+            mensajeUsuarioAsistIA(error, "No se pudo cargar la información."),
             "⚠️"
         )
         cacheReportesStaff = []
@@ -7831,7 +7862,13 @@ async function cargarReportesStaff() {
         tipo_staff: normalizarTextoSimple(item.tipo_staff).toUpperCase(),
         jornada: normalizarTextoSimple(item.jornada)
     }))
-    const fotoMap = await cargarFotosStaffPorCodigos(baseRows.map(item => item.codigo_bombero))
+    let fotoMap = {}
+    try {
+        fotoMap = await cargarFotosStaffPorCodigos(baseRows.map(item => item.codigo_bombero))
+    } catch (error) {
+        console.error("Error cargando fotos staff para reportes:", error)
+        fotoMap = {}
+    }
     const rows = baseRows.map(item => ({
         ...item,
         foto_url: fotoMap[item.codigo_bombero]?.foto_url || ""
@@ -8385,51 +8422,55 @@ async function autenticarAdminConSupabaseAuth(usuario, clave) {
 
     for (const email of emails) {
         intentado = true
+        try {
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email,
+                password: clave
+            })
 
-        const { data, error } = await supabaseClient.auth.signInWithPassword({
-            email,
-            password: clave
-        })
+            if (error || !data?.user || !data?.session) {
+                try {
+                    await supabaseClient.auth.signOut()
+                } catch (_) { }
+                continue
+            }
 
-        // ✅ Exigir sesión real, no solo user
-        if (error || !data?.user || !data?.session) {
-            try {
+            const { data: sessionWrap, error: sessionError } = await supabaseClient.auth.getSession()
+            const session = sessionWrap?.session || null
+
+            if (sessionError || !session?.access_token || !session?.user) {
+                try {
+                    await supabaseClient.auth.signOut()
+                } catch (_) { }
+                continue
+            }
+
+            const authId = String(session.user.id || data.user.id || "")
+
+            if (userDb?.authUserId) {
+                if (authId && authId === String(userDb.authUserId || "")) {
+                    return {
+                        ok: true,
+                        intentado: true,
+                        authUserId: authId
+                    }
+                }
                 await supabaseClient.auth.signOut()
-            } catch (_) { }
-            continue
-        }
+                continue
+            }
 
-        // ✅ Validar que la sesión quedó realmente activa
-        const { data: sessionWrap, error: sessionError } = await supabaseClient.auth.getSession()
-        const session = sessionWrap?.session || null
-
-        if (sessionError || !session?.access_token || !session?.user) {
-            try {
-                await supabaseClient.auth.signOut()
-            } catch (_) { }
-            continue
-        }
-
-        const authId = String(session.user.id || data.user.id || "")
-
-        if (userDb?.authUserId) {
-            if (authId && authId === String(userDb.authUserId || "")) {
+            if (authId) {
                 return {
                     ok: true,
                     intentado: true,
                     authUserId: authId
                 }
             }
-            await supabaseClient.auth.signOut()
-            continue
-        }
-
-        if (authId) {
-            return {
-                ok: true,
-                intentado: true,
-                authUserId: authId
-            }
+        } catch (error) {
+            console.error("Error autenticando con Supabase Auth:", error)
+            try {
+                await supabaseClient.auth.signOut()
+            } catch (_) { }
         }
     }
 
@@ -8645,98 +8686,102 @@ async function loginAccesoAdminInstitucional() {
 }
 
 async function login() {
-    const usuario = (loginUser.value || "").trim().toLowerCase()
-    const clave = (loginPass.value || "").trim()
-    await asegurarUsuariosAdminPrevioLogin(usuario)
-    limpiarCurrentProfileVisual()
-    actualizarInfoSesionHeader()
-    const resultado = await resolverCredencialesAdmin(usuario, clave, {
-        tenantId: esModoStaff ? "" : String(tenantActivoId || "").trim().toLowerCase(),
-        origen: esModoStaff ? "staff_root" : "tenant_route"
-    })
+    try {
+        const usuario = (loginUser.value || "").trim().toLowerCase()
+        const clave = (loginPass.value || "").trim()
+        await asegurarUsuariosAdminPrevioLogin(usuario)
+        limpiarCurrentProfileVisual()
+        actualizarInfoSesionHeader()
+        const resultado = await resolverCredencialesAdmin(usuario, clave, {
+            tenantId: esModoStaff ? "" : String(tenantActivoId || "").trim().toLowerCase(),
+            origen: esModoStaff ? "staff_root" : "tenant_route"
+        })
 
-    if (!esModoStaff) {
-        const tenant = obtenerTenantActivo()
-        if (!tenant) {
-            loginMsg.innerText = "Institución no válida para esta ruta."
-            return
+        if (!esModoStaff) {
+            const tenant = obtenerTenantActivo()
+            if (!tenant) {
+                loginMsg.innerText = "Institución no válida para esta ruta."
+                return
+            }
+            if (!tenant.habilitado) {
+                loginMsg.innerText = "Institución inactiva. Contacta a Luiz Labs."
+                return
+            }
+            if (resultado.valido && resultado.tenantId && resultado.tenantId !== tenant.id) {
+                loginMsg.innerText = "Ese usuario no pertenece a esta institución."
+                return
+            }
+            if (resultado.valido && resultado.rol === ROLES_ADMIN.ADMINISTRADOR) {
+                const tenantAsignado = resultado.tenantId || obtenerTenantAsignadoUsuario(resultado.usuario)
+                if (!tenantAsignado || tenantAsignado !== tenant.id) {
+                    loginMsg.innerText = "Usuario no autorizado para esta institución."
+                    return
+                }
+            }
         }
-        if (!tenant.habilitado) {
-            loginMsg.innerText = "Institución inactiva. Contacta a Luiz Labs."
-            return
-        }
-        if (resultado.valido && resultado.tenantId && resultado.tenantId !== tenant.id) {
-            loginMsg.innerText = "Ese usuario no pertenece a esta institución."
-            return
-        }
-        if (resultado.valido && resultado.rol === ROLES_ADMIN.ADMINISTRADOR) {
-            const tenantAsignado = resultado.tenantId || obtenerTenantAsignadoUsuario(resultado.usuario)
-            if (!tenantAsignado || tenantAsignado !== tenant.id) {
-                loginMsg.innerText = "Usuario no autorizado para esta institución."
+
+        if (!esModoStaff && resultado.valido) {
+            const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession()
+            if (sessionError || !sessionData?.session?.access_token || !sessionData?.session?.user) {
+                loginMsg.innerText = "La sesión expiró. Vuelve a iniciar sesión."
                 return
             }
         }
-    }
 
-    if (!esModoStaff && resultado.valido) {
-        const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession()
-        if (sessionError || !sessionData?.session?.access_token || !sessionData?.session?.user) {
-            loginMsg.innerText = "Login inválido: no se generó sesión JWT."
-            return
-        }
-    }
-
-    if (resultado.valido) {
-        if (esModoStaff) {
-            if (resultado.rol !== ROLES_ADMIN.SUPERUSUARIO) {
-                loginMsg.innerText = "Solo superusuario puede ingresar desde esta ruta."
+        if (resultado.valido) {
+            if (esModoStaff) {
+                if (resultado.rol !== ROLES_ADMIN.SUPERUSUARIO) {
+                    loginMsg.innerText = "Solo superusuario puede ingresar desde esta ruta."
+                    return
+                }
+                setSesionAdminActiva({
+                    autenticado: true,
+                    usuario: resultado.usuario,
+                    rol: resultado.rol,
+                    tenantId: "",
+                    origen: "staff_root",
+                    perfilId: resultado.perfilId || ""
+                })
+                sincronizarPermisosPanelInstitucional()
+                registrarActividad("login_admin", {
+                    via: "root",
+                    usuario: resultado.usuario,
+                    rol: resultado.rol
+                }, { usuario: resultado.usuario, rol: resultado.rol, tenantId: "" })
+                mostrarSelectorStaff = false
+                loginMsg.innerText = ""
+                aplicarLayout()
+                renderTenantSelector()
+                await bootstrapAuthorizedApp();
                 return
             }
-            // En raíz se guarda sesión administrativa y luego se selecciona institución.
+
             setSesionAdminActiva({
                 autenticado: true,
                 usuario: resultado.usuario,
                 rol: resultado.rol,
-                tenantId: "",
-                origen: "staff_root",
+                tenantId: tenantActivoId,
+                origen: "tenant_route",
                 perfilId: resultado.perfilId || ""
             })
             sincronizarPermisosPanelInstitucional()
             registrarActividad("login_admin", {
-                via: "root",
+                via: "tenant_login",
                 usuario: resultado.usuario,
                 rol: resultado.rol
-            }, { usuario: resultado.usuario, rol: resultado.rol, tenantId: "" })
-            mostrarSelectorStaff = false
-            loginMsg.innerText = ""
+            }, { usuario: resultado.usuario, rol: resultado.rol, tenantId: tenantActivoId })
             aplicarLayout()
-            renderTenantSelector()
+            mostrarVista("reportes")
+            cargarDatos()
             await bootstrapAuthorizedApp();
-            return
+        } else {
+            loginMsg.innerText = resultado.motivo === "perfil_inactivo"
+                ? "Perfil inactivo. Contacta a Luiz Labs."
+                : "Usuario o clave incorrecta"
         }
-
-        setSesionAdminActiva({
-            autenticado: true,
-            usuario: resultado.usuario,
-            rol: resultado.rol,
-            tenantId: tenantActivoId,
-            origen: "tenant_route",
-            perfilId: resultado.perfilId || ""
-        })
-        sincronizarPermisosPanelInstitucional()
-        registrarActividad("login_admin", {
-            via: "tenant_login",
-            usuario: resultado.usuario,
-            rol: resultado.rol
-        }, { usuario: resultado.usuario, rol: resultado.rol, tenantId: tenantActivoId })
-        aplicarLayout()
-        mostrarVista("reportes")
-        cargarDatos()
-        await bootstrapAuthorizedApp();
-    } else {
-        loginMsg.innerText = resultado.motivo === "perfil_inactivo"
-            ? "Perfil inactivo. Contacta a Luiz Labs."
-            : "Usuario o clave incorrecta"
+    } catch (error) {
+        console.error("Error en login:", error)
+        loginMsg.innerText = mensajeUsuarioAsistIA(error, "Ocurrió un problema al procesar la solicitud.")
     }
 }
 

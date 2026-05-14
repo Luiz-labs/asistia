@@ -123,6 +123,17 @@ function setMensaje(texto, tipo = "") {
     if (texto && tipo) mensaje.classList.add(tipo)
 }
 
+function esErrorConexion(error) {
+    const texto = String(error?.message || error || "").toLowerCase()
+    return /failed to fetch|fetch failed|networkerror|network request failed|load failed|timeout|temporarily unavailable|connection|offline/i.test(texto)
+}
+
+function mensajeAmigableStaff(error, fallback = "Ocurrió un problema al procesar la solicitud.") {
+    if (esErrorConexion(error)) return "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente."
+    if (/auth|jwt|session/i.test(String(error?.message || error || ""))) return "La sesión expiró. Vuelve a iniciar sesión."
+    return fallback
+}
+
 function actualizarDisponibilidadIngresoStaff() {
     const disabled = !cursoContextoValido
     if (codigoBomberoInput) codigoBomberoInput.disabled = disabled
@@ -368,17 +379,18 @@ async function subirFotoStaff(file) {
         })
 
     if (uploadError) {
+        console.error("Error subiendo foto staff:", uploadError)
         throw new Error(
             /bucket/i.test(String(uploadError.message || ""))
-                ? "No se pudo subir la foto. Verifica que el bucket staff-fotos exista y permita uploads."
-                : `No se pudo subir la foto: ${uploadError.message || "error desconocido"}`
+                ? "No se pudo cargar la información."
+                : mensajeAmigableStaff(uploadError, "Ocurrió un problema al procesar la solicitud.")
         )
     }
 
     const { data } = supabaseClient.storage.from(bucket).getPublicUrl(path)
     const publicUrl = normalizarTexto(data?.publicUrl)
     if (!publicUrl) {
-        throw new Error("La foto se subió, pero no se pudo obtener la URL pública.")
+        throw new Error("No se pudo cargar la información.")
     }
     return publicUrl
 }
@@ -439,14 +451,15 @@ async function guardarPerfilStaff(event) {
             .maybeSingle()
 
         if (error) {
+            console.error("Error actualizando perfil staff:", error)
             throw new Error(
                 /policy|rls|permission|row-level/i.test(String(error.message || ""))
-                    ? "No se pudo actualizar el perfil por políticas de seguridad. Revisa el SQL sugerido de Storage/RLS."
-                    : `No se pudo actualizar el perfil: ${error.message || "error desconocido"}`
+                    ? "Ocurrió un problema al procesar la solicitud."
+                    : mensajeAmigableStaff(error, "Ocurrió un problema al procesar la solicitud.")
             )
         }
         if (!data?.id) {
-            throw new Error("No se pudo confirmar la actualización del perfil. Revisa las políticas RLS para staff_instruccion.")
+            throw new Error("No se pudo cargar la información.")
         }
 
         staffSeleccionado = {
@@ -459,9 +472,10 @@ async function guardarPerfilStaff(event) {
         cerrarModalPerfilStaff()
         setMensaje("Perfil actualizado correctamente.", "ok")
     } catch (error) {
+        console.error("Error guardando perfil staff:", error)
         staffPerfilGuardando = false
         actualizarEstadoModalPerfilStaff()
-        setPerfilMsg(error.message || "No se pudo actualizar el perfil.", "error")
+        setPerfilMsg(mensajeAmigableStaff(error, "Ocurrió un problema al procesar la solicitud."), "error")
     }
 }
 
@@ -631,22 +645,30 @@ async function buscarStaffPorCodigo() {
         return
     }
 
-    const { data, error } = await supabaseClient
-        .from("staff_instruccion")
-        .select("*")
-        .eq("tenant_id", tenantActivoId)
-        .eq("curso_id", cursoActualId)
-        .eq("codigo_bombero", codigo)
-        .eq("activo", true)
-        .maybeSingle()
-
-    if (error) {
-        setMensaje(
-            /does not exist|42P01/i.test(String(error.message || ""))
-                ? "El módulo staff aún no está habilitado en la base de datos."
-                : `No se pudo validar el staff: ${error.message || "error desconocido"}`,
-            "error"
-        )
+    let data = null
+    try {
+        const response = await supabaseClient
+            .from("staff_instruccion")
+            .select("*")
+            .eq("tenant_id", tenantActivoId)
+            .eq("curso_id", cursoActualId)
+            .eq("codigo_bombero", codigo)
+            .eq("activo", true)
+            .maybeSingle()
+        data = response.data
+        if (response.error) {
+            console.error("Error validando staff por código:", response.error)
+            setMensaje(
+                /does not exist|42P01/i.test(String(response.error.message || ""))
+                    ? "No se pudo cargar la información."
+                    : mensajeAmigableStaff(response.error, "No se pudo cargar la información."),
+                "error"
+            )
+            return
+        }
+    } catch (error) {
+        console.error("Error inesperado validando staff:", error)
+        setMensaje(mensajeAmigableStaff(error, "No se pudo cargar la información."), "error")
         return
     }
 
@@ -699,34 +721,42 @@ async function registrarAsistenciaStaff() {
         device_id: getDeviceId()
     }
 
-    const { data: existente, error: errorConsulta } = await supabaseClient
-        .from("staff_asistencias")
-        .select("id")
-        .eq("tenant_id", tenantActivoId)
-        .eq("staff_id", staffSeleccionado.id)
-        .eq("fecha", lima.fecha)
-        .maybeSingle()
+    try {
+        const { data: existente, error: errorConsulta } = await supabaseClient
+            .from("staff_asistencias")
+            .select("id")
+            .eq("tenant_id", tenantActivoId)
+            .eq("staff_id", staffSeleccionado.id)
+            .eq("fecha", lima.fecha)
+            .maybeSingle()
 
-    if (errorConsulta && !/0 rows/i.test(String(errorConsulta.message || ""))) {
-        setMensaje(`No se pudo validar duplicados: ${errorConsulta.message || "error desconocido"}`, "error")
-        return
-    }
+        if (errorConsulta && !/0 rows/i.test(String(errorConsulta.message || ""))) {
+            console.error("Error validando duplicados staff:", errorConsulta)
+            setMensaje(mensajeAmigableStaff(errorConsulta, "No se pudo cargar la información."), "error")
+            return
+        }
 
-    if (existente?.id) {
-        setMensaje("Ya registraste asistencia staff hoy.", "warning")
-        return
-    }
-
-    const { error } = await supabaseClient
-        .from("staff_asistencias")
-        .insert([payload])
-
-    if (error) {
-        if (/duplicate key|23505/i.test(String(error.message || ""))) {
+        if (existente?.id) {
             setMensaje("Ya registraste asistencia staff hoy.", "warning")
             return
         }
-        setMensaje(`No se pudo registrar la asistencia: ${error.message || "error desconocido"}`, "error")
+
+        const { error } = await supabaseClient
+            .from("staff_asistencias")
+            .insert([payload])
+
+        if (error) {
+            if (/duplicate key|23505/i.test(String(error.message || ""))) {
+                setMensaje("Ya registraste asistencia staff hoy.", "warning")
+                return
+            }
+            console.error("Error registrando asistencia staff:", error)
+            setMensaje(mensajeAmigableStaff(error, "Ocurrió un problema al procesar la solicitud."), "error")
+            return
+        }
+    } catch (error) {
+        console.error("Error inesperado en asistencia staff:", error)
+        setMensaje(mensajeAmigableStaff(error, "Ocurrió un problema al procesar la solicitud."), "error")
         return
     }
 

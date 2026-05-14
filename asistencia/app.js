@@ -74,6 +74,16 @@ function setMensaje(texto, tipo = "") {
     if (tipo) mensaje.classList.add(tipo)
 }
 
+function esErrorConexion(error) {
+    const texto = String(error?.message || error || "").toLowerCase()
+    return /failed to fetch|fetch failed|networkerror|network request failed|load failed|timeout|temporarily unavailable|connection|offline/i.test(texto)
+}
+
+function mensajeAmigable(error, fallback = "Ocurrió un problema al procesar la solicitud.") {
+    if (esErrorConexion(error)) return "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente."
+    return fallback
+}
+
 function mostrarPasoMovil(paso) {
     if (stepIngreso) stepIngreso.style.display = paso === "ingreso" ? "flex" : "none"
 }
@@ -207,8 +217,7 @@ function agregarPendienteOffline(registro) {
 
 function esErrorTransporteSupabase(error) {
     const texto = String(error?.message || error || "").toLowerCase()
-    return !texto ||
-        /failed to fetch|fetch failed|networkerror|network request failed|load failed|timeout|temporarily unavailable|connection/i.test(texto)
+    return !texto || esErrorConexion(texto)
 }
 
 function puedeGuardarOfflinePorContingencia() {
@@ -324,7 +333,7 @@ async function guardarAsistenciaOffline({ dniRegistro, nombresValor, apellidosVa
     }))
 
     if (!resultado.ok) {
-        setMensaje("⚠ No se pudo guardar la asistencia en modo contingencia en este dispositivo.", "error")
+        setMensaje("Ocurrió un problema al procesar la solicitud.", "error")
         return false
     }
 
@@ -343,7 +352,7 @@ async function resolverCursoPorToken(token) {
     ultimoEstadoCurso = { code: "invalid_token", message: "Acceso no válido. Escanee el código QR oficial del curso." }
     if (!token) return false
     if (!haySupabase() || !tenantActivoId) {
-        ultimoEstadoCurso = { code: "supabase_unavailable", message: "Supabase no disponible. No se pudo validar el QR del curso." }
+        ultimoEstadoCurso = { code: "supabase_unavailable", message: "No se pudo cargar la información." }
         return false
     }
 
@@ -355,8 +364,8 @@ async function resolverCursoPorToken(token) {
 
         if (error) {
             ultimoEstadoCurso = !navigator.onLine || esErrorTransporteSupabase(error)
-                ? { code: "offline", message: "Sin internet. No se pudo validar el código QR del curso." }
-                : { code: "rpc_failed", message: "No se pudo validar el QR del curso por un problema del servidor." }
+                ? { code: "offline", message: "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente." }
+                : { code: "rpc_failed", message: "No se pudo cargar la información." }
             cursoQRValido = false
             return false
         }
@@ -374,8 +383,8 @@ async function resolverCursoPorToken(token) {
         return true
     } catch (e) {
         ultimoEstadoCurso = !navigator.onLine || esErrorTransporteSupabase(e)
-            ? { code: "offline", message: "Sin internet. No se pudo validar el código QR del curso." }
-            : { code: "unexpected", message: "Ocurrió un error inesperado al validar el curso." }
+            ? { code: "offline", message: "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente." }
+            : { code: "unexpected", message: "No se pudo cargar la información." }
         cursoQRValido = false
         return false
     }
@@ -562,7 +571,8 @@ async function ingresarMovilInicio() {
         if (stepIngreso) stepIngreso.style.display = "none"
         formulario.style.display = "flex"
     } catch (error) {
-        setMensaje("⚠ No se pudo preparar el formulario de asistencia.", "error")
+        console.error("Error preparando formulario de asistencia:", error)
+        setMensaje("No se pudo cargar la información.", "error")
     }
 }
 
@@ -651,8 +661,9 @@ async function procesarAutocompletadoDni(dniValue) {
             ubo.style.backgroundColor = "#f3f6fb"
             setMensaje("")
         } catch (e) {
+            console.error("Error validando DNI de aspirante:", e)
             limpiarCamposAspirante()
-            setMensaje("⚠ No se pudo validar el DNI en este momento.", "error")
+            setMensaje(mensajeAmigable(e, "No se pudo cargar la información."), "error")
         }
     }, 300)
 }
@@ -722,7 +733,7 @@ async function guardarAsistencia() {
             nombresValor,
             apellidosValor,
             seccionRegistro,
-            motivo: "Supabase no disponible. No se pudo registrar la asistencia."
+            motivo: "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente."
         })
         return
     }
@@ -733,7 +744,7 @@ async function guardarAsistencia() {
             nombresValor,
             apellidosValor,
             seccionRegistro,
-            motivo: "Sin internet. No se pudo registrar la asistencia."
+            motivo: "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente."
         })
         return
     }
@@ -758,19 +769,18 @@ async function guardarAsistencia() {
                 apellidosValor,
                 seccionRegistro,
                 motivo: esErrorTransporteSupabase(error)
-                    ? "Sin internet. No se pudo registrar la asistencia."
-                    : "No se pudo registrar la asistencia por una falla de Supabase o de la RPC."
+                    ? "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente."
+                    : "Ocurrió un problema al procesar la solicitud."
             })
             if (!guardadoOffline) {
-                setMensaje(esErrorTransporteSupabase(error)
-                    ? "Sin internet. No se pudo registrar la asistencia."
-                    : "No se pudo registrar la asistencia por una falla de Supabase o de la RPC.", "error")
+                console.error("Error registrando asistencia por RPC:", error)
+                setMensaje(mensajeAmigable(error, "Ocurrió un problema al procesar la solicitud."), "error")
             }
             return
         }
 
         if (!data?.success) {
-            setMensaje(`⚠ ${data?.message || "No se pudo registrar la asistencia."}`, "error")
+            setMensaje(String(data?.message || "Ocurrió un problema al procesar la solicitud."), "error")
             return
         }
 
@@ -789,13 +799,12 @@ async function guardarAsistencia() {
             apellidosValor,
             seccionRegistro,
             motivo: !navigator.onLine || esErrorTransporteSupabase(e)
-                ? "Sin internet. No se pudo registrar la asistencia."
-                : "Ocurrió un error inesperado al registrar la asistencia."
+                ? "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente."
+                : "Ocurrió un problema al procesar la solicitud."
         })
         if (!guardadoOffline) {
-            setMensaje(!navigator.onLine || esErrorTransporteSupabase(e)
-                ? "Sin internet. No se pudo registrar la asistencia."
-                : "Ocurrió un error inesperado al registrar la asistencia.", "error")
+            console.error("Error inesperado registrando asistencia:", e)
+            setMensaje(mensajeAmigable(e, "Ocurrió un problema al procesar la solicitud."), "error")
         }
     }
 }
@@ -826,7 +835,7 @@ async function init() {
     }
 
     if (!haySupabase()) {
-        setMensaje("Supabase no disponible. No se pudo iniciar la conexión con el servidor.", "error")
+        setMensaje("No se pudo conectar con asistIA.", "error")
         return
     }
 
