@@ -15,6 +15,7 @@ let cursoConfigCache = null
 let cursoSecciones = []
 let debounceTimerAutocompletar = null
 let validacionCursoAspirante = { dni: "", permitido: true, legacy: false, bloqueado: false }
+let perfilAspiranteActual = { dni: "", seccion: "" }
 let sincronizacionPendientesEnCurso = false
 let ultimoEstadoCurso = { code: "idle", message: "" }
 const OFFLINE_QUEUE_KEY = "asistia_aspirantes_offline_queue_v1"
@@ -152,10 +153,51 @@ function obtenerFechaHoraLima(fechaBase = new Date()) {
     }
 }
 
-function obtenerTipoJornadaAspirante(weekday, seccionRegistro) {
-    if (weekday === "sunday") return "DOMINICAL"
-    if (String(seccionRegistro || "").trim().toUpperCase() === "GENERAL") return "GENERAL"
-    return "SECCION"
+function normalizarCodigoSeccion(valor) {
+    return String(valor || "").trim().toUpperCase()
+}
+
+function esSeccionLegacy(valor) {
+    const seccionNormalizada = normalizarCodigoSeccion(valor)
+    return seccionNormalizada === "GENERAL" || seccionNormalizada === "DOMINICAL"
+}
+
+function normalizarModalidad(valor) {
+    const modalidad = String(valor || "").trim().toUpperCase()
+    if (modalidad === "VIRTUAL") return "VIRTUAL"
+    return modalidad ? "PRESENCIAL" : ""
+}
+
+function obtenerTipoJornadaAspirante(weekday) {
+    return weekday === "sunday" ? "DOMINICAL_GRUPAL" : "SECCION_REGULAR"
+}
+
+function obtenerSeccionAspiranteDetectada() {
+    return esSeccionLegacy(perfilAspiranteActual?.seccion) ? "" : normalizarCodigoSeccion(perfilAspiranteActual?.seccion)
+}
+
+function obtenerReglaSeccionCurso(seccionRegistro) {
+    const codigo = normalizarCodigoSeccion(seccionRegistro)
+    if (!codigo) return null
+    return (cursoSecciones || []).find(item => normalizarCodigoSeccion(item?.seccion) === codigo) || null
+}
+
+function resolverContextoAsistencia(fecha = new Date(), seccionRegistro = "") {
+    const ahoraLima = obtenerFechaHoraLima(fecha)
+    const esDomingo = ahoraLima.weekday === "sunday"
+    const seccionReal = normalizarCodigoSeccion(seccionRegistro)
+    const regla = obtenerReglaSeccionCurso(seccionReal)
+    return {
+        fecha: ahoraLima.fecha,
+        hora: ahoraLima.hora,
+        timestamp: ahoraLima.timestamp,
+        weekday: ahoraLima.weekday,
+        esDomingo,
+        seccion: seccionReal,
+        tipo_jornada: obtenerTipoJornadaAspirante(ahoraLima.weekday),
+        modalidad: esDomingo ? "PRESENCIAL" : normalizarModalidad(regla?.modalidad),
+        jornada_label: esDomingo ? "DOMINICAL_GRUPAL" : "SECCION_REGULAR"
+    }
 }
 
 function leerColaPendientes() {
@@ -230,8 +272,8 @@ function resetFormularioAsistencia() {
     seleccionarBotonSeccion("")
 }
 
-function crearRegistroOffline({ dniRegistro, nombresValor, apellidosValor, seccionRegistro, deviceId }) {
-    const ahoraLima = obtenerFechaHoraLima(new Date())
+function crearRegistroOffline({ dniRegistro, nombresValor, apellidosValor, seccionRegistro, modalidadRegistro, deviceId }) {
+    const contexto = resolverContextoAsistencia(new Date(), seccionRegistro)
     const nombreCompleto = `${String(nombresValor || "").trim()} ${String(apellidosValor || "").trim()}`
         .replace(/\s+/g, " ")
         .trim()
@@ -242,13 +284,14 @@ function crearRegistroOffline({ dniRegistro, nombresValor, apellidosValor, secci
         tenant_id: tenantActivoId,
         curso_id: cursoActualId || 1,
         qr_token: obtenerCursoTokenDesdeURL(),
-        fecha_local: ahoraLima.fecha,
-        hora_local: ahoraLima.hora,
-        timestamp_local: ahoraLima.timestamp,
+        fecha_local: contexto.fecha,
+        hora_local: contexto.hora,
+        timestamp_local: contexto.timestamp,
         latitud: null,
         longitud: null,
-        seccion: seccionRegistro || null,
-        tipo_jornada: obtenerTipoJornadaAspirante(ahoraLima.weekday, seccionRegistro),
+        seccion: contexto.seccion || null,
+        tipo_jornada: contexto.tipo_jornada,
+        modalidad: normalizarModalidad(modalidadRegistro) || contexto.modalidad || null,
         device_id: deviceId || getDeviceId(),
         origen_registro: "offline",
         estado_sync: "pendiente",
@@ -318,7 +361,7 @@ async function sincronizarPendientes({ notificar = false } = {}) {
     }
 }
 
-async function guardarAsistenciaOffline({ dniRegistro, nombresValor, apellidosValor, seccionRegistro, motivo }) {
+async function guardarAsistenciaOffline({ dniRegistro, nombresValor, apellidosValor, seccionRegistro, modalidadRegistro, motivo }) {
     if (!puedeGuardarOfflinePorContingencia()) {
         setMensaje(motivo || "⚠ No se pudo registrar la asistencia en este momento.", "error")
         return false
@@ -329,6 +372,7 @@ async function guardarAsistenciaOffline({ dniRegistro, nombresValor, apellidosVa
         nombresValor,
         apellidosValor,
         seccionRegistro,
+        modalidadRegistro,
         deviceId: getDeviceId()
     }))
 
@@ -485,8 +529,8 @@ async function cargarConfigCurso() {
     }
 
     cursoSecciones = errorSecciones ? [] : (dataSecciones || []).map(item => ({
-        seccion: String(item.seccion || "").trim().toUpperCase(),
-        modalidad: String(item.modalidad || "Presencial").trim(),
+        seccion: normalizarCodigoSeccion(item.seccion),
+        modalidad: normalizarModalidad(item.modalidad || "PRESENCIAL"),
         dias: Array.isArray(item.dias) ? item.dias : [],
         hora_inicio: item.hora_inicio || ""
     }))
@@ -499,8 +543,8 @@ function seleccionarBotonSeccion(valor) {
 }
 
 function setSeccion(valor) {
-    seccion = valor
-    seleccionarBotonSeccion(valor)
+    seccion = normalizarCodigoSeccion(valor)
+    seleccionarBotonSeccion(seccion)
 }
 
 function esDomingoLima(fecha = new Date()) {
@@ -518,25 +562,42 @@ function esDomingoLima(fecha = new Date()) {
 function renderSeccionesMovil() {
     if (!mobileSectionsContainer) return
 
-    seccion = ""
-    seleccionarBotonSeccion("")
+    const seccionDetectada = obtenerSeccionAspiranteDetectada()
+    seccion = seccionDetectada || ""
+    seleccionarBotonSeccion(seccion)
     mobileSectionsContainer.innerHTML = ""
-
-    if (esDomingoLima()) {
-        mobileSectionsContainer.innerHTML = `
-            <p class="step-copy">Jornada dominical general</p>
-            <p class="tenant-label">Hoy no es necesario elegir sección. El registro se guardará como GENERAL.</p>
-        `
-        return
-    }
-
-    if (!cursoSecciones.length) {
-        mobileSectionsContainer.innerHTML = `<p class="tenant-label">No hay secciones configuradas para este curso.</p>`
-        return
-    }
-
+    const contexto = resolverContextoAsistencia(new Date(), seccionDetectada)
     const title = cursoConfigCache?.nombre_curso || "Curso"
     let html = `<p class="step-copy">${title}</p>`
+    const nombreCompleto = `${String(nombres?.value || "").trim()} ${String(apellidos?.value || "").trim()}`
+        .replace(/\s+/g, " ")
+        .trim()
+    if (nombreCompleto) {
+        html += `<p class="tenant-label">Aspirante: ${nombreCompleto}</p>`
+    }
+    if (seccionDetectada) {
+        html += `<p class="tenant-label">Sección del aspirante: ${seccionDetectada}</p>`
+    }
+    html += `<p class="tenant-label">Jornada de hoy: ${contexto.jornada_label}</p>`
+    html += `<p class="tenant-label">Modalidad: ${contexto.modalidad || "Pendiente de resolver"}</p>`
+
+    if (!cursoSecciones.length) {
+        if (!seccionDetectada) {
+            html += `<p class="tenant-label">No hay secciones configuradas para este curso.</p>`
+        }
+        mobileSectionsContainer.innerHTML = html
+        return
+    }
+
+    if (seccionDetectada) {
+        mobileSectionsContainer.innerHTML = html
+        return
+    }
+
+    html += contexto.esDomingo
+        ? `<p class="tenant-label">Selecciona tu sección de aspirante. Compatibilidad temporal para jornada dominical.</p>`
+        : `<p class="tenant-label">Selecciona tu sección de aspirante para completar el registro.</p>`
+
     cursoSecciones.forEach(sec => {
         const dias = Array.isArray(sec.dias) ? sec.dias.join(", ") : ""
         const label = `Sección ${sec.seccion}${dias ? ` · ${dias}` : ""}${sec.modalidad ? ` · ${sec.modalidad}` : ""}`
@@ -611,14 +672,29 @@ async function procesarAutocompletadoDni(dniValue) {
 
         try {
             const cursoEsperado = Number(cursoActualId || 1) || 1
-            const { data, error } = await supabaseClient
+            let data = null
+            let error = null
+
+            ;({ data, error } = await supabaseClient
                 .from("aspirantes")
-                .select("nombres, apellidos, ubo, curso_id")
+                .select("nombres, apellidos, ubo, curso_id, seccion")
                 .eq("dni", dniLimpio)
                 .eq("tenant_id", tenantActivoId)
-                .single()
+                .single())
+
+            if (error && /seccion/i.test(String(error.message || ""))) {
+                const fallback = await supabaseClient
+                    .from("aspirantes")
+                    .select("nombres, apellidos, ubo, curso_id")
+                    .eq("dni", dniLimpio)
+                    .eq("tenant_id", tenantActivoId)
+                    .single()
+                data = fallback.data
+                error = fallback.error
+            }
 
             if (error || !data) {
+                perfilAspiranteActual = { dni: "", seccion: "" }
                 limpiarCamposAspirante()
                 setMensaje("⚠ El DNI ingresado no existe en el padrón de la institución.", "warning")
                 return
@@ -627,6 +703,7 @@ async function procesarAutocompletadoDni(dniValue) {
             const cursoAspirante = data.curso_id == null ? null : Number(data.curso_id)
 
             if (cursoAspirante != null && cursoAspirante !== cursoEsperado) {
+                perfilAspiranteActual = { dni: "", seccion: "" }
                 validacionCursoAspirante = {
                     dni: dniLimpio,
                     permitido: false,
@@ -648,6 +725,10 @@ async function procesarAutocompletadoDni(dniValue) {
                 legacy: cursoAspirante == null,
                 bloqueado: false
             }
+            perfilAspiranteActual = {
+                dni: dniLimpio,
+                seccion: esSeccionLegacy(data.seccion) ? "" : normalizarCodigoSeccion(data.seccion)
+            }
 
             nombres.value = data.nombres || ""
             apellidos.value = data.apellidos || ""
@@ -659,9 +740,13 @@ async function procesarAutocompletadoDni(dniValue) {
             nombres.style.backgroundColor = "#f3f6fb"
             apellidos.style.backgroundColor = "#f3f6fb"
             ubo.style.backgroundColor = "#f3f6fb"
+            if (formulario?.style.display !== "none") {
+                renderSeccionesMovil()
+            }
             setMensaje("")
         } catch (e) {
             console.error("Error validando DNI de aspirante:", e)
+            perfilAspiranteActual = { dni: "", seccion: "" }
             limpiarCamposAspirante()
             setMensaje(mensajeAmigable(e, "No se pudo cargar la información."), "error")
         }
@@ -683,6 +768,7 @@ function limpiarCamposAspirante(resetValidacion = true) {
 
     if (resetValidacion) {
         validacionCursoAspirante = { dni: "", permitido: true, legacy: false, bloqueado: false }
+        perfilAspiranteActual = { dni: "", seccion: "" }
     }
 }
 
@@ -691,11 +777,9 @@ async function guardarAsistencia() {
     const nombresValor = String(nombres.value || "").trim()
     const apellidosValor = String(apellidos.value || "").trim()
     const uboValor = String(ubo.value || "").replace(/\D/g, "")
-    const esDomingo = esDomingoLima(new Date())
-    const sinSeccionesConfiguradas = !Array.isArray(cursoSecciones) || cursoSecciones.length === 0
-    const seccionRegistro = esDomingo
-        ? "GENERAL"
-        : (sinSeccionesConfiguradas ? "GENERAL" : seccion)
+    const seccionBase = seccion || obtenerSeccionAspiranteDetectada()
+    const contextoAsistencia = resolverContextoAsistencia(new Date(), seccionBase)
+    const seccionRegistro = contextoAsistencia.seccion
 
     if (!dniRegistro) {
         setMensaje("⚠ DNI no válido", "error")
@@ -733,6 +817,7 @@ async function guardarAsistencia() {
             nombresValor,
             apellidosValor,
             seccionRegistro,
+            modalidadRegistro: contextoAsistencia.modalidad,
             motivo: "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente."
         })
         return
@@ -744,6 +829,7 @@ async function guardarAsistencia() {
             nombresValor,
             apellidosValor,
             seccionRegistro,
+            modalidadRegistro: contextoAsistencia.modalidad,
             motivo: "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente."
         })
         return
@@ -768,6 +854,7 @@ async function guardarAsistencia() {
                 nombresValor,
                 apellidosValor,
                 seccionRegistro,
+                modalidadRegistro: contextoAsistencia.modalidad,
                 motivo: esErrorTransporteSupabase(error)
                     ? "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente."
                     : "Ocurrió un problema al procesar la solicitud."
@@ -798,6 +885,7 @@ async function guardarAsistencia() {
             nombresValor,
             apellidosValor,
             seccionRegistro,
+            modalidadRegistro: contextoAsistencia.modalidad,
             motivo: !navigator.onLine || esErrorTransporteSupabase(e)
                 ? "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente."
                 : "Ocurrió un problema al procesar la solicitud."

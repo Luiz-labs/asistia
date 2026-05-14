@@ -387,6 +387,7 @@ let cursoActualId = 1
 let cursoBaseActual = null
 let cursoQRValido = false
 let validacionCursoAspirante = { dni: "", permitido: true, legacy: false, bloqueado: false }
+let perfilAspiranteActual = { dni: "", seccion: "" }
 let inputDniFocusLockUntil = 0
 const SYSTEM_USERS = []
 
@@ -4581,6 +4582,63 @@ function obtenerDiaSemanaEs(fechaISO) {
     return dias[d.getDay()] || ""
 }
 
+function normalizarCodigoSeccion(valor) {
+    return String(valor || "").trim().toUpperCase()
+}
+
+function esSeccionLegacy(valor) {
+    const seccionNormalizada = normalizarCodigoSeccion(valor)
+    return seccionNormalizada === "GENERAL" || seccionNormalizada === "DOMINICAL"
+}
+
+function normalizarModalidad(valor) {
+    const modalidad = String(valor || "").trim().toUpperCase()
+    if (modalidad === "VIRTUAL") return "VIRTUAL"
+    return modalidad ? "PRESENCIAL" : ""
+}
+
+function normalizarTipoJornada(valor) {
+    const jornada = String(valor || "").trim().toUpperCase()
+    if (jornada === "DOMINICAL" || jornada === "DOMINICAL_GRUPAL") return "DOMINICAL_GRUPAL"
+    if (jornada === "SECCION" || jornada === "SECCION_REGULAR") return "SECCION_REGULAR"
+    if (jornada === "GENERAL") return "GENERAL_LEGACY"
+    return jornada
+}
+
+function formatearTipoJornada(valor) {
+    const jornada = normalizarTipoJornada(valor)
+    if (jornada === "GENERAL_LEGACY") return "GENERAL (legacy)"
+    return jornada || "SECCION_REGULAR"
+}
+
+function formatearSeccionRegistro(seccionValor, jornadaValor) {
+    const seccionNormalizada = normalizarCodigoSeccion(seccionValor)
+    if (!seccionNormalizada) return "-"
+    if (esSeccionLegacy(seccionNormalizada)) {
+        return normalizarTipoJornada(jornadaValor) === "DOMINICAL_GRUPAL"
+            ? `${seccionNormalizada} (legacy dominical)`
+            : `${seccionNormalizada} (legacy)`
+    }
+    return seccionNormalizada
+}
+
+function obtenerSeccionAspiranteDetectada() {
+    return esSeccionLegacy(perfilAspiranteActual?.seccion) ? "" : normalizarCodigoSeccion(perfilAspiranteActual?.seccion)
+}
+
+function resolverContextoAsistencia(fecha = new Date(), seccionRegistro = "") {
+    const esDomingo = esDomingoLima(fecha)
+    const seccionReal = normalizarCodigoSeccion(seccionRegistro)
+    const regla = obtenerReglaSeccion(seccionReal)
+    return {
+        esDomingo,
+        seccion: seccionReal,
+        tipo_jornada: esDomingo ? "DOMINICAL_GRUPAL" : "SECCION_REGULAR",
+        modalidad: esDomingo ? "PRESENCIAL" : normalizarModalidad(regla?.modalidad),
+        jornada_label: esDomingo ? "DOMINICAL_GRUPAL" : "SECCION_REGULAR"
+    }
+}
+
 function horaATotalMinutos(hora) {
     const h = String(hora || "").slice(0, 5)
     const [hh, mm] = h.split(":")
@@ -4591,12 +4649,13 @@ function horaATotalMinutos(hora) {
 }
 
 function obtenerReglaSeccion(seccion) {
-    const sec = String(seccion || "").trim().toUpperCase()
+    const sec = normalizarCodigoSeccion(seccion)
     if (!sec) return null
-    const regla = (cursoSecciones || []).find(x => String(x.seccion || "").trim().toUpperCase() === sec)
+    const regla = (cursoSecciones || []).find(x => normalizarCodigoSeccion(x.seccion) === sec)
     if (!regla) return null
     return {
         seccion: sec,
+        modalidad: normalizarModalidad(regla.modalidad),
         horaInicioMin: horaATotalMinutos(regla.hora_inicio),
         horaInicioTexto: String(regla.hora_inicio || "").slice(0, 5),
         dias: (regla.dias || []).map(normalizarTextoDia).filter(Boolean)
@@ -4632,7 +4691,8 @@ function evaluarSemaforoPorRegla(registrosAlumno) {
     const primerMarcadoUltimoDia = registros
         .filter(x => x.fecha === ultimaFecha)
         .sort((a, b) => (a.hora || "").localeCompare(b.hora || ""))[0]
-    const seccionEvaluada = String(primerMarcadoUltimoDia?.seccion || "").trim().toUpperCase()
+    const seccionEvaluada = normalizarCodigoSeccion(primerMarcadoUltimoDia?.seccion)
+    const jornadaEvaluada = normalizarTipoJornada(primerMarcadoUltimoDia?.tipo_jornada)
     const regla = obtenerReglaSeccion(seccionEvaluada)
     const horaMarcadaMin = horaATotalMinutos(primerMarcadoUltimoDia?.hora || "")
     const horaMarcadaTexto = String(primerMarcadoUltimoDia?.hora || "").slice(0, 5)
@@ -4645,7 +4705,7 @@ function evaluarSemaforoPorRegla(registrosAlumno) {
         return { estado: "rojo", motivo: "sin_hora_configurada", fecha: ultimaFecha, horaMarcada: horaMarcadaTexto, seccion: seccionEvaluada, horaInicio: "-" }
     }
 
-    if (regla.dias.length) {
+    if (regla.dias.length && jornadaEvaluada !== "DOMINICAL_GRUPAL") {
         const dia = obtenerDiaSemanaEs(ultimaFecha)
         if (!regla.dias.includes(dia)) {
             return { estado: "rojo", motivo: "fuera_de_dia_configurado", fecha: ultimaFecha, horaMarcada: horaMarcadaTexto, seccion: seccionEvaluada, horaInicio: regla.horaInicioTexto || "-" }
@@ -4750,8 +4810,9 @@ function exportarReportesExcel() {
         DNI: r.dni || "",
         Nombre: r.nombre || "",
         UBO: r.ubo || "",
-        Jornada: r.jornada || "SECCION",
-        Seccion: r.seccion || "-",
+        Jornada: formatearTipoJornada(r.jornada),
+        Seccion_Aspirante: formatearSeccionRegistro(r.seccion, r.jornada),
+        Modalidad: r.modalidad || "",
         Fecha: r.fecha || "",
         Hora: r.hora || "",
         Origen: r.origen || "",
@@ -6200,7 +6261,7 @@ function resolveHistoricalTimestampLocal(fecha, hora) {
 }
 
 function resolveHistoricalTipoJornada(fecha) {
-    return obtenerDiaSemanaEs(fecha) === "domingo" ? "DOMINICAL" : "SECCION"
+    return obtenerDiaSemanaEs(fecha) === "domingo" ? "DOMINICAL_GRUPAL" : "SECCION_REGULAR"
 }
 
 function buildHistoricalAttendancePayload(row, batchId, importMeta = {}) {
@@ -7144,8 +7205,8 @@ async function cargarSeccionesCursoDesdeSupabase() {
     }
 
     return (data || []).map(x => ({
-        seccion: String(x.seccion || "").trim(),
-        modalidad: x.modalidad || "Presencial",
+        seccion: normalizarCodigoSeccion(x.seccion),
+        modalidad: normalizarModalidad(x.modalidad || "PRESENCIAL"),
         hora_inicio: x.hora_inicio || "",
         dias: Array.isArray(x.dias) ? x.dias : []
     })).filter(x => x.seccion)
@@ -7164,9 +7225,9 @@ async function cargarSedesCursoDesdeSupabase() {
     }
 
     return (data || []).map(x => ({
-        seccion: String(x.seccion || "").trim(),
+        seccion: normalizarCodigoSeccion(x.seccion),
         ubo: String(x.ubo || "").trim(),
-        modalidad: x.modalidad || "Presencial",
+        modalidad: normalizarModalidad(x.modalidad || "PRESENCIAL"),
         hora_inicio: x.hora_inicio || "",
         dias: Array.isArray(x.dias) ? x.dias : [],
         todos_dias: !!x.todos_dias
@@ -8875,29 +8936,39 @@ function renderSeccionesMovil() {
     const container = document.getElementById("mobileSectionsContainer")
     if (!container) return
 
-    // Cada ingreso al formulario debe exigir selección explícita.
-    seccion = ""
-    seleccionarBotonSeccion("")
-
-    // Limpiamos previo
+    const seccionDetectada = obtenerSeccionAspiranteDetectada()
+    seccion = seccionDetectada || ""
+    seleccionarBotonSeccion(seccion)
     container.innerHTML = ""
-
-    if (esDomingoLima()) {
-        container.innerHTML = `
-            <p style="font-size:14px;color:#555;margin-bottom:4px;font-weight:700;text-transform:uppercase;">Jornada dominical general</p>
-            <p style="font-size:13px;color:#777;margin-bottom:12px;">Hoy no es necesario elegir sección. El registro se guardará como jornada general.</p>
-        `
-        return
-    }
-
-    if (!cursoSecciones || cursoSecciones.length === 0) {
-        container.innerHTML = `<p style="color:#666;font-size:14px;padding:10px;">No hay secciones configuradas para este curso.</p>`
-        return
-    }
-
+    const contexto = resolverContextoAsistencia(new Date(), seccionDetectada)
     const nombre = cursoConfigCache?.nombre_curso || "Curso"
     let html = `<p style="font-size:14px;color:#555;margin-bottom:4px;font-weight:700;text-transform:uppercase;">${nombre}</p>`
-    html += "<p style=\"font-size:13px;color:#777;margin-bottom:12px;\">Selecciona tu sección para registrar asistencia</p>"
+    const nombreCompleto = `${String(nombres?.value || "").trim()} ${String(apellidos?.value || "").trim()}`.replace(/\s+/g, " ").trim()
+    if (nombreCompleto) {
+        html += `<p style="font-size:13px;color:#777;margin-bottom:8px;">Aspirante: ${nombreCompleto}</p>`
+    }
+    if (seccionDetectada) {
+        html += `<p style="font-size:13px;color:#777;margin-bottom:8px;">Sección del aspirante: ${seccionDetectada}</p>`
+    }
+    html += `<p style="font-size:13px;color:#777;margin-bottom:8px;">Jornada de hoy: ${contexto.jornada_label}</p>`
+    html += `<p style="font-size:13px;color:#777;margin-bottom:12px;">Modalidad: ${contexto.modalidad || "Pendiente de resolver"}</p>`
+
+    if (!cursoSecciones || cursoSecciones.length === 0) {
+        if (!seccionDetectada) {
+            html += `<p style="color:#666;font-size:14px;padding:10px;">No hay secciones configuradas para este curso.</p>`
+        }
+        container.innerHTML = html
+        return
+    }
+
+    if (seccionDetectada) {
+        container.innerHTML = html
+        return
+    }
+
+    html += contexto.esDomingo
+        ? "<p style=\"font-size:13px;color:#777;margin-bottom:12px;\">Selecciona tu sección de aspirante. Compatibilidad temporal para jornada dominical.</p>"
+        : "<p style=\"font-size:13px;color:#777;margin-bottom:12px;\">Selecciona tu sección de aspirante para registrar asistencia.</p>"
     cursoSecciones.forEach(sec => {
         const d = Array.isArray(sec.dias) ? sec.dias.join(", ") : ""
         const label = `Sección ${sec.seccion} (${d} ${sec.modalidad})`
@@ -9017,8 +9088,8 @@ function volverInicio() {
 }
 
 function setSeccion(s) {
-    seccion = s
-    seleccionarBotonSeccion(s)
+    seccion = normalizarCodigoSeccion(s)
+    seleccionarBotonSeccion(seccion)
 }
 
 function getDeviceId() {
@@ -9040,8 +9111,9 @@ async function guardarAsistencia() {
     const now = new Date()
     const fechaHoy = now.toISOString().slice(0, 10)
     const horaHoy = now.toTimeString().slice(0, 8)
-    const esDomingo = esDomingoLima(now)
-    const seccionRegistro = esDomingo ? "GENERAL" : seccion
+    const seccionBase = seccion || obtenerSeccionAspiranteDetectada()
+    const contextoAsistencia = resolverContextoAsistencia(now, seccionBase)
+    const seccionRegistro = contextoAsistencia.seccion
 
     if (!dniRegistro) {
         setMensaje("⚠ DNI no válido", "error")
@@ -9207,6 +9279,7 @@ async function guardarAsistencia() {
     nombres.value = ""
     apellidos.value = ""
     ubo.value = ""
+    perfilAspiranteActual = { dni: "", seccion: "" }
     seccion = ""
     seleccionarBotonSeccion("")
 }
@@ -9263,7 +9336,8 @@ function renderTabla(data) {
         <th>Nombre</th>
         <th>UBO</th>
         <th>Jornada</th>
-        <th>Sección</th>
+        <th>Sección aspirante</th>
+        <th>Modalidad</th>
         <th>Fecha</th>
         <th>Hora</th>
         <th>Origen</th>
@@ -9280,8 +9354,9 @@ function renderTabla(data) {
             dni: r.dni || "",
             nombre: r.nombre || "",
             ubo: r.ubo || "",
-            jornada: r.tipo_jornada || "SECCION",
-            seccion: r.seccion || "-",
+            jornada: formatearTipoJornada(r.tipo_jornada),
+            seccion: formatearSeccionRegistro(r.seccion, r.tipo_jornada),
+            modalidad: normalizarModalidad(r.modalidad || ""),
             fecha: r.fecha || "",
             hora: r.hora || "",
             origen: normalizarOrigenRegistroLabel(r.origen_registro),
@@ -9298,8 +9373,9 @@ function renderTabla(data) {
         <td>${r.dni}</td>
         <td>${r.nombre}</td>
         <td>${r.ubo}</td>
-        <td>${r.tipo_jornada || "SECCION"}</td>
-        <td>${r.seccion || "-"}</td>
+        <td>${formatearTipoJornada(r.tipo_jornada)}</td>
+        <td>${formatearSeccionRegistro(r.seccion, r.tipo_jornada)}</td>
+        <td>${normalizarModalidad(r.modalidad || "") || "-"}</td>
         <td>${r.fecha}</td>
         <td>${r.hora}</td>
         <td>${escapeHtml(normalizarOrigenRegistroLabel(r.origen_registro) || "-")}</td>
@@ -10913,17 +10989,32 @@ async function procesarAutocompletadoDni(dniValue) {
             if (!haySupabase() || !tenantActivoId) return;
             try {
                 const cursoEsperado = Number(cursoActualId || 1) || 1
-                const { data, error } = await supabaseClient
+                let data = null
+                let error = null
+
+                ;({ data, error } = await supabaseClient
                     .from('aspirantes')
-                    .select('nombres, apellidos, ubo, curso_id')
+                    .select('nombres, apellidos, ubo, curso_id, seccion')
                     .eq('dni', dniLimpio)
                     .eq('tenant_id', tenantActivoId)
-                    .single();
+                    .single())
+
+                if (error && /seccion/i.test(String(error.message || ""))) {
+                    const fallback = await supabaseClient
+                        .from('aspirantes')
+                        .select('nombres, apellidos, ubo, curso_id')
+                        .eq('dni', dniLimpio)
+                        .eq('tenant_id', tenantActivoId)
+                        .single()
+                    data = fallback.data
+                    error = fallback.error
+                }
 
                 if (data && !error) {
                     const cursoAspirante = data.curso_id == null ? null : Number(data.curso_id)
 
                     if (cursoAspirante != null && cursoAspirante !== cursoEsperado) {
+                        perfilAspiranteActual = { dni: "", seccion: "" }
                         validacionCursoAspirante = {
                             dni: dniLimpio,
                             permitido: false,
@@ -10945,6 +11036,10 @@ async function procesarAutocompletadoDni(dniValue) {
                         legacy: cursoAspirante == null,
                         bloqueado: false
                     }
+                    perfilAspiranteActual = {
+                        dni: dniLimpio,
+                        seccion: esSeccionLegacy(data.seccion) ? "" : normalizarCodigoSeccion(data.seccion)
+                    }
                     nombres.value = data.nombres || "";
                     apellidos.value = data.apellidos || "";
                     ubo.value = data.ubo || "";
@@ -10957,13 +11052,18 @@ async function procesarAutocompletadoDni(dniValue) {
                     nombres.style.backgroundColor = "#f0f4f8";
                     apellidos.style.backgroundColor = "#f0f4f8";
                     ubo.style.backgroundColor = "#f0f4f8";
+                    if (formulario?.style.display !== "none") {
+                        renderSeccionesMovil()
+                    }
                     setMensaje("");
                 } else {
+                    perfilAspiranteActual = { dni: "", seccion: "" }
                     limpiarCamposAspirante();
                     setMensaje("⚠ El DNI ingresado no existe en el padrón de la institución.", "warning");
                 }
             } catch (e) {
                 console.error("Error al autocompletar aspirante:", e);
+                perfilAspiranteActual = { dni: "", seccion: "" }
                 limpiarCamposAspirante();
             }
         }, 300);
@@ -10989,6 +11089,7 @@ function limpiarCamposAspirante(resetValidacion = true) {
 
     if (resetValidacion) {
         validacionCursoAspirante = { dni: "", permitido: true, legacy: false, bloqueado: false }
+        perfilAspiranteActual = { dni: "", seccion: "" }
     }
 }
 
