@@ -182,8 +182,8 @@ function actualizarContadorPendientes() {
     const cantidad = leerColaPendientes().filter(item => item?.estado_sync === "pendiente").length
     pendingCounter.textContent = cantidad > 0
         ? (cantidad === 1
-            ? "1 asistencia pendiente por sincronizar. Si cierras la app, quedará guardada en este dispositivo y se sincronizará cuando vuelvas a abrir asistIA con internet."
-            : `${cantidad} asistencias pendientes por sincronizar. Si cierras la app, quedarán guardadas en este dispositivo y se sincronizarán cuando vuelvas a abrir asistIA con internet.`)
+            ? "1 asistencia pendiente"
+            : `${cantidad} asistencias pendientes`)
         : ""
     pendingCounter.hidden = cantidad === 0
     pendingCounter.classList.toggle("has-pending", cantidad > 0)
@@ -295,7 +295,17 @@ async function sincronizarPendientes({ notificar = false } = {}) {
     }
 
     if (notificar && sincronizados > 0) {
-        setMensaje(`✅ Se sincronizaron ${sincronizados} asistencia(s) pendiente(s).`, "ok")
+        setMensaje(
+            sincronizados === 1
+                ? "✅ Asistencia sincronizada correctamente."
+                : `✅ ${sincronizados} asistencias sincronizadas correctamente.`,
+            "ok"
+        )
+        return
+    }
+
+    if (notificar && !sincronizados && restantes.length > 0) {
+        setMensaje("No se pudo sincronizar. Se intentará nuevamente cuando haya conexión.", "warning")
     }
 }
 
@@ -319,9 +329,9 @@ async function guardarAsistenciaOffline({ dniRegistro, nombresValor, apellidosVa
     }
 
     if (resultado.duplicate) {
-        setMensaje("Sin conexión. Ya existe una asistencia pendiente para este DNI hoy. Si cierras la app, quedará guardada en este dispositivo y se sincronizará cuando vuelvas a abrir asistIA con internet.", "warning")
+        setMensaje("Sin conexión. Esta asistencia ya estaba guardada en este dispositivo.", "warning")
     } else {
-        setMensaje("Sin conexión. La asistencia fue guardada en modo contingencia. Si cierras la app, quedará guardada en este dispositivo y se sincronizará cuando vuelvas a abrir asistIA con internet.", "warning")
+        setMensaje("Sin conexión. Asistencia guardada en este dispositivo. Se sincronizará al volver a abrir asistIA con internet.", "warning")
     }
 
     resetFormularioAsistencia()
@@ -843,5 +853,5 @@ window.addEventListener("online", () => {
 })
 
 window.addEventListener("offline", () => {
-    setMensaje("Sin internet. Si registras asistencia ahora, se guardará en modo contingencia. Si cierras la app, quedará guardada en este dispositivo y se sincronizará cuando vuelvas a abrir asistIA con internet.", "warning")
+    setMensaje("Sin conexión. Si registras asistencia, se guardará en este dispositivo.", "warning")
 })
