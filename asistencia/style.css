@@ -186,6 +186,14 @@ button {
   color: #1f7a3b;
 }
 
+.pending-counter {
+  min-height: 18px;
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #35507d;
+}
+
 @media (min-width: 560px) {
   .step-actions {
     grid-template-columns: 1fr 1fr;

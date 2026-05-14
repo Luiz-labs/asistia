@@ -8,12 +8,16 @@ const supabaseClient = window.supabase?.createClient
 let tenantActivoId = ""
 let cursoActualId = 1
 let cursoQRValido = false
+let cursoValidadoEnSesion = false
 let dniMovil = ""
 let seccion = ""
 let cursoConfigCache = null
 let cursoSecciones = []
 let debounceTimerAutocompletar = null
 let validacionCursoAspirante = { dni: "", permitido: true, legacy: false, bloqueado: false }
+let sincronizacionPendientesEnCurso = false
+let ultimoEstadoCurso = { code: "idle", message: "" }
+const OFFLINE_QUEUE_KEY = "asistia_aspirantes_offline_queue_v1"
 
 let tenantLabel
 let stepIngreso
@@ -24,6 +28,7 @@ let apellidos
 let ubo
 let mensaje
 let mobileSectionsContainer
+let pendingCounter
 
 function haySupabase() {
     return !!supabaseClient
@@ -39,6 +44,7 @@ function enlazarIds() {
     ubo = document.getElementById("ubo")
     mensaje = document.getElementById("mensaje")
     mobileSectionsContainer = document.getElementById("mobileSectionsContainer")
+    pendingCounter = document.getElementById("pendingCounter")
 }
 
 function detectarTenantDesdeRuta() {
@@ -107,9 +113,225 @@ function obtenerCursoTokenDesdeTextoQR(raw) {
     }
 }
 
+function obtenerFechaHoraLima(fechaBase = new Date()) {
+    const dtf = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Lima",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+    })
+
+    const parts = Object.fromEntries(
+        dtf.formatToParts(fechaBase)
+            .filter(part => part.type !== "literal")
+            .map(part => [part.type, part.value])
+    )
+
+    return {
+        fecha: `${parts.year}-${parts.month}-${parts.day}`,
+        hora: `${parts.hour}:${parts.minute}:${parts.second}`,
+        timestamp: fechaBase.toISOString(),
+        weekday: new Intl.DateTimeFormat("en-US", {
+            timeZone: "America/Lima",
+            weekday: "long"
+        }).format(fechaBase).toLowerCase()
+    }
+}
+
+function obtenerTipoJornadaAspirante(weekday, seccionRegistro) {
+    if (weekday === "sunday") return "DOMINICAL"
+    if (String(seccionRegistro || "").trim().toUpperCase() === "GENERAL") return "GENERAL"
+    return "SECCION"
+}
+
+function leerColaPendientes() {
+    try {
+        const raw = localStorage.getItem(OFFLINE_QUEUE_KEY)
+        const data = raw ? JSON.parse(raw) : []
+        return Array.isArray(data) ? data : []
+    } catch (error) {
+        console.warn("No se pudo leer la cola offline:", error)
+        return []
+    }
+}
+
+function guardarColaPendientes(cola) {
+    try {
+        localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(Array.isArray(cola) ? cola : []))
+        return true
+    } catch (error) {
+        console.warn("No se pudo guardar la cola offline:", error)
+        return false
+    }
+}
+
+function construirClavePendiente(registro) {
+    const tenantId = String(registro?.tenant_id || "").trim().toLowerCase()
+    const cursoId = String(registro?.curso_id || "").trim()
+    const dni = limpiarDni(registro?.dni)
+    const fecha = String(registro?.fecha_local || "").trim()
+    return `${tenantId}::${cursoId}::${dni}::${fecha}`
+}
+
+function actualizarContadorPendientes() {
+    if (!pendingCounter) return
+    const cantidad = leerColaPendientes().filter(item => item?.estado_sync === "pendiente").length
+    pendingCounter.textContent = cantidad > 0
+        ? `Pendientes por sincronizar: ${cantidad}`
+        : ""
+    pendingCounter.hidden = cantidad === 0
+}
+
+function agregarPendienteOffline(registro) {
+    const cola = leerColaPendientes()
+    const clave = construirClavePendiente(registro)
+    const existe = cola.some(item => construirClavePendiente(item) === clave)
+
+    if (existe) {
+        actualizarContadorPendientes()
+        return { ok: true, duplicate: true }
+    }
+
+    cola.push(registro)
+    const guardado = guardarColaPendientes(cola)
+    actualizarContadorPendientes()
+    return { ok: guardado, duplicate: false }
+}
+
+function esErrorTransporteSupabase(error) {
+    const texto = String(error?.message || error || "").toLowerCase()
+    return !texto ||
+        /failed to fetch|fetch failed|networkerror|network request failed|load failed|timeout|temporarily unavailable|connection/i.test(texto)
+}
+
+function puedeGuardarOfflinePorContingencia() {
+    return !!cursoQRValido && !!cursoValidadoEnSesion && !!tenantActivoId && !!(cursoActualId || 1)
+}
+
+function resetFormularioAsistencia() {
+    limpiarCamposAspirante()
+    seccion = ""
+    seleccionarBotonSeccion("")
+}
+
+function crearRegistroOffline({ dniRegistro, nombresValor, apellidosValor, seccionRegistro, deviceId }) {
+    const ahoraLima = obtenerFechaHoraLima(new Date())
+    const nombreCompleto = `${String(nombresValor || "").trim()} ${String(apellidosValor || "").trim()}`
+        .replace(/\s+/g, " ")
+        .trim()
+
+    return {
+        dni: dniRegistro,
+        nombre: nombreCompleto || nombresValor || null,
+        tenant_id: tenantActivoId,
+        curso_id: cursoActualId || 1,
+        qr_token: obtenerCursoTokenDesdeURL(),
+        fecha_local: ahoraLima.fecha,
+        hora_local: ahoraLima.hora,
+        timestamp_local: ahoraLima.timestamp,
+        latitud: null,
+        longitud: null,
+        seccion: seccionRegistro || null,
+        tipo_jornada: obtenerTipoJornadaAspirante(ahoraLima.weekday, seccionRegistro),
+        device_id: deviceId || getDeviceId(),
+        origen_registro: "offline",
+        estado_sync: "pendiente",
+        created_local_at: new Date().toISOString()
+    }
+}
+
+async function sincronizarPendientes({ notificar = false } = {}) {
+    if (sincronizacionPendientesEnCurso || !haySupabase() || !navigator.onLine) {
+        actualizarContadorPendientes()
+        return
+    }
+
+    const cola = leerColaPendientes()
+    if (!cola.length) {
+        actualizarContadorPendientes()
+        return
+    }
+
+    sincronizacionPendientesEnCurso = true
+    let sincronizados = 0
+    const restantes = []
+
+    try {
+        for (const item of cola) {
+            try {
+                const { data, error } = await supabaseClient.rpc("rpc_registrar_asistencia", {
+                    p_dni: limpiarDni(item?.dni),
+                    p_tenant_id: String(item?.tenant_id || "").trim(),
+                    p_seccion: String(item?.seccion || "GENERAL").trim() || "GENERAL",
+                    p_latitud: item?.latitud == null ? 0 : Number(item.latitud),
+                    p_longitud: item?.longitud == null ? 0 : Number(item.longitud),
+                    p_device_id: String(item?.device_id || getDeviceId()).trim(),
+                    p_timestamp_local: item?.timestamp_local || item?.created_local_at || new Date().toISOString(),
+                    p_curso_id: Number(item?.curso_id || 1) || 1
+                })
+
+                if (error || !data?.success) {
+                    restantes.push(item)
+                    continue
+                }
+
+                sincronizados += 1
+            } catch (error) {
+                restantes.push(item)
+            }
+        }
+    } finally {
+        guardarColaPendientes(restantes)
+        sincronizacionPendientesEnCurso = false
+        actualizarContadorPendientes()
+    }
+
+    if (notificar && sincronizados > 0) {
+        setMensaje(`✅ Se sincronizaron ${sincronizados} asistencia(s) pendiente(s).`, "ok")
+    }
+}
+
+async function guardarAsistenciaOffline({ dniRegistro, nombresValor, apellidosValor, seccionRegistro, motivo }) {
+    if (!puedeGuardarOfflinePorContingencia()) {
+        setMensaje(motivo || "⚠ No se pudo registrar la asistencia en este momento.", "error")
+        return false
+    }
+
+    const resultado = agregarPendienteOffline(crearRegistroOffline({
+        dniRegistro,
+        nombresValor,
+        apellidosValor,
+        seccionRegistro,
+        deviceId: getDeviceId()
+    }))
+
+    if (!resultado.ok) {
+        setMensaje("⚠ No se pudo guardar la asistencia en modo contingencia en este dispositivo.", "error")
+        return false
+    }
+
+    if (resultado.duplicate) {
+        setMensaje("Sin conexión. Ya existe una asistencia pendiente para este DNI hoy y se sincronizará cuando vuelva internet.", "warning")
+    } else {
+        setMensaje("Sin conexión. La asistencia fue guardada en modo contingencia y se sincronizará cuando vuelva internet.", "warning")
+    }
+
+    resetFormularioAsistencia()
+    return true
+}
+
 async function resolverCursoPorToken(token) {
     cursoQRValido = false
-    if (!token || !haySupabase() || !tenantActivoId) return false
+    ultimoEstadoCurso = { code: "invalid_token", message: "Acceso no válido. Escanee el código QR oficial del curso." }
+    if (!token) return false
+    if (!haySupabase() || !tenantActivoId) {
+        ultimoEstadoCurso = { code: "supabase_unavailable", message: "Supabase no disponible. No se pudo validar el QR del curso." }
+        return false
+    }
 
     try {
         const { data, error } = await supabaseClient.rpc("rpc_validar_curso_qr", {
@@ -117,15 +339,29 @@ async function resolverCursoPorToken(token) {
             p_tenant_id: tenantActivoId
         })
 
-        if (error || !data?.success) {
+        if (error) {
+            ultimoEstadoCurso = !navigator.onLine || esErrorTransporteSupabase(error)
+                ? { code: "offline", message: "Sin internet. No se pudo validar el código QR del curso." }
+                : { code: "rpc_failed", message: "No se pudo validar el QR del curso por un problema del servidor." }
+            cursoQRValido = false
+            return false
+        }
+
+        if (!data?.success) {
+            ultimoEstadoCurso = { code: "invalid_token", message: "Acceso no válido. Escanee el código QR oficial del curso." }
             cursoQRValido = false
             return false
         }
 
         cursoActualId = Number(data.curso_id || 1) || 1
         cursoQRValido = true
+        cursoValidadoEnSesion = true
+        ultimoEstadoCurso = { code: "ok", message: "" }
         return true
     } catch (e) {
+        ultimoEstadoCurso = !navigator.onLine || esErrorTransporteSupabase(e)
+            ? { code: "offline", message: "Sin internet. No se pudo validar el código QR del curso." }
+            : { code: "unexpected", message: "Ocurrió un error inesperado al validar el curso." }
         cursoQRValido = false
         return false
     }
@@ -466,6 +702,28 @@ async function guardarAsistencia() {
         return
     }
 
+    if (!haySupabase()) {
+        await guardarAsistenciaOffline({
+            dniRegistro,
+            nombresValor,
+            apellidosValor,
+            seccionRegistro,
+            motivo: "Supabase no disponible. No se pudo registrar la asistencia."
+        })
+        return
+    }
+
+    if (!navigator.onLine) {
+        await guardarAsistenciaOffline({
+            dniRegistro,
+            nombresValor,
+            apellidosValor,
+            seccionRegistro,
+            motivo: "Sin internet. No se pudo registrar la asistencia."
+        })
+        return
+    }
+
     try {
         const { data, error } = await supabaseClient.rpc("rpc_registrar_asistencia", {
             p_dni: dniRegistro,
@@ -479,7 +737,20 @@ async function guardarAsistencia() {
         })
 
         if (error) {
-            setMensaje("⚠ Error de comunicación con el servidor", "error")
+            const guardadoOffline = await guardarAsistenciaOffline({
+                dniRegistro,
+                nombresValor,
+                apellidosValor,
+                seccionRegistro,
+                motivo: esErrorTransporteSupabase(error)
+                    ? "Sin internet. No se pudo registrar la asistencia."
+                    : "No se pudo registrar la asistencia por una falla de Supabase o de la RPC."
+            })
+            if (!guardadoOffline) {
+                setMensaje(esErrorTransporteSupabase(error)
+                    ? "Sin internet. No se pudo registrar la asistencia."
+                    : "No se pudo registrar la asistencia por una falla de Supabase o de la RPC.", "error")
+            }
             return
         }
 
@@ -495,11 +766,22 @@ async function guardarAsistencia() {
             setMensaje("✅ Registrado", "ok")
         }
 
-        limpiarCamposAspirante()
-        seccion = ""
-        seleccionarBotonSeccion("")
+        resetFormularioAsistencia()
     } catch (e) {
-        setMensaje("⚠ Error inesperado al registrar asistencia", "error")
+        const guardadoOffline = await guardarAsistenciaOffline({
+            dniRegistro,
+            nombresValor,
+            apellidosValor,
+            seccionRegistro,
+            motivo: !navigator.onLine || esErrorTransporteSupabase(e)
+                ? "Sin internet. No se pudo registrar la asistencia."
+                : "Ocurrió un error inesperado al registrar la asistencia."
+        })
+        if (!guardadoOffline) {
+            setMensaje(!navigator.onLine || esErrorTransporteSupabase(e)
+                ? "Sin internet. No se pudo registrar la asistencia."
+                : "Ocurrió un error inesperado al registrar la asistencia.", "error")
+        }
     }
 }
 
@@ -518,6 +800,7 @@ function bindEventos() {
 async function init() {
     enlazarIds()
     bindEventos()
+    actualizarContadorPendientes()
 
     tenantActivoId = detectarTenantDesdeRuta()
     aplicarTenantEnUI()
@@ -528,7 +811,7 @@ async function init() {
     }
 
     if (!haySupabase()) {
-        setMensaje("⚠ No se pudo iniciar la conexión con el servidor.", "error")
+        setMensaje("Supabase no disponible. No se pudo iniciar la conexión con el servidor.", "error")
         return
     }
 
@@ -536,12 +819,24 @@ async function init() {
     mostrarPasoMovil("ingreso")
 
     if (!cursoValido || !cursoQRValido) {
-        setMensaje("Acceso no válido. Escanee el código QR oficial del curso.", "error")
+        setMensaje(ultimoEstadoCurso.message || "Acceso no válido. Escanee el código QR oficial del curso.", "error")
         if (mobileDniInicio) mobileDniInicio.disabled = true
         document.getElementById("btnIngresarInicio")?.setAttribute("disabled", "disabled")
+        return
     }
+
+    void sincronizarPendientes()
 }
 
 window.addEventListener("load", () => {
     void init()
+})
+
+window.addEventListener("online", () => {
+    if (!leerColaPendientes().length) return
+    void sincronizarPendientes({ notificar: true })
+})
+
+window.addEventListener("offline", () => {
+    setMensaje("Sin internet. Si registras asistencia ahora, se guardará en modo contingencia.", "warning")
 })
