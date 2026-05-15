@@ -28,6 +28,7 @@ let mobileDniInicio
 let nombres
 let apellidos
 let ubo
+let aspiranteLegacyFields
 let mensaje
 let mobileSectionsContainer
 let pendingCounter
@@ -63,6 +64,7 @@ function enlazarIds() {
     nombres = document.getElementById("nombres")
     apellidos = document.getElementById("apellidos")
     ubo = document.getElementById("ubo")
+    aspiranteLegacyFields = document.getElementById("aspiranteLegacyFields")
     mensaje = document.getElementById("mensaje")
     mobileSectionsContainer = document.getElementById("mobileSectionsContainer")
     pendingCounter = document.getElementById("pendingCounter")
@@ -342,11 +344,17 @@ function puedeGuardarOfflinePorContingencia() {
     return !!cursoQRValido && !!cursoValidadoEnSesion && !!tenantActivoId && !!(cursoActualId || 1)
 }
 
+function actualizarVisibilidadCamposLegacy() {
+    if (!aspiranteLegacyFields) return
+    aspiranteLegacyFields.hidden = tieneContextoRPCActivo()
+}
+
 function resetFormularioAsistencia() {
     limpiarCamposAspirante()
     contextoAsistenciaActual = null
     seccion = ""
     seleccionarBotonSeccion("")
+    actualizarVisibilidadCamposLegacy()
 }
 
 function crearRegistroOffline({ dniRegistro, nombresValor, apellidosValor, seccionRegistro, modalidadRegistro, deviceId }) {
@@ -602,6 +610,7 @@ function aplicarContextoResueltoEnFormulario(contexto) {
         warnings: Array.isArray(contexto.warnings) ? contexto.warnings : [],
         bloqueos: Array.isArray(contexto.bloqueos) ? contexto.bloqueos : []
     }
+    actualizarVisibilidadCamposLegacy()
     actualizarDebugContextGlobal()
     debugContextLog("aplicarContextoResueltoEnFormulario: contexto aplicado", {
         contextoAsistenciaActual,
@@ -780,6 +789,7 @@ function esDomingoLima(fecha = new Date()) {
 function renderSeccionesMovil() {
     if (!mobileSectionsContainer) return
 
+    actualizarVisibilidadCamposLegacy()
     const seccionDetectada = obtenerSeccionAspiranteDetectada()
     const contextoRemoto = contextoAsistenciaActual
     const usarContextoRPC = tieneContextoRPCActivo()
@@ -1117,6 +1127,7 @@ function limpiarCamposAspirante(resetValidacion = true) {
         perfilAspiranteActual = { dni: "", seccion: "" }
         contextoAsistenciaActual = null
     }
+    actualizarVisibilidadCamposLegacy()
 }
 
 function esRpcV2NoDisponible(error) {

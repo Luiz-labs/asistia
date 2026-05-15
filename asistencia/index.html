@@ -36,9 +36,11 @@
 
       <section id="formulario" class="step-block" style="display:none;">
         <p class="step-copy">Completa y confirma tu registro</p>
-        <input id="nombres" class="text-input" placeholder="Nombres" autocomplete="off">
-        <input id="apellidos" class="text-input" placeholder="Apellidos" autocomplete="off">
-        <input id="ubo" class="text-input" placeholder="UBO (4 dígitos)" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off">
+        <div id="aspiranteLegacyFields" class="aspirante-legacy-fields">
+          <input id="nombres" class="text-input" placeholder="Nombres" autocomplete="off">
+          <input id="apellidos" class="text-input" placeholder="Apellidos" autocomplete="off">
+          <input id="ubo" class="text-input" placeholder="UBO (4 dígitos)" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off">
+        </div>
         <div id="mobileSectionsContainer" class="mobile-sections-container"></div>
         <div class="step-actions">
           <button id="btnRegistrar" class="primary-btn" type="button">Registrar asistencia</button>
@@ -49,7 +51,7 @@
       <p id="mensaje" class="message-box"></p>
       <p id="pendingCounter" class="pending-counter" hidden></p>
     </section>
-    <footer class="public-footer">asistIA v0.9.4-beta · Control de asistencia · Luiz-Labs © 2026</footer>
+    <footer class="public-footer">asistIA v0.9.5-beta · Control de asistencia · Luiz-Labs © 2026</footer>
   </main>
 
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
