@@ -2804,6 +2804,17 @@ select {
   background: #fafcff;
 }
 
+.config-module-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.config-module-stack > .course-module:first-child,
+.config-module-stack > .config-actions:first-child {
+  margin-top: 0;
+}
+
 .course-module-head {
   display: flex;
   align-items: flex-start;

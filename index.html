@@ -702,35 +702,6 @@
         <details class="module-accordion">
           <summary class="module-accordion-summary">
             <div class="module-accordion-copy">
-              <h3>GPS</h3>
-              <p>Configura ubicación, radio de validación y parámetros de marcación por GPS.</p>
-            </div>
-            <div class="module-accordion-meta">
-              <span class="module-accordion-tag">GPS</span>
-              <span class="module-accordion-icon" aria-hidden="true"></span>
-            </div>
-          </summary>
-          <div class="module-accordion-body">
-        <div class="card config-card">
-          <div class="hint gps-upload-hint">Carga masiva de coordenadas UBO (columnas: <strong>UBO, LATITUD,
-              LONGITUD</strong>. Opcional: <strong>NOMBRE</strong>).</div>
-          <label class="gps-toggle-label">
-            <input type="checkbox" id="toggleGPS">
-            Activar validación GPS (Proximamente)
-          </label>
-          <div class="config-row file-upload-row config-row-topspaced">
-            <input type="file" id="archivoUbosSedes" accept=".xlsx,.xls,.csv">
-            <button onclick="cargarExcelUbosSedes()">Subir Coordenadas</button>
-            <button class="secondary" onclick="cargarUbos()">Refrescar UBOs</button>
-          </div>
-          <p id="msgCargaUbosSedes" class="hint"></p>
-        </div>
-          </div>
-        </details>
-
-        <details class="module-accordion">
-          <summary class="module-accordion-summary">
-            <div class="module-accordion-copy">
               <h3>Carga de Aspirantes</h3>
               <p>Importa, valida y administra el padrón oficial de aspirantes del curso.</p>
             </div>
@@ -741,29 +712,211 @@
           </summary>
           <div class="module-accordion-body">
         <div class="card config-card">
-          <h3>Carga de Aspirantes (Excel / SQL)</h3>
-          <div class="hint">Archivo requerido con columnas: <strong>apellidos, nombres, dni, ubo</strong>. El listado
-            integra datos desde <strong>aspirantes</strong> y registros en <strong>asistencias</strong>.</div>
-          <div class="config-row file-upload-row config-row-topspaced">
-            <input type="file" id="archivoAspirantes" accept=".xlsx,.xls,.csv">
-            <button onclick="cargarExcelAspirantes()">Subir Archivo</button>
-            <button class="secondary" onclick="cargarAspirantesCargados()">Refrescar Listado</button>
-            <button class="secondary" type="button" onclick="limpiarCargaAspirantesUI()">Limpiar</button>
-          </div>
-          <p id="msgCargaAspirantes" class="hint"></p>
-          <div class="table-wrap user-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Apellidos</th>
-                  <th>Nombres</th>
-                  <th>DNI</th>
-                  <th>UBO</th>
-                  <th>Origen</th>
-                </tr>
-              </thead>
-              <tbody id="tablaAspirantesCargados"></tbody>
-            </table>
+          <div class="config-module-stack">
+            <section class="course-module">
+              <h4>Carga de Aspirantes</h4>
+              <p class="hint course-module-hint">Archivo requerido con columnas: <strong>apellidos, nombres, dni, ubo</strong>. El listado integra datos desde <strong>aspirantes</strong> y registros en <strong>asistencias</strong>.</p>
+              <div class="config-row file-upload-row config-row-topspaced">
+                <input type="file" id="archivoAspirantes" accept=".xlsx,.xls,.csv">
+                <button onclick="cargarExcelAspirantes()">Subir Archivo</button>
+                <button class="secondary" onclick="cargarAspirantesCargados()">Refrescar Listado</button>
+                <button class="secondary" type="button" onclick="limpiarCargaAspirantesUI()">Limpiar</button>
+              </div>
+              <p id="msgCargaAspirantes" class="hint"></p>
+              <div class="table-wrap user-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Apellidos</th>
+                      <th>Nombres</th>
+                      <th>DNI</th>
+                      <th>UBO</th>
+                      <th>Origen</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tablaAspirantesCargados"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="course-module">
+              <div class="historical-import-head">
+                <div>
+                  <h4>Migración</h4>
+                  <p class="hint course-module-hint">Importa y concilia asistencias históricas desde Google Forms o archivos Excel.</p>
+                </div>
+                <span class="historical-import-chip">Históricos</span>
+              </div>
+              <div class="historical-import-shell">
+                <section class="course-module historical-import-block">
+              <div class="historical-import-head">
+                <div>
+                  <h4>1. Subida de archivo</h4>
+                  <p class="hint course-module-hint">Importa reportes históricos desde Google Forms o Excel.</p>
+                </div>
+                <span class="historical-import-chip">Validación</span>
+              </div>
+              <div id="historicalImportDropzone" class="historical-dropzone" tabindex="0" role="button"
+                aria-label="Zona para soltar archivos históricos">
+                <div class="historical-dropzone-icon" aria-hidden="true">⇪</div>
+                <div class="historical-dropzone-copy">
+                  <strong>Arrastra y suelta tu archivo aquí</strong>
+                  <span>Acepta `.xlsx`, `.xls` y `.csv`</span>
+                </div>
+              </div>
+              <div class="config-row file-upload-row config-row-topspaced">
+                <input type="file" id="historicalImportFile" accept=".xlsx,.xls,.csv">
+                <button type="button" onclick="abrirSelectorImportacionHistorica()">Seleccionar archivo</button>
+                <button type="button" class="secondary" onclick="validarArchivoHistorico()">Validar archivo</button>
+              </div>
+              <p id="historicalImportFileMeta" class="hint historical-inline-meta">Ningún archivo seleccionado.</p>
+              <p id="historicalImportMessage" class="course-inline-msg course-inline-msg--info" role="status"
+                aria-live="polite">Carga un archivo para leer encabezados y preparar el mapeo.</p>
+            </section>
+
+            <section class="course-module historical-import-block">
+              <h4>2. Detección automática</h4>
+              <p class="hint course-module-hint">AsistIA intentará reconocer timestamp, UBO, nombres, apellidos y sección antes de pedir mapeo manual.</p>
+              <div id="historicalImportMapping" class="historical-mapping-grid"></div>
+            </section>
+
+            <section class="course-module historical-import-block">
+              <h4>3. Resumen de validación</h4>
+              <div class="historical-kpi-grid">
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Total filas</span>
+                  <strong id="historicalKpiTotal">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Registros válidos</span>
+                  <strong id="historicalKpiValid">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Duplicados</span>
+                  <strong id="historicalKpiDuplicates">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Fechas inválidas</span>
+                  <strong id="historicalKpiInvalidDates">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>UBO faltante</span>
+                  <strong id="historicalKpiMissingUbo">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Nombres incompletos</span>
+                  <strong id="historicalKpiIncompleteName">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Observados</span>
+                  <strong id="historicalKpiObserved">0</strong>
+                </div>
+              </div>
+            </section>
+
+            <section class="course-module historical-import-block">
+              <div class="historical-import-head">
+                <div>
+                  <h4>4. Preview</h4>
+                  <p class="hint course-module-hint">Revisa el estado de cada fila antes de habilitar la siguiente fase.</p>
+                </div>
+                <span id="historicalImportPreviewCount" class="historical-inline-counter">0 registros listados</span>
+              </div>
+              <div class="table-wrap historical-preview-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Estado</th>
+                      <th>Fecha</th>
+                      <th>Hora</th>
+                      <th>UBO</th>
+                      <th>Nombre completo</th>
+                      <th>Sección</th>
+                      <th>Estado conciliación</th>
+                      <th>DNI sugerido</th>
+                      <th>Aspirante encontrado</th>
+                      <th>Resolver</th>
+                      <th>Observación</th>
+                    </tr>
+                  </thead>
+                  <tbody id="historicalImportPreviewBody"></tbody>
+                </table>
+              </div>
+                </section>
+              </div>
+            </section>
+
+            <section class="course-module">
+              <h4>Carga Histórica</h4>
+              <p class="hint course-module-hint">Completa la trazabilidad y prepara la inserción histórica una vez validado el archivo.</p>
+              <div class="historical-import-shell">
+                <section class="course-module historical-import-block">
+                  <h4>5. Trazabilidad y conciliación</h4>
+              <p class="hint course-module-hint">AsistIA intenta asociar cada fila histórica con un aspirante existente del tenant activo para sugerir el DNI antes de una futura importación.</p>
+              <div class="historical-kpi-grid">
+                <div class="card kpi-card historical-kpi-card">
+                  <span id="historicalConciliationLabel">Conciliados</span>
+                  <strong id="historicalConciliationConciliated">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Sin coincidencia</span>
+                  <strong id="historicalConciliationNoMatch">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Múltiples coincidencias</span>
+                  <strong id="historicalConciliationMultiple">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Pendientes revisión</span>
+                  <strong id="historicalConciliationPending">0</strong>
+                </div>
+              </div>
+              <p id="historicalReconciliationStatus" class="course-inline-msg course-inline-msg--info" role="status"
+                aria-live="polite">La conciliación se ejecutará después de validar el archivo.</p>
+                </section>
+
+                <section class="course-module historical-import-block">
+                  <h4>6. Acción</h4>
+              <p id="historicalActionHint" class="hint course-module-hint">Esta acción insertará registros históricos conciliados en <strong>asistencias</strong> bajo confirmación explícita. Los registros importados se integrarán a reportes y exportaciones con trazabilidad.</p>
+              <div class="config-actions">
+                <button type="button" id="historicalPrepareButton" onclick="prepararImportacionHistorica()" disabled>Preparar importación</button>
+                <button type="button" id="historicalReportsButton" class="secondary" onclick="abrirReportesImportacionHistorica()" hidden>Ver reportes</button>
+              </div>
+              <p id="historicalPrepareMessage" class="course-inline-msg course-inline-msg--info" role="status"
+                aria-live="polite">La acción se habilitará después de validar el archivo.</p>
+              <div id="historicalImportSummary" class="historical-kpi-grid historical-import-summary" hidden>
+                <div class="historical-import-summary-head">
+                  <span class="historical-success-badge">✔ Importación exitosa</span>
+                  <p>Importación histórica completada correctamente</p>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Importados</span>
+                  <strong id="historicalImportSummaryImported">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Omitidos por duplicado</span>
+                  <strong id="historicalImportSummaryDuplicate">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Omitidos por no conciliado</span>
+                  <strong id="historicalImportSummarySkippedNotConciliated">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Omitidos por observación/error</span>
+                  <strong id="historicalImportSummarySkippedObserved">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Fallidos</span>
+                  <strong id="historicalImportSummaryFailed">0</strong>
+                </div>
+                <div class="card kpi-card historical-kpi-card">
+                  <span>Import batch ID</span>
+                  <strong id="historicalImportSummaryBatchId">-</strong>
+                </div>
+              </div>
+                </section>
+              </div>
+            </section>
           </div>
         </div>
           </div>
@@ -902,187 +1055,6 @@
         <details class="module-accordion">
           <summary class="module-accordion-summary">
             <div class="module-accordion-copy">
-              <h3>Migración y Carga Histórica</h3>
-              <p>Importa y concilia asistencias históricas desde Google Forms o archivos Excel.</p>
-            </div>
-            <div class="module-accordion-meta">
-              <span class="module-accordion-tag">Históricos</span>
-              <span class="module-accordion-icon" aria-hidden="true"></span>
-            </div>
-          </summary>
-          <div class="module-accordion-body">
-        <div class="card config-card">
-          <h3>Migración y Carga Histórica</h3>
-          <div class="historical-import-shell">
-            <section class="course-module historical-import-block">
-              <div class="historical-import-head">
-                <div>
-                  <h4>1. Subida de archivo</h4>
-                  <p class="hint course-module-hint">Importa reportes históricos desde Google Forms o Excel.</p>
-                </div>
-                <span class="historical-import-chip">Validación</span>
-              </div>
-              <div id="historicalImportDropzone" class="historical-dropzone" tabindex="0" role="button"
-                aria-label="Zona para soltar archivos históricos">
-                <div class="historical-dropzone-icon" aria-hidden="true">⇪</div>
-                <div class="historical-dropzone-copy">
-                  <strong>Arrastra y suelta tu archivo aquí</strong>
-                  <span>Acepta `.xlsx`, `.xls` y `.csv`</span>
-                </div>
-              </div>
-              <div class="config-row file-upload-row config-row-topspaced">
-                <input type="file" id="historicalImportFile" accept=".xlsx,.xls,.csv">
-                <button type="button" onclick="abrirSelectorImportacionHistorica()">Seleccionar archivo</button>
-                <button type="button" class="secondary" onclick="validarArchivoHistorico()">Validar archivo</button>
-              </div>
-              <p id="historicalImportFileMeta" class="hint historical-inline-meta">Ningún archivo seleccionado.</p>
-              <p id="historicalImportMessage" class="course-inline-msg course-inline-msg--info" role="status"
-                aria-live="polite">Carga un archivo para leer encabezados y preparar el mapeo.</p>
-            </section>
-
-            <section class="course-module historical-import-block">
-              <h4>2. Detección automática</h4>
-              <p class="hint course-module-hint">AsistIA intentará reconocer timestamp, UBO, nombres, apellidos y sección antes de pedir mapeo manual.</p>
-              <div id="historicalImportMapping" class="historical-mapping-grid"></div>
-            </section>
-
-            <section class="course-module historical-import-block">
-              <h4>3. Resumen de validación</h4>
-              <div class="historical-kpi-grid">
-                <div class="card kpi-card historical-kpi-card">
-                  <span>Total filas</span>
-                  <strong id="historicalKpiTotal">0</strong>
-                </div>
-                <div class="card kpi-card historical-kpi-card">
-                  <span>Registros válidos</span>
-                  <strong id="historicalKpiValid">0</strong>
-                </div>
-                <div class="card kpi-card historical-kpi-card">
-                  <span>Duplicados</span>
-                  <strong id="historicalKpiDuplicates">0</strong>
-                </div>
-                <div class="card kpi-card historical-kpi-card">
-                  <span>Fechas inválidas</span>
-                  <strong id="historicalKpiInvalidDates">0</strong>
-                </div>
-                <div class="card kpi-card historical-kpi-card">
-                  <span>UBO faltante</span>
-                  <strong id="historicalKpiMissingUbo">0</strong>
-                </div>
-                <div class="card kpi-card historical-kpi-card">
-                  <span>Nombres incompletos</span>
-                  <strong id="historicalKpiIncompleteName">0</strong>
-                </div>
-                <div class="card kpi-card historical-kpi-card">
-                  <span>Observados</span>
-                  <strong id="historicalKpiObserved">0</strong>
-                </div>
-              </div>
-            </section>
-
-            <section class="course-module historical-import-block">
-              <div class="historical-import-head">
-                <div>
-                  <h4>4. Preview</h4>
-                  <p class="hint course-module-hint">Revisa el estado de cada fila antes de habilitar la siguiente fase.</p>
-                </div>
-                <span id="historicalImportPreviewCount" class="historical-inline-counter">0 registros listados</span>
-              </div>
-              <div class="table-wrap historical-preview-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Estado</th>
-                      <th>Fecha</th>
-                      <th>Hora</th>
-                      <th>UBO</th>
-                      <th>Nombre completo</th>
-                      <th>Sección</th>
-                      <th>Estado conciliación</th>
-                      <th>DNI sugerido</th>
-                      <th>Aspirante encontrado</th>
-                      <th>Resolver</th>
-                      <th>Observación</th>
-                    </tr>
-                  </thead>
-                  <tbody id="historicalImportPreviewBody"></tbody>
-                </table>
-              </div>
-            </section>
-
-            <section class="course-module historical-import-block">
-              <h4>5. Trazabilidad y conciliación</h4>
-              <p class="hint course-module-hint">AsistIA intenta asociar cada fila histórica con un aspirante existente del tenant activo para sugerir el DNI antes de una futura importación.</p>
-              <div class="historical-kpi-grid">
-                <div class="card kpi-card historical-kpi-card">
-                  <span id="historicalConciliationLabel">Conciliados</span>
-                  <strong id="historicalConciliationConciliated">0</strong>
-                </div>
-                <div class="card kpi-card historical-kpi-card">
-                  <span>Sin coincidencia</span>
-                  <strong id="historicalConciliationNoMatch">0</strong>
-                </div>
-                <div class="card kpi-card historical-kpi-card">
-                  <span>Múltiples coincidencias</span>
-                  <strong id="historicalConciliationMultiple">0</strong>
-                </div>
-                <div class="card kpi-card historical-kpi-card">
-                  <span>Pendientes revisión</span>
-                  <strong id="historicalConciliationPending">0</strong>
-                </div>
-              </div>
-              <p id="historicalReconciliationStatus" class="course-inline-msg course-inline-msg--info" role="status"
-                aria-live="polite">La conciliación se ejecutará después de validar el archivo.</p>
-            </section>
-
-            <section class="course-module historical-import-block">
-              <h4>6. Acción</h4>
-              <p id="historicalActionHint" class="hint course-module-hint">Esta acción insertará registros históricos conciliados en <strong>asistencias</strong> bajo confirmación explícita. Los registros importados se integrarán a reportes y exportaciones con trazabilidad.</p>
-              <div class="config-actions">
-                <button type="button" id="historicalPrepareButton" onclick="prepararImportacionHistorica()" disabled>Preparar importación</button>
-                <button type="button" id="historicalReportsButton" class="secondary" onclick="abrirReportesImportacionHistorica()" hidden>Ver reportes</button>
-              </div>
-              <p id="historicalPrepareMessage" class="course-inline-msg course-inline-msg--info" role="status"
-                aria-live="polite">La acción se habilitará después de validar el archivo.</p>
-              <div id="historicalImportSummary" class="historical-kpi-grid historical-import-summary" hidden>
-                <div class="historical-import-summary-head">
-                  <span class="historical-success-badge">✔ Importación exitosa</span>
-                  <p>Importación histórica completada correctamente</p>
-                </div>
-                <div class="card kpi-card historical-kpi-card">
-                  <span>Importados</span>
-                  <strong id="historicalImportSummaryImported">0</strong>
-                </div>
-                <div class="card kpi-card historical-kpi-card">
-                  <span>Omitidos por duplicado</span>
-                  <strong id="historicalImportSummaryDuplicate">0</strong>
-                </div>
-                <div class="card kpi-card historical-kpi-card">
-                  <span>Omitidos por no conciliado</span>
-                  <strong id="historicalImportSummarySkippedNotConciliated">0</strong>
-                </div>
-                <div class="card kpi-card historical-kpi-card">
-                  <span>Omitidos por observación/error</span>
-                  <strong id="historicalImportSummarySkippedObserved">0</strong>
-                </div>
-                <div class="card kpi-card historical-kpi-card">
-                  <span>Fallidos</span>
-                  <strong id="historicalImportSummaryFailed">0</strong>
-                </div>
-                <div class="card kpi-card historical-kpi-card">
-                  <span>Import batch ID</span>
-                  <strong id="historicalImportSummaryBatchId">-</strong>
-                </div>
-              </div>
-            </section>
-          </div>
-        </div>
-          </div>
-        </details>
-
-        <details class="module-accordion">
-          <summary class="module-accordion-summary">
-            <div class="module-accordion-copy">
               <h3>Retirar Aspirante</h3>
               <p>Gestiona retiros y consulta el historial de cambios del padrón institucional.</p>
             </div>
@@ -1137,125 +1109,111 @@
           </summary>
           <div class="module-accordion-body">
         <div class="card config-card">
+          <div class="config-module-stack">
+            <div class="course-module">
+              <div class="course-module-head">
+                <div>
+                  <h4>Curso activo</h4>
+                  <p class="course-module-hint">Esta pantalla edita el curso activo actual del tenant. Guardar cambios actualiza nombre, fechas y radio GPS del curso en uso; no crea un curso nuevo.</p>
+                </div>
+                <span class="course-section-badge">Activo</span>
+              </div>
+              <h5 class="course-subsection-title">Nombre del curso</h5>
+              <div class="config-grid">
+                <div>
+                  <input id="cursoNombre" placeholder="ESBAS 2026 - I" aria-label="Nombre de curso"
+                    style="text-transform:uppercase;">
+                </div>
+              </div>
+            </div>
 
-          <div class="course-module">
-            <div class="course-module-head">
-              <div>
-                <h4>Curso activo</h4>
-                <p class="course-module-hint">Esta pantalla edita el curso activo actual del tenant. Guardar cambios actualiza nombre, fechas y radio GPS del curso en uso; no crea un curso nuevo.</p>
+            <div class="course-module">
+              <h5 class="course-subsection-title">Parámetros del curso activo</h5>
+              <div class="config-grid">
+                <div>
+                  <label for="cursoInicio">Fecha inicio</label>
+                  <input type="date" id="cursoInicio">
+                </div>
+                <div>
+                  <label for="cursoFin">Fecha término</label>
+                  <input type="date" id="cursoFin">
+                </div>
+                <div>
+                  <label for="cursoRadio">Radio GPS (metros)</label>
+                  <input type="number" id="cursoRadio" min="10" max="500" step="5" placeholder="50">
+                </div>
               </div>
-              <span class="course-section-badge">Activo</span>
             </div>
-            <h5 class="course-subsection-title">Nombre del curso</h5>
-            <div class="config-grid">
-              <div>
-                <input id="cursoNombre" placeholder="ESBAS 2026 - I" aria-label="Nombre de curso"
-                  style="text-transform:uppercase;">
-              </div>
-            </div>
-          </div>
 
-          <div class="course-module">
-            <h5 class="course-subsection-title">Parámetros del curso activo</h5>
-            <div class="config-grid">
-              <div>
-                <label for="cursoInicio">Fecha inicio</label>
-                <input type="date" id="cursoInicio">
+            <div class="course-module course-qr-module">
+              <div class="course-qr-head">
+                <div>
+                  <h4>QR del curso activo</h4>
+                  <p class="course-module-hint">Cada curso reutiliza su token persistente actual para generar enlaces públicos permanentes de Aspirantes y Staff.</p>
+                  <p class="course-qr-assurance">El QR pertenece al curso activo y no cambia al guardar nombre, fechas o radio GPS.</p>
+                </div>
               </div>
-              <div>
-                <label for="cursoFin">Fecha término</label>
-                <input type="date" id="cursoFin">
+              <p id="msgCursoQr" class="course-inline-msg" role="status" aria-live="polite"></p>
+              <div id="courseQrGrid" class="course-qr-grid">
+                <article class="course-qr-card">
+                  <div class="course-qr-card-head">
+                    <h5>QR Aspirantes</h5>
+                    <span class="course-qr-badge">Público</span>
+                  </div>
+                  <div id="qrAspirantes" class="course-qr-canvas" aria-label="QR de Aspirantes"></div>
+                  <div class="course-qr-url-block">
+                    <label for="urlQrAspirantes">URL pública</label>
+                    <textarea id="urlQrAspirantes" class="course-qr-url" rows="3" readonly></textarea>
+                  </div>
+                  <div class="course-qr-actions">
+                    <button type="button" class="secondary" onclick="copiarUrlCursoQr('aspirantes')">Copiar URL</button>
+                    <button type="button" onclick="descargarQrCurso('aspirantes')">Descargar PNG</button>
+                    <button type="button" class="secondary" onclick="imprimirQrCurso('aspirantes')">Imprimir</button>
+                  </div>
+                </article>
+                <article class="course-qr-card">
+                  <div class="course-qr-card-head">
+                    <h5>QR Staff</h5>
+                    <span class="course-qr-badge">Público</span>
+                  </div>
+                  <div id="qrStaff" class="course-qr-canvas" aria-label="QR de Staff"></div>
+                  <div class="course-qr-url-block">
+                    <label for="urlQrStaff">URL pública</label>
+                    <textarea id="urlQrStaff" class="course-qr-url" rows="3" readonly></textarea>
+                  </div>
+                  <div class="course-qr-actions">
+                    <button type="button" class="secondary" onclick="copiarUrlCursoQr('staff')">Copiar URL</button>
+                    <button type="button" onclick="descargarQrCurso('staff')">Descargar PNG</button>
+                    <button type="button" class="secondary" onclick="imprimirQrCurso('staff')">Imprimir</button>
+                  </div>
+                </article>
               </div>
-              <div>
-                <label for="cursoRadio">Radio GPS (metros)</label>
-                <input type="number" id="cursoRadio" min="10" max="500" step="5" placeholder="50">
-              </div>
+              <p class="course-qr-footnote">El QR es permanente para este curso. Copiar, descargar o imprimir no modifica el token.</p>
             </div>
-          </div>
-          <div class="course-module course-qr-module">
-            <div class="course-qr-head">
-              <div>
-                <h4>QR del curso activo</h4>
-                <p class="course-module-hint">Cada curso reutiliza su token persistente actual para generar enlaces públicos permanentes de Aspirantes y Staff.</p>
-                <p class="course-qr-assurance">El QR pertenece al curso activo y no cambia al guardar nombre, fechas o radio GPS.</p>
-              </div>
-            </div>
-            <p id="msgCursoQr" class="course-inline-msg" role="status" aria-live="polite"></p>
-            <div id="courseQrGrid" class="course-qr-grid">
-              <article class="course-qr-card">
-                <div class="course-qr-card-head">
-                  <h5>QR Aspirantes</h5>
-                  <span class="course-qr-badge">Público</span>
-                </div>
-                <div id="qrAspirantes" class="course-qr-canvas" aria-label="QR de Aspirantes"></div>
-                <div class="course-qr-url-block">
-                  <label for="urlQrAspirantes">URL pública</label>
-                  <textarea id="urlQrAspirantes" class="course-qr-url" rows="3" readonly></textarea>
-                </div>
-                <div class="course-qr-actions">
-                  <button type="button" class="secondary" onclick="copiarUrlCursoQr('aspirantes')">Copiar URL</button>
-                  <button type="button" onclick="descargarQrCurso('aspirantes')">Descargar PNG</button>
-                  <button type="button" class="secondary" onclick="imprimirQrCurso('aspirantes')">Imprimir</button>
-                </div>
-              </article>
-              <article class="course-qr-card">
-                <div class="course-qr-card-head">
-                  <h5>QR Staff</h5>
-                  <span class="course-qr-badge">Público</span>
-                </div>
-                <div id="qrStaff" class="course-qr-canvas" aria-label="QR de Staff"></div>
-                <div class="course-qr-url-block">
-                  <label for="urlQrStaff">URL pública</label>
-                  <textarea id="urlQrStaff" class="course-qr-url" rows="3" readonly></textarea>
-                </div>
-                <div class="course-qr-actions">
-                  <button type="button" class="secondary" onclick="copiarUrlCursoQr('staff')">Copiar URL</button>
-                  <button type="button" onclick="descargarQrCurso('staff')">Descargar PNG</button>
-                  <button type="button" class="secondary" onclick="imprimirQrCurso('staff')">Imprimir</button>
-                </div>
-              </article>
-            </div>
-            <p class="course-qr-footnote">El QR es permanente para este curso. Copiar, descargar o imprimir no modifica el token.</p>
-          </div>
-          <div class="config-actions course-footer-actions">
-            <p class="hint course-footer-hint">Guarda cambios del curso activo. Las secciones y sedes se gestionan en los módulos superiores.</p>
-            <p id="msgCursoFooter" class="course-inline-msg" role="status" aria-live="polite"></p>
-            <div class="course-footer-actions-row">
-              <button type="button" onclick="guardarCurso()">Guardar cambios del curso activo</button>
-            </div>
-          </div>
 
-          <div class="course-module course-module-danger">
-            <div class="course-module-head">
-              <div>
-                <h4>Acciones peligrosas</h4>
-                <p class="course-module-hint">Estas acciones afectan la estructura operativa del curso activo. No modifican el QR ni el token del curso, pero sí eliminan secciones y sedes UBO configuradas.</p>
+            <div class="config-actions course-footer-actions">
+              <p class="hint course-footer-hint">Guarda cambios del curso activo. Las secciones, sedes y GPS se gestionan en este mismo módulo.</p>
+              <p id="msgCursoFooter" class="course-inline-msg" role="status" aria-live="polite"></p>
+              <div class="course-footer-actions-row">
+                <button type="button" onclick="guardarCurso()">Guardar cambios del curso activo</button>
               </div>
-              <span class="course-section-badge danger">Cuidado</span>
             </div>
-            <div class="course-footer-actions-row">
-              <button type="button" class="btn-danger-outline" id="btnVaciarSeccionesSedes"
-                onclick="confirmarLimpiarListasCurso()">Vaciar secciones y sedes…</button>
-            </div>
-          </div>
-        </div>
-          </div>
-        </details>
 
-        <details class="module-accordion">
-          <summary class="module-accordion-summary">
-            <div class="module-accordion-copy">
-              <h3>Secciones de Curso</h3>
-              <p>Administra jornadas, horarios y estructura de secciones del curso.</p>
+            <div class="course-module course-module-danger">
+              <div class="course-module-head">
+                <div>
+                  <h4>Acciones peligrosas</h4>
+                  <p class="course-module-hint">Estas acciones afectan la estructura operativa del curso activo. No modifican el QR ni el token del curso, pero sí eliminan secciones y sedes UBO configuradas.</p>
+                </div>
+                <span class="course-section-badge danger">Cuidado</span>
+              </div>
+              <div class="course-footer-actions-row">
+                <button type="button" class="btn-danger-outline" id="btnVaciarSeccionesSedes"
+                  onclick="confirmarLimpiarListasCurso()">Vaciar secciones y sedes…</button>
+              </div>
             </div>
-            <div class="module-accordion-meta">
-              <span class="module-accordion-tag">Secciones</span>
-              <span class="module-accordion-icon" aria-hidden="true"></span>
-            </div>
-          </summary>
-          <div class="module-accordion-body">
-          <div class="card config-card">
-          <div class="course-module" id="courseModuleSecciones">
+
+            <div class="course-module" id="courseModuleSecciones">
             <h4>Secciones del curso</h4>
             <p class="hint course-module-hint">Crea una sección nueva o usa <strong>Modificar</strong> en la tabla
               para
@@ -1314,25 +1272,9 @@
                 <tbody id="tablaSeccionesCurso"></tbody>
               </table>
             </div>
-          </div>
-          </div>
-          </div>
-        </details>
+            </div>
 
-        <details class="module-accordion">
-          <summary class="module-accordion-summary">
-            <div class="module-accordion-copy">
-              <h3>UBOs / Sedes por sección</h3>
-              <p>Configura compañías sede, modalidades y horarios asociados a cada sección.</p>
-            </div>
-            <div class="module-accordion-meta">
-              <span class="module-accordion-tag">UBO/Sedes</span>
-              <span class="module-accordion-icon" aria-hidden="true"></span>
-            </div>
-          </summary>
-          <div class="module-accordion-body">
-          <div class="card config-card">
-          <div class="course-module" id="courseModuleSedeUbo">
+            <div class="course-module" id="courseModuleSedeUbo">
             <h4>UBOs sede por sección</h4>
             <p class="hint course-module-hint">Define la UBO sede por sección o usa <strong>Modificar</strong> para
               editar un registro existente.</p>
@@ -1402,8 +1344,31 @@
                 <tbody id="tablaSedesUbo"></tbody>
               </table>
             </div>
+            </div>
+
+            <div class="course-module">
+              <div class="course-module-head">
+                <div>
+                  <h4>GPS</h4>
+                  <p class="course-module-hint">Configura ubicación, radio de validación y parámetros de marcación por GPS.</p>
+                </div>
+                <span class="course-section-badge">GPS</span>
+              </div>
+              <div class="hint gps-upload-hint">Carga masiva de coordenadas UBO (columnas: <strong>UBO, LATITUD,
+                  LONGITUD</strong>. Opcional: <strong>NOMBRE</strong>).</div>
+              <label class="gps-toggle-label">
+                <input type="checkbox" id="toggleGPS">
+                Activar validación GPS (Proximamente)
+              </label>
+              <div class="config-row file-upload-row config-row-topspaced">
+                <input type="file" id="archivoUbosSedes" accept=".xlsx,.xls,.csv">
+                <button onclick="cargarExcelUbosSedes()">Subir Coordenadas</button>
+                <button class="secondary" onclick="cargarUbos()">Refrescar UBOs</button>
+              </div>
+              <p id="msgCargaUbosSedes" class="hint"></p>
+            </div>
           </div>
-          </div>
+        </div>
           </div>
         </details>
 
