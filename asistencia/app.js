@@ -32,6 +32,25 @@ let mensaje
 let mobileSectionsContainer
 let pendingCounter
 
+function debugContextLog(...args) {
+    console.log("[asistIA-context-debug]", ...args)
+}
+
+function actualizarDebugContextGlobal() {
+    window.__asistIAContextDebug = {
+        getContext: () => contextoAsistenciaActual,
+        hasRPC: () => tieneContextoRPCActivo(),
+        getHTML: () => mobileSectionsContainer?.innerHTML,
+        getState: () => ({
+            dniMovil,
+            seccion,
+            tenantActivoId,
+            cursoQRValido,
+            cursoActualId
+        })
+    }
+}
+
 function haySupabase() {
     return !!supabaseClient
 }
@@ -47,6 +66,7 @@ function enlazarIds() {
     mensaje = document.getElementById("mensaje")
     mobileSectionsContainer = document.getElementById("mobileSectionsContainer")
     pendingCounter = document.getElementById("pendingCounter")
+    actualizarDebugContextGlobal()
 }
 
 function detectarTenantDesdeRuta() {
@@ -460,9 +480,27 @@ function extraerMensajesContexto(items) {
 }
 
 async function resolverContextoAsistenciaRPC(dniLimpio) {
-    if (!haySupabase() || !tenantActivoId || !cursoQRValido) return null
+    if (!haySupabase() || !tenantActivoId || !cursoQRValido) {
+        debugContextLog("resolverContextoAsistenciaRPC: skip precondicion", {
+            haySupabase: haySupabase(),
+            tenantActivoId: !!tenantActivoId,
+            cursoQRValido,
+            dni: dniLimpio
+        })
+        return null
+    }
     const tokenCurso = obtenerCursoTokenDesdeURL()
-    if (!tokenCurso) return null
+    debugContextLog("resolverContextoAsistenciaRPC: inicio", {
+        dni: dniLimpio,
+        tokenCursoExiste: !!tokenCurso,
+        tenantActivoId,
+        cursoQRValido,
+        cursoActualId
+    })
+    if (!tokenCurso) {
+        debugContextLog("resolverContextoAsistenciaRPC: fallback por token ausente", { dni: dniLimpio })
+        return null
+    }
 
     try {
         const { data, error } = await supabaseClient.rpc("rpc_resolver_contexto_asistencia", {
@@ -471,21 +509,51 @@ async function resolverContextoAsistenciaRPC(dniLimpio) {
             p_timestamp: new Date().toISOString()
         })
 
+        debugContextLog("resolverContextoAsistenciaRPC: respuesta", {
+            dni: dniLimpio,
+            error: error ? String(error.message || error) : null,
+            data
+        })
+
         if (error) {
             if (/does not exist|42883|rpc_resolver_contexto_asistencia/i.test(String(error.message || ""))) {
+                debugContextLog("resolverContextoAsistenciaRPC: fallback por RPC inexistente", {
+                    dni: dniLimpio,
+                    error: String(error.message || error)
+                })
                 return null
             }
+            debugContextLog("resolverContextoAsistenciaRPC: error no recuperable", {
+                dni: dniLimpio,
+                error: String(error.message || error)
+            })
             throw error
         }
 
+        debugContextLog("resolverContextoAsistenciaRPC: retorno final", {
+            dni: dniLimpio,
+            success: !!data?.success,
+            permitido: !!data?.permitido
+        })
         return data && typeof data === "object" ? data : null
     } catch (error) {
-        if (esErrorConexion(error)) return null
+        if (esErrorConexion(error)) {
+            debugContextLog("resolverContextoAsistenciaRPC: fallback por error de red", {
+                dni: dniLimpio,
+                error: String(error?.message || error)
+            })
+            return null
+        }
+        debugContextLog("resolverContextoAsistenciaRPC: throw catch final", {
+            dni: dniLimpio,
+            error: String(error?.message || error)
+        })
         throw error
     }
 }
 
 function aplicarContextoResueltoEnFormulario(contexto) {
+    debugContextLog("aplicarContextoResueltoEnFormulario: entrada", { contexto })
     if (!contexto || typeof contexto !== "object") return
 
     const aspirante = contexto.aspirante && typeof contexto.aspirante === "object"
@@ -534,6 +602,11 @@ function aplicarContextoResueltoEnFormulario(contexto) {
         warnings: Array.isArray(contexto.warnings) ? contexto.warnings : [],
         bloqueos: Array.isArray(contexto.bloqueos) ? contexto.bloqueos : []
     }
+    actualizarDebugContextGlobal()
+    debugContextLog("aplicarContextoResueltoEnFormulario: contexto aplicado", {
+        contextoAsistenciaActual,
+        hasRPC: tieneContextoRPCActivo()
+    })
 }
 
 async function resolverCursoPorToken(token) {
@@ -710,6 +783,11 @@ function renderSeccionesMovil() {
     const seccionDetectada = obtenerSeccionAspiranteDetectada()
     const contextoRemoto = contextoAsistenciaActual
     const usarContextoRPC = tieneContextoRPCActivo()
+    debugContextLog("renderSeccionesMovil: inicio", {
+        hasRPC: usarContextoRPC,
+        seccionDetectada,
+        contextoRemoto
+    })
     seccion = normalizarCodigoSeccion((usarContextoRPC ? contextoRemoto?.seccion : "") || seccionDetectada) || ""
     seleccionarBotonSeccion(seccion)
     mobileSectionsContainer.innerHTML = ""
@@ -735,6 +813,10 @@ function renderSeccionesMovil() {
 
     if (usarContextoRPC) {
         mobileSectionsContainer.innerHTML = html
+        debugContextLog("renderSeccionesMovil: render RPC", {
+            hasRPC: usarContextoRPC,
+            htmlPreview: String(mobileSectionsContainer.innerHTML || "").replace(/\s+/g, " ").slice(0, 280)
+        })
         return
     }
 
@@ -743,11 +825,19 @@ function renderSeccionesMovil() {
             html += `<p class="tenant-label">No hay secciones configuradas para este curso.</p>`
         }
         mobileSectionsContainer.innerHTML = html
+        debugContextLog("renderSeccionesMovil: render sin secciones", {
+            hasRPC: usarContextoRPC,
+            htmlPreview: String(mobileSectionsContainer.innerHTML || "").replace(/\s+/g, " ").slice(0, 280)
+        })
         return
     }
 
     if (contextoRemoto?.seccion || seccionDetectada) {
         mobileSectionsContainer.innerHTML = html
+        debugContextLog("renderSeccionesMovil: render legacy sin selector", {
+            hasRPC: usarContextoRPC,
+            htmlPreview: String(mobileSectionsContainer.innerHTML || "").replace(/\s+/g, " ").slice(0, 280)
+        })
         return
     }
 
@@ -766,11 +856,22 @@ function renderSeccionesMovil() {
     mobileSectionsContainer.querySelectorAll(".mobile-section-btn").forEach(btn => {
         btn.addEventListener("click", () => setSeccion(btn.dataset.seccion || ""))
     })
+    debugContextLog("renderSeccionesMovil: render legacy con selector", {
+        hasRPC: usarContextoRPC,
+        secciones: cursoSecciones.map(sec => sec.seccion),
+        htmlPreview: String(mobileSectionsContainer.innerHTML || "").replace(/\s+/g, " ").slice(0, 280)
+    })
 }
 
 async function ingresarMovilInicio() {
     const dniLimpio = limpiarDni(mobileDniInicio?.value)
     if (mobileDniInicio) mobileDniInicio.value = dniLimpio
+    debugContextLog("ingresarMovilInicio: inicio", {
+        dni: dniLimpio,
+        cursoQRValido,
+        tenantActivoId,
+        cursoActualId
+    })
 
     if (!dniLimpio) {
         setMensaje("⚠ Ingresa tu DNI para continuar", "error")
@@ -786,6 +887,10 @@ async function ingresarMovilInicio() {
     try {
         clearTimeout(debounceTimerAutocompletar)
         await cargarConfigCurso()
+        debugContextLog("ingresarMovilInicio: config cargada", {
+            cursoSecciones: cursoSecciones.map(sec => sec.seccion),
+            cursoConfig: cursoConfigCache ? { nombre_curso: cursoConfigCache.nombre_curso || "" } : null
+        })
         contextoAsistenciaActual = null
         const contextoRPC = await resolverContextoAsistenciaRPC(dniLimpio)
 
@@ -812,13 +917,26 @@ async function ingresarMovilInicio() {
                 setMensaje("")
             }
         } else {
+            debugContextLog("ingresarMovilInicio: fallback sin contexto RPC usable", {
+                dni: dniLimpio,
+                contextoRPC
+            })
             setMensaje("")
         }
 
         renderSeccionesMovil()
+        debugContextLog("ingresarMovilInicio: post-render", {
+            hasRPC: tieneContextoRPCActivo(),
+            contextoAsistenciaActual,
+            htmlPreview: String(mobileSectionsContainer?.innerHTML || "").replace(/\s+/g, " ").slice(0, 280)
+        })
         if (stepIngreso) stepIngreso.style.display = "none"
         formulario.style.display = "flex"
     } catch (error) {
+        debugContextLog("ingresarMovilInicio: error", {
+            dni: dniLimpio,
+            error: String(error?.message || error)
+        })
         console.error("Error preparando formulario de asistencia:", error)
         setMensaje("No se pudo cargar la información.", "error")
     }
@@ -843,6 +961,11 @@ function getDeviceId() {
 async function procesarAutocompletadoDni(dniValue) {
     const dniLimpio = limpiarDni(dniValue)
     const preservarContextoRPC = tieneContextoRPCActivo() && contextoCorrespondeADni(dniLimpio)
+    debugContextLog("procesarAutocompletadoDni: input", {
+        dni: dniLimpio,
+        preservarContextoRPC,
+        hasRPC: tieneContextoRPCActivo()
+    })
 
     if (mobileDniInicio && document.activeElement === mobileDniInicio) {
         mobileDniInicio.value = dniLimpio
@@ -851,6 +974,10 @@ async function procesarAutocompletadoDni(dniValue) {
     if (dniLimpio.length !== 8) {
         if (!preservarContextoRPC) contextoAsistenciaActual = null
         limpiarCamposAspirante(!preservarContextoRPC)
+        debugContextLog("procesarAutocompletadoDni: dni incompleto", {
+            dni: dniLimpio,
+            preservarContextoRPC
+        })
         setMensaje("")
         return
     }
@@ -860,6 +987,11 @@ async function procesarAutocompletadoDni(dniValue) {
         if (!haySupabase() || !tenantActivoId) return
 
         try {
+            debugContextLog("procesarAutocompletadoDni: lookup inicio", {
+                dni: dniLimpio,
+                tenantActivoId,
+                cursoActualId
+            })
             const cursoEsperado = Number(cursoActualId || 1) || 1
             let data = null
             let error = null
@@ -886,6 +1018,11 @@ async function procesarAutocompletadoDni(dniValue) {
                 if (!preservarContextoRPC) contextoAsistenciaActual = null
                 perfilAspiranteActual = { dni: "", seccion: "" }
                 limpiarCamposAspirante(!preservarContextoRPC)
+                debugContextLog("procesarAutocompletadoDni: aspirante no encontrado", {
+                    dni: dniLimpio,
+                    error: error ? String(error.message || error) : null,
+                    preservarContextoRPC
+                })
                 setMensaje("⚠ El DNI ingresado no existe en el padrón de la institución.", "warning")
                 return
             }
@@ -902,6 +1039,11 @@ async function procesarAutocompletadoDni(dniValue) {
                     bloqueado: true
                 }
                 limpiarCamposAspirante(false)
+                debugContextLog("procesarAutocompletadoDni: curso distinto", {
+                    dni: dniLimpio,
+                    cursoAspirante,
+                    cursoEsperado
+                })
                 setMensaje("⚠ El aspirante no pertenece al curso de este QR.", "error")
                 return
             }
@@ -935,12 +1077,23 @@ async function procesarAutocompletadoDni(dniValue) {
             if (formulario?.style.display !== "none" && !preservarContextoRPC) {
                 renderSeccionesMovil()
             }
+            debugContextLog("procesarAutocompletadoDni: lookup exitoso", {
+                dni: dniLimpio,
+                seccionPerfil: perfilAspiranteActual.seccion,
+                preservarContextoRPC,
+                hasRPC: tieneContextoRPCActivo()
+            })
             setMensaje("")
         } catch (e) {
             console.error("Error validando DNI de aspirante:", e)
             if (!preservarContextoRPC) contextoAsistenciaActual = null
             perfilAspiranteActual = { dni: "", seccion: "" }
             limpiarCamposAspirante(!preservarContextoRPC)
+            debugContextLog("procesarAutocompletadoDni: error", {
+                dni: dniLimpio,
+                preservarContextoRPC,
+                error: String(e?.message || e)
+            })
             setMensaje(mensajeAmigable(e, "No se pudo cargar la información."), "error")
         }
     }, 300)
