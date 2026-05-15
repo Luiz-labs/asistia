@@ -1119,6 +1119,98 @@ function limpiarCamposAspirante(resetValidacion = true) {
     }
 }
 
+function esRpcV2NoDisponible(error) {
+    const texto = String(error?.message || error || "")
+    return /rpc_registrar_asistencia_v2|does not exist|42883/i.test(texto)
+}
+
+function construirWarningsRegistro(data, contextoAsistencia) {
+    const warnings = extraerMensajesContexto(data?.warnings)
+    const estado = String(
+        data?.contexto?.estado_asistencia
+        || contextoAsistencia?.estado_asistencia
+        || ""
+    ).trim().toUpperCase()
+
+    if (estado === "TARDANZA") {
+        warnings.unshift("Registro en tardanza.")
+    } else if (estado === "FUERA_DE_HORARIO") {
+        warnings.unshift("Registro fuera de horario.")
+    }
+
+    return warnings.filter(Boolean)
+}
+
+async function intentarRegistrarAsistenciaV2({ dniRegistro, deviceId }) {
+    const tokenCurso = obtenerCursoTokenDesdeURL()
+
+    if (!tokenCurso) {
+        throw new Error("QR/token de curso no disponible para rpc_registrar_asistencia_v2.")
+    }
+
+    const timestamp = new Date().toISOString()
+
+    debugContextLog("guardarAsistencia: intento v2", {
+        dni: dniRegistro,
+        tokenCursoExiste: !!tokenCurso,
+        deviceId,
+        cursoActualId,
+        tenantActivoId
+    })
+
+    const { data, error } = await supabaseClient.rpc("rpc_registrar_asistencia_v2", {
+        p_qr_token: tokenCurso,
+        p_dni: dniRegistro,
+        p_timestamp: timestamp,
+        p_device_id: deviceId,
+        p_latitud: null,
+        p_longitud: null,
+        p_origen_registro: "mobile_public"
+    })
+
+    debugContextLog("guardarAsistencia: respuesta v2", {
+        dni: dniRegistro,
+        error: error ? String(error.message || error) : null,
+        data
+    })
+
+    if (error) throw error
+
+    return data
+}
+
+async function intentarRegistrarAsistenciaLegacy({ dniRegistro, seccionRegistro, deviceId }) {
+    debugContextLog("guardarAsistencia: intento legacy", {
+        dni: dniRegistro,
+        seccionRegistro,
+        deviceId,
+        cursoActualId,
+        tenantActivoId
+    })
+
+    const { data, error } = await supabaseClient.rpc("rpc_registrar_asistencia", {
+        p_dni: dniRegistro,
+        p_tenant_id: tenantActivoId,
+        p_seccion: seccionRegistro,
+        p_latitud: 0,
+        p_longitud: 0,
+        p_device_id: deviceId,
+        p_timestamp_local: new Date().toISOString(),
+        p_curso_id: cursoActualId || 1,
+        p_origen_registro: "mobile_public_legacy"
+    })
+
+    debugContextLog("guardarAsistencia: respuesta legacy", {
+        dni: dniRegistro,
+        error: error ? String(error.message || error) : null,
+        data
+    })
+
+    if (error) throw error
+
+    return data
+}
+
 async function guardarAsistencia() {
     const dniRegistro = limpiarDni(dniMovil || mobileDniInicio?.value)
     const nombresValor = String(nombres.value || "").trim()
@@ -1127,6 +1219,7 @@ async function guardarAsistencia() {
     const seccionBase = seccion || obtenerSeccionAspiranteDetectada()
     const contextoAsistencia = contextoAsistenciaActual || construirContextoLocalAsistencia(new Date(), seccionBase)
     const seccionRegistro = normalizarCodigoSeccion(contextoAsistencia.seccion || seccionBase)
+    const deviceId = getDeviceId()
 
     if (!dniRegistro) {
         setMensaje("⚠ DNI no válido", "error")
@@ -1183,34 +1276,32 @@ async function guardarAsistencia() {
     }
 
     try {
-        const { data, error } = await supabaseClient.rpc("rpc_registrar_asistencia", {
-            p_dni: dniRegistro,
-            p_tenant_id: tenantActivoId,
-            p_seccion: seccionRegistro,
-            p_latitud: 0,
-            p_longitud: 0,
-            p_device_id: getDeviceId(),
-            p_timestamp_local: new Date().toISOString(),
-            p_curso_id: cursoActualId || 1,
-            p_origen_registro: "qr_publico"
-        })
+        let data = null
+        let usoLegacy = false
 
-        if (error) {
-            const guardadoOffline = await guardarAsistenciaOffline({
+        try {
+            data = await intentarRegistrarAsistenciaV2({
                 dniRegistro,
-                nombresValor,
-                apellidosValor,
-                seccionRegistro,
-                modalidadRegistro: contextoAsistencia.modalidad,
-                motivo: esErrorTransporteSupabase(error)
-                    ? "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente."
-                    : "Ocurrió un problema al procesar la solicitud."
+                deviceId
             })
-            if (!guardadoOffline) {
-                console.error("Error registrando asistencia por RPC:", error)
-                setMensaje(mensajeAmigable(error, "Ocurrió un problema al procesar la solicitud."), "error")
-            }
-            return
+        } catch (errorV2) {
+            console.warn("Fallback legacy:", errorV2)
+
+            debugContextLog("guardarAsistencia: fallback legacy", {
+                dni: dniRegistro,
+                error: String(errorV2?.message || errorV2),
+                rpcV2NoDisponible: esRpcV2NoDisponible(errorV2)
+            })
+
+            usoLegacy = true
+        }
+
+        if (usoLegacy) {
+            data = await intentarRegistrarAsistenciaLegacy({
+                dniRegistro,
+                seccionRegistro,
+                deviceId
+            })
         }
 
         if (!data?.success) {
@@ -1218,12 +1309,29 @@ async function guardarAsistencia() {
             return
         }
 
-        if (data.warning) {
-            const warnMsgs = Array.isArray(data.warnings) ? data.warnings.join(" | ") : "Atención requerida"
-            setMensaje(`✅ Registrado con alerta: ${warnMsgs}`, "warning")
+        if (!data?.registrado && data?.code === "asistencia_duplicada") {
+            setMensaje(String(data?.message || "El aspirante ya registró asistencia hoy."), "warning")
+            return
+        }
+
+        if (!data?.registrado && data?.code && data?.code !== "ok") {
+            setMensaje(String(data?.message || "No se pudo registrar la asistencia."), "error")
+            return
+        }
+
+        const warnings = construirWarningsRegistro(data, contextoAsistencia)
+
+        if (warnings.length > 0) {
+            setMensaje(`✅ Registrado con alerta: ${warnings.join(" | ")}`, "warning")
         } else {
             setMensaje("✅ Registrado", "ok")
         }
+
+        debugContextLog("guardarAsistencia: registro exitoso", {
+            dni: dniRegistro,
+            usoLegacy,
+            data
+        })
 
         resetFormularioAsistencia()
     } catch (e) {
