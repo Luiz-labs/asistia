@@ -1,4 +1,4 @@
-const CACHE_NAME = "asistia-pwa-v0.9.4-beta-10011"
+const CACHE_NAME = "asistia-pwa-v0.9.5-beta-10012"
 
 const PRECACHE_URLS = [
   "/",
