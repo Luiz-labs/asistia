@@ -4663,6 +4663,22 @@ function resolverModalidadRegistro(row = {}) {
     return normalizarModalidad(regla?.modalidad)
 }
 
+function normalizarEstadoAsistencia(valor) {
+    const estado = String(valor || "").trim().toUpperCase()
+    if (estado === "PUNTUAL") return "PUNTUAL"
+    if (estado === "TARDANZA") return "TARDANZA"
+    if (estado === "FUERA_DE_HORARIO") return "FUERA_DE_HORARIO"
+    return ""
+}
+
+function formatearEstadoAsistenciaDashboard(valor) {
+    const estado = normalizarEstadoAsistencia(valor)
+    if (estado === "PUNTUAL") return "Puntual"
+    if (estado === "TARDANZA") return "Tardanza"
+    if (estado === "FUERA_DE_HORARIO") return "Fuera de horario"
+    return "-"
+}
+
 function horaATotalMinutos(hora) {
     const h = String(hora || "").slice(0, 5)
     const [hh, mm] = h.split(":")
@@ -4688,6 +4704,9 @@ function obtenerReglaSeccion(seccion) {
 
 function describirMotivoSemaforo(motivo) {
     const mapa = {
+        estado_puntual: "Puntual",
+        estado_tardanza: "Tardanza",
+        estado_fuera_de_horario: "Fuera de horario",
         sin_registro: "Sin registro",
         sin_seccion: "Sin sección asignada",
         sin_hora_configurada: "Sin hora configurada en sección",
@@ -4753,6 +4772,78 @@ function evaluarSemaforoPorRegla(registrosAlumno) {
         return { estado: "amarillo", motivo: "tardanza_moderada", fecha: ultimaFecha, horaMarcada: horaMarcadaTexto, seccion: seccionEvaluada, horaInicio: regla.horaInicioTexto || "-" }
     }
     return { estado: "rojo", motivo: "tardanza_alta", fecha: ultimaFecha, horaMarcada: horaMarcadaTexto, seccion: seccionEvaluada, horaInicio: regla.horaInicioTexto || "-" }
+}
+
+function evaluarSemaforoDashboard(registrosAlumno) {
+    const registros = (registrosAlumno || []).slice().sort((a, b) => {
+        const f = String(a.fecha || "").localeCompare(String(b.fecha || ""))
+        return f !== 0 ? f : String(a.hora || "").localeCompare(String(b.hora || ""))
+    })
+
+    if (!registros.length) {
+        return { estado: "rojo", motivo: "sin_registro" }
+    }
+
+    const ultimaFecha = (registros[registros.length - 1] || {}).fecha || ""
+    const primerMarcadoUltimoDia = registros
+        .filter(x => x.fecha === ultimaFecha)
+        .sort((a, b) => (a.hora || "").localeCompare(b.hora || ""))[0]
+
+    const estadoBackend = normalizarEstadoAsistencia(primerMarcadoUltimoDia?.estado_asistencia)
+    const seccionEvaluada = normalizarCodigoSeccion(primerMarcadoUltimoDia?.seccion)
+    const jornadaEvaluada = normalizarTipoJornada(primerMarcadoUltimoDia?.tipo_jornada)
+    const modalidadEvaluada = resolverModalidadRegistro(primerMarcadoUltimoDia)
+    const horaMarcadaTexto = String(primerMarcadoUltimoDia?.hora || "").slice(0, 5)
+
+    if (estadoBackend === "PUNTUAL") {
+        return {
+            estado: "verde",
+            motivo: "estado_puntual",
+            fecha: ultimaFecha,
+            horaMarcada: horaMarcadaTexto,
+            seccion: seccionEvaluada || "-",
+            horaInicio: "-",
+            tipoJornada: jornadaEvaluada,
+            modalidad: modalidadEvaluada,
+            estadoAsistencia: estadoBackend
+        }
+    }
+
+    if (estadoBackend === "TARDANZA") {
+        return {
+            estado: "amarillo",
+            motivo: "estado_tardanza",
+            fecha: ultimaFecha,
+            horaMarcada: horaMarcadaTexto,
+            seccion: seccionEvaluada || "-",
+            horaInicio: "-",
+            tipoJornada: jornadaEvaluada,
+            modalidad: modalidadEvaluada,
+            estadoAsistencia: estadoBackend
+        }
+    }
+
+    if (estadoBackend === "FUERA_DE_HORARIO") {
+        return {
+            estado: "rojo",
+            motivo: "estado_fuera_de_horario",
+            fecha: ultimaFecha,
+            horaMarcada: horaMarcadaTexto,
+            seccion: seccionEvaluada || "-",
+            horaInicio: "-",
+            tipoJornada: jornadaEvaluada,
+            modalidad: modalidadEvaluada,
+            estadoAsistencia: estadoBackend
+        }
+    }
+
+    const fallback = evaluarSemaforoPorRegla(registros)
+    return {
+        ...fallback,
+        tipoJornada: jornadaEvaluada,
+        modalidad: modalidadEvaluada,
+        estadoAsistencia: ""
+    }
 }
 
 function distanciaMetros(lat1, lon1, lat2, lon2) {
@@ -9788,7 +9879,7 @@ async function cargarDashboard() {
         let estado = "rojo"
 
         const registros = dataActivos.filter(x => x.dni == dni)
-        const evaluacion = evaluarSemaforoPorRegla(registros)
+        const evaluacion = evaluarSemaforoDashboard(registros)
         estado = evaluacion.estado
 
         if (estado === "verde") verde++
@@ -9805,20 +9896,30 @@ async function cargarDashboard() {
             fecha: evaluacion.fecha || "-",
             horaMarcada: evaluacion.horaMarcada || "-",
             seccion: evaluacion.seccion || "-",
-            horaInicio: evaluacion.horaInicio || "-"
+            horaInicio: evaluacion.horaInicio || "-",
+            tipoJornada: formatearTipoJornadaAmigable(evaluacion.tipoJornada),
+            modalidad: formatearModalidadAmigable(evaluacion.modalidad) || "-",
+            estadoAsistencia: formatearEstadoAsistenciaDashboard(evaluacion.estadoAsistencia)
         })
 
-        if (estado === "rojo") {
-            if (evaluacion.motivo === "tardanza_alta") rojoTardanza++
-            if (evaluacion.motivo === "fuera_de_dia_configurado") rojoFueraDia++
+        const esTardanza = evaluacion.motivo === "estado_tardanza"
+            || evaluacion.motivo === "tardanza_moderada"
+            || evaluacion.motivo === "tardanza_alta"
+        const esFueraHorarioODia = evaluacion.motivo === "estado_fuera_de_horario"
+            || evaluacion.motivo === "fuera_de_dia_configurado"
+            || evaluacion.motivo === "hora_invalida_para_seccion"
 
+        if (esTardanza) rojoTardanza++
+        if (esFueraHorarioODia) rojoFueraDia++
+
+        if (esTardanza || esFueraHorarioODia || estado === "rojo") {
             if (!uboMap[a.ubo]) {
                 uboMap[a.ubo] = { total: 0, tardanza: 0, fueraDia: 0, otros: 0 }
             }
             uboMap[a.ubo].total++
-            if (evaluacion.motivo === "tardanza_alta") {
+            if (esTardanza) {
                 uboMap[a.ubo].tardanza++
-            } else if (evaluacion.motivo === "fuera_de_dia_configurado") {
+            } else if (esFueraHorarioODia) {
                 uboMap[a.ubo].fueraDia++
             } else {
                 uboMap[a.ubo].otros++
@@ -9864,8 +9965,8 @@ async function cargarDashboard() {
     }
 
     topUbo.innerHTML = html
-    semaforoInfo.innerText = "Semáforo: usa la primera marcación del último día y la compara con la hora_inicio de su sección (Verde: hasta +10m, Amarillo: +11 a +30m, Rojo: >+30m, fuera de día o sin configuración válida)."
-    riesgoInfo.innerText = "Riesgo por UBO: cantidad de aspirantes en Rojo según la configuración de horario/días y el rango filtrado."
+    semaforoInfo.innerText = "Semáforo: usa primero estado_asistencia guardado por backend (Puntual, Tardanza, Fuera de horario). Solo si el registro no tiene estado_asistencia, aplica fallback legacy por hora/días."
+    riesgoInfo.innerText = "Riesgo por UBO: acumulado de aspirantes con tardanza o fuera de horario/día en el rango filtrado."
 
     try {
         await cargarDashboardStaffOperativo()
@@ -9953,6 +10054,9 @@ function verUbo(ubo) {
       <th>Nombre</th>
       <th>UBO</th>
       <th>Sección</th>
+      <th>Jornada</th>
+      <th>Modalidad</th>
+      <th>Estado</th>
       <th>Hora sección</th>
       <th>Fecha</th>
       <th>Hora marcada</th>
@@ -9968,6 +10072,9 @@ function verUbo(ubo) {
         <td>${r.nombre}</td>
         <td>${r.ubo}</td>
         <td>${r.seccion || "-"}</td>
+        <td>${r.tipoJornada || "-"}</td>
+        <td>${r.modalidad || "-"}</td>
+        <td>${r.estadoAsistencia || "-"}</td>
         <td>${r.horaInicio || "-"}</td>
         <td>${r.fecha || "-"}</td>
         <td>${r.horaMarcada || "-"}</td>
@@ -10130,6 +10237,9 @@ function verDetalle(color) {
       <th>Nombre</th>
       <th>UBO</th>
       <th>Sección</th>
+      <th>Jornada</th>
+      <th>Modalidad</th>
+      <th>Estado</th>
       <th>Hora sección</th>
       <th>Fecha</th>
       <th>Hora marcada</th>
@@ -10145,6 +10255,9 @@ function verDetalle(color) {
         <td>${x.nombre}</td>
         <td>${x.ubo}</td>
         <td>${x.seccion || "-"}</td>
+        <td>${x.tipoJornada || "-"}</td>
+        <td>${x.modalidad || "-"}</td>
+        <td>${x.estadoAsistencia || "-"}</td>
         <td>${x.horaInicio || "-"}</td>
         <td>${x.fecha || "-"}</td>
         <td>${x.horaMarcada || "-"}</td>
@@ -10827,8 +10940,8 @@ function limpiarDashboard() {
     kpiDispCard.style.opacity = "0.75"
 
     topUbo.innerHTML = ""
-    semaforoInfo.innerText = "Semáforo: primera marcación del último día vs hora/días de su sección."
-    riesgoInfo.innerText = "Riesgo UBO: cantidad de aspirantes en rojo por UBO según horario/días."
+    semaforoInfo.innerText = "Semáforo: usa estado_asistencia backend y fallback legacy si el histórico no lo tiene."
+    riesgoInfo.innerText = "Riesgo UBO: tardanza o fuera de horario/día por UBO."
 
     // limpiar memoria
     window.detalleSemaforo = {
