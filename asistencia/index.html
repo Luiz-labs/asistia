@@ -53,7 +53,57 @@
   </main>
 
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="/asistencia/app.js?v=10009"></script>
-  <script src="/pwa-register.js"></script>
+  <script>
+    (() => {
+      const APP_VERSION = "10010"
+      const RESET_KEY = `asistia_asistencia_cache_reset_${APP_VERSION}`
+      const path = String(window.location.pathname || "")
+      const isAsistenciaRoute = /(^|\/)asistencia(\/|$)/.test(path) && !/staff-asistencia/.test(path)
+
+      function appendScript(src) {
+        const script = document.createElement("script")
+        script.src = src
+        document.body.appendChild(script)
+      }
+
+      function bootScripts() {
+        appendScript(`/asistencia/app.js?v=${APP_VERSION}`)
+        appendScript(`/pwa-register.js?v=${APP_VERSION}`)
+      }
+
+      if (!isAsistenciaRoute) {
+        bootScripts()
+        return
+      }
+
+      if (sessionStorage.getItem(RESET_KEY) === "done") {
+        bootScripts()
+        return
+      }
+
+      ;(async () => {
+        try {
+          if ("serviceWorker" in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations()
+            await Promise.all(registrations.map(registration => registration.unregister()))
+          }
+
+          if ("caches" in window) {
+            const cacheNames = await caches.keys()
+            await Promise.all(
+              cacheNames
+                .filter(name => /asist|pwa|workbox/i.test(String(name || "")))
+                .map(name => caches.delete(name))
+            )
+          }
+        } catch (error) {
+          console.warn("No se pudo limpiar el cache de asistencia:", error)
+        } finally {
+          sessionStorage.setItem(RESET_KEY, "done")
+          window.location.replace(window.location.href)
+        }
+      })()
+    })()
+  </script>
 </body>
 </html>

@@ -3,28 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="asistIA">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>asistIA Asistencia</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/asistencia/style.css">
 </head>
 <body>
-  <!-- Ruta física temporal necesaria porque Cloudflare no resuelve correctamente /*/asistencia/*. -->
   <main class="public-shell">
     <section id="asistenciaApp" class="public-card">
       <div class="brand-block">
         <img class="brand-logo" src="/asistIA_logo.png" alt="asistIA">
         <div>
           <h1 class="brand-title">asist<span>IA</span></h1>
-          <p class="brand-subtitle">Marcación de asistencia</p>
+          <p class="brand-subtitle">Registro de asistencia</p>
           <p id="tenantLabel" class="tenant-label"></p>
         </div>
       </div>
 
       <section id="stepIngreso" class="step-block">
         <p class="step-copy">Ingresa tu DNI para continuar</p>
-        <input id="mobileDniInicio" class="text-input" placeholder="Ingrese DNI" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
+        <input id="mobileDniInicio" class="text-input" placeholder="DNI (8 dígitos)" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
         <button id="btnIngresarInicio" class="primary-btn" type="button">Continuar</button>
       </section>
 
@@ -32,7 +38,7 @@
         <p class="step-copy">Completa y confirma tu registro</p>
         <input id="nombres" class="text-input" placeholder="Nombres" autocomplete="off">
         <input id="apellidos" class="text-input" placeholder="Apellidos" autocomplete="off">
-        <input id="ubo" class="text-input" placeholder="UBO" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off">
+        <input id="ubo" class="text-input" placeholder="UBO (4 dígitos)" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off">
         <div id="mobileSectionsContainer" class="mobile-sections-container"></div>
         <div class="step-actions">
           <button id="btnRegistrar" class="primary-btn" type="button">Registrar asistencia</button>
@@ -41,11 +47,63 @@
       </section>
 
       <p id="mensaje" class="message-box"></p>
+      <p id="pendingCounter" class="pending-counter" hidden></p>
     </section>
-    <footer class="public-footer">Desarrollado por Luiz-Labs © 2026</footer>
+    <footer class="public-footer">asistIA v0.9.3-beta · Control de asistencia · Luiz-Labs © 2026</footer>
   </main>
 
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="/asistencia/app.js"></script>
+  <script>
+    (() => {
+      const APP_VERSION = "10010"
+      const RESET_KEY = `asistia_asistencia_cache_reset_${APP_VERSION}`
+      const path = String(window.location.pathname || "")
+      const isAsistenciaRoute = /(^|\/)asistencia(\/|$)/.test(path) && !/staff-asistencia/.test(path)
+
+      function appendScript(src) {
+        const script = document.createElement("script")
+        script.src = src
+        document.body.appendChild(script)
+      }
+
+      function bootScripts() {
+        appendScript(`/asistencia/app.js?v=${APP_VERSION}`)
+        appendScript(`/pwa-register.js?v=${APP_VERSION}`)
+      }
+
+      if (!isAsistenciaRoute) {
+        bootScripts()
+        return
+      }
+
+      if (sessionStorage.getItem(RESET_KEY) === "done") {
+        bootScripts()
+        return
+      }
+
+      ;(async () => {
+        try {
+          if ("serviceWorker" in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations()
+            await Promise.all(registrations.map(registration => registration.unregister()))
+          }
+
+          if ("caches" in window) {
+            const cacheNames = await caches.keys()
+            await Promise.all(
+              cacheNames
+                .filter(name => /asist|pwa|workbox/i.test(String(name || "")))
+                .map(name => caches.delete(name))
+            )
+          }
+        } catch (error) {
+          console.warn("No se pudo limpiar el cache de asistencia:", error)
+        } finally {
+          sessionStorage.setItem(RESET_KEY, "done")
+          window.location.replace(window.location.href)
+        }
+      })()
+    })()
+  </script>
 </body>
 </html>

@@ -80,6 +80,21 @@
   ! Cache-Control
   Cache-Control: public, max-age=0, must-revalidate
 
+/asistencia/app.js
+
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/service-worker.js
+
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/pwa-register.js
+
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
 /asistIA_logo.png
 
   ! Cache-Control
