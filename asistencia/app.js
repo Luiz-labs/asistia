@@ -14,6 +14,7 @@ let seccion = ""
 let cursoConfigCache = null
 let cursoSecciones = []
 let debounceTimerAutocompletar = null
+let retornoPostRegistroTimer = 0
 let validacionCursoAspirante = { dni: "", permitido: true, legacy: false, bloqueado: false }
 let perfilAspiranteActual = { dni: "", seccion: "" }
 let contextoAsistenciaActual = null
@@ -130,8 +131,31 @@ function debeOcultarMensajePublico(item) {
     return code === "device_id_ausente" || message === "no se recibió identificador de dispositivo."
 }
 
+function deduplicarMensajes(messages = []) {
+    const seen = new Set()
+    return messages.filter(item => {
+        const key = String(item || "").trim().toLowerCase()
+        if (!key || seen.has(key)) return false
+        seen.add(key)
+        return true
+    })
+}
+
+function construirClaveMensajePublico(item) {
+    const code = String(item?.code || "").trim().toLowerCase()
+    const message = String(item?.message || item || "").trim().toLowerCase()
+    return code ? `${code}|${message}` : message
+}
+
 function mostrarPasoMovil(paso) {
     if (stepIngreso) stepIngreso.style.display = paso === "ingreso" ? "flex" : "none"
+}
+
+function cancelarRetornoPostRegistro() {
+    if (retornoPostRegistroTimer) {
+        window.clearTimeout(retornoPostRegistroTimer)
+        retornoPostRegistroTimer = 0
+    }
 }
 
 function limpiarDni(valor = "") {
@@ -372,11 +396,25 @@ function actualizarVisibilidadCamposLegacy() {
 }
 
 function resetFormularioAsistencia() {
+    cancelarRetornoPostRegistro()
     limpiarCamposAspirante()
     contextoAsistenciaActual = null
     seccion = ""
     seleccionarBotonSeccion("")
     actualizarVisibilidadCamposLegacy()
+}
+
+function programarRetornoPostRegistro() {
+    cancelarRetornoPostRegistro()
+    retornoPostRegistroTimer = window.setTimeout(() => {
+        retornoPostRegistroTimer = 0
+        const params = new URLSearchParams(window.location.search || "")
+        const tokenCurso = obtenerCursoTokenDesdeURL()
+        if (tenantActivoId) params.set("tenant", tenantActivoId)
+        if (tokenCurso) params.set("curso", tokenCurso)
+        params.set("v", String(Date.now()))
+        window.location.replace(`/asistencia/index.html?${params.toString()}`)
+    }, 3200)
 }
 
 function crearRegistroOffline({ dniRegistro, nombresValor, apellidosValor, seccionRegistro, modalidadRegistro, deviceId }) {
@@ -504,8 +542,15 @@ async function guardarAsistenciaOffline({ dniRegistro, nombresValor, apellidosVa
 
 function extraerMensajesContexto(items) {
     if (!Array.isArray(items)) return []
+    const seen = new Set()
     return items
         .filter(item => !debeOcultarMensajePublico(item))
+        .filter(item => {
+            const key = construirClaveMensajePublico(item)
+            if (!key || seen.has(key)) return false
+            seen.add(key)
+            return true
+        })
         .map(item => String(item?.message || item || "").trim())
         .filter(Boolean)
 }
@@ -929,6 +974,7 @@ function renderSeccionesMovil() {
 }
 
 async function ingresarMovilInicio() {
+    cancelarRetornoPostRegistro()
     const dniLimpio = limpiarDni(mobileDniInicio?.value)
     if (mobileDniInicio) mobileDniInicio.value = dniLimpio
     debugContextLog("ingresarMovilInicio: inicio", {
@@ -1008,6 +1054,7 @@ async function ingresarMovilInicio() {
 }
 
 function volverInicio() {
+    cancelarRetornoPostRegistro()
     formulario.style.display = "none"
     if (mobileDniInicio) mobileDniInicio.value = dniMovil
     mostrarPasoMovil("ingreso")
@@ -1200,7 +1247,7 @@ function construirWarningsRegistro(data, contextoAsistencia) {
         warnings.unshift("Registro fuera de horario.")
     }
 
-    return warnings.filter(Boolean)
+    return deduplicarMensajes(warnings.filter(Boolean))
 }
 
 async function intentarRegistrarAsistenciaV2({ dniRegistro, deviceId }) {
@@ -1395,7 +1442,7 @@ async function guardarAsistencia() {
             data
         })
 
-        resetFormularioAsistencia()
+        programarRetornoPostRegistro()
     } catch (e) {
         const guardadoOffline = await guardarAsistenciaOffline({
             dniRegistro,
