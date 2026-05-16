@@ -85,7 +85,8 @@ function detectarTenantDesdeRuta() {
 }
 
 function aplicarTenantEnUI() {
-    const label = tenantActivoId ? `Institución: ${tenantActivoId}` : "Institución no detectada"
+    const institucion = String(tenantActivoId || "").trim().replace(/-/g, " ").toUpperCase()
+    const label = institucion ? `Institución: ${institucion}` : "Institución no detectada"
     if (tenantLabel) tenantLabel.textContent = label
     document.title = tenantActivoId ? `${tenantActivoId} - asistIA Asistencia` : "asistIA Asistencia"
 }
@@ -106,6 +107,27 @@ function esErrorConexion(error) {
 function mensajeAmigable(error, fallback = "Ocurrió un problema al procesar la solicitud.") {
     if (esErrorConexion(error)) return "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente."
     return fallback
+}
+
+function escapeHTML(value = "") {
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;")
+}
+
+function aplicarReadonlyVisual(input, readOnly = false) {
+    if (!input) return
+    input.readOnly = !!readOnly
+    input.classList.toggle("is-readonly", !!readOnly)
+}
+
+function debeOcultarMensajePublico(item) {
+    const code = String(item?.code || "").trim().toLowerCase()
+    const message = String(item?.message || item || "").trim().toLowerCase()
+    return code === "device_id_ausente" || message === "no se recibió identificador de dispositivo."
 }
 
 function mostrarPasoMovil(paso) {
@@ -483,6 +505,7 @@ async function guardarAsistenciaOffline({ dniRegistro, nombresValor, apellidosVa
 function extraerMensajesContexto(items) {
     if (!Array.isArray(items)) return []
     return items
+        .filter(item => !debeOcultarMensajePublico(item))
         .map(item => String(item?.message || item || "").trim())
         .filter(Boolean)
 }
@@ -572,12 +595,9 @@ function aplicarContextoResueltoEnFormulario(contexto) {
         nombres.value = String(aspirante.nombres || nombres.value || "").trim()
         apellidos.value = String(aspirante.apellidos || apellidos.value || "").trim()
         ubo.value = String(aspirante.ubo || ubo.value || "").trim()
-        nombres.readOnly = true
-        apellidos.readOnly = true
-        ubo.readOnly = true
-        nombres.style.backgroundColor = "#f3f6fb"
-        apellidos.style.backgroundColor = "#f3f6fb"
-        ubo.style.backgroundColor = "#f3f6fb"
+        aplicarReadonlyVisual(nombres, true)
+        aplicarReadonlyVisual(apellidos, true)
+        aplicarReadonlyVisual(ubo, true)
     }
 
     const seccionContexto = normalizarCodigoSeccion(contexto.seccion)
@@ -616,6 +636,47 @@ function aplicarContextoResueltoEnFormulario(contexto) {
         contextoAsistenciaActual,
         hasRPC: tieneContextoRPCActivo()
     })
+}
+
+function construirResumenContextualHTML({ title, nombreCompleto, contexto, seccionDetectada }) {
+    const institucion = String(tenantActivoId || "").trim().replace(/-/g, " ").toUpperCase() || "Institución no detectada"
+    const seccionValor = contexto?.seccion || seccionDetectada || "Pendiente de resolver"
+    const jornadaValor = contexto?.tipo_jornada_label || formatearTipoJornadaAmigable(contexto?.jornada_label || contexto?.tipo_jornada) || "Pendiente de resolver"
+    const modalidadValor = contexto?.modalidad_label || formatearModalidadAmigable(contexto?.modalidad) || "Pendiente de resolver"
+    const estadoValor = contexto?.estado_asistencia
+        ? (contexto?.estado_asistencia_label || formatearEstadoAsistenciaAmigable(contexto.estado_asistencia))
+        : "Pendiente de resolver"
+
+    return `
+        <div class="context-card">
+            <div class="context-card-head">
+                <p class="context-title">${escapeHTML(title)}</p>
+                ${nombreCompleto ? `<p class="context-person">${escapeHTML(nombreCompleto)}</p>` : ""}
+            </div>
+            <div class="context-grid">
+                <div class="context-item">
+                    <span class="context-item-label">Institución</span>
+                    <span class="context-item-value">${escapeHTML(institucion)}</span>
+                </div>
+                <div class="context-item">
+                    <span class="context-item-label">Sección</span>
+                    <span class="context-item-value">${escapeHTML(seccionValor)}</span>
+                </div>
+                <div class="context-item">
+                    <span class="context-item-label">Jornada asignada</span>
+                    <span class="context-item-value">${escapeHTML(jornadaValor)}</span>
+                </div>
+                <div class="context-item">
+                    <span class="context-item-label">Modalidad</span>
+                    <span class="context-item-value">${escapeHTML(modalidadValor)}</span>
+                </div>
+                <div class="context-item">
+                    <span class="context-item-label">Estado esperado</span>
+                    <span class="context-item-value">${escapeHTML(estadoValor)}</span>
+                </div>
+            </div>
+        </div>
+    `
 }
 
 async function resolverCursoPorToken(token) {
@@ -805,21 +866,15 @@ function renderSeccionesMovil() {
         ? contextoRemoto
         : (contextoRemoto || construirContextoLocalAsistencia(new Date(), seccionDetectada))
     const title = cursoConfigCache?.nombre_curso || "Curso"
-    let html = `<p class="step-copy">${title}</p>`
     const nombreCompleto = `${String(nombres?.value || "").trim()} ${String(apellidos?.value || "").trim()}`
         .replace(/\s+/g, " ")
         .trim()
-    if (nombreCompleto) {
-        html += `<p class="step-copy">${nombreCompleto}</p>`
-    }
-    if (contexto?.seccion || seccionDetectada) {
-        html += `<p class="tenant-label">Sección ${contexto?.seccion || seccionDetectada}</p>`
-    }
-    html += `<p class="tenant-label">Jornada de hoy: ${contexto?.tipo_jornada_label || formatearTipoJornadaAmigable(contexto?.jornada_label || contexto?.tipo_jornada)}</p>`
-    html += `<p class="tenant-label">Modalidad: ${contexto?.modalidad_label || formatearModalidadAmigable(contexto?.modalidad) || "Pendiente de resolver"}</p>`
-    if (contexto?.estado_asistencia) {
-        html += `<p class="tenant-label">Estado asistencia: ${contexto?.estado_asistencia_label || formatearEstadoAsistenciaAmigable(contexto.estado_asistencia)}</p>`
-    }
+    let html = construirResumenContextualHTML({
+        title,
+        nombreCompleto,
+        contexto,
+        seccionDetectada
+    })
 
     if (usarContextoRPC) {
         mobileSectionsContainer.innerHTML = html
@@ -832,7 +887,7 @@ function renderSeccionesMovil() {
 
     if (!cursoSecciones.length) {
         if (!contexto?.seccion && !seccionDetectada) {
-            html += `<p class="tenant-label">No hay secciones configuradas para este curso.</p>`
+            html += `<p class="context-note">No hay secciones configuradas para este curso.</p>`
         }
         mobileSectionsContainer.innerHTML = html
         debugContextLog("renderSeccionesMovil: render sin secciones", {
@@ -852,8 +907,8 @@ function renderSeccionesMovil() {
     }
 
     html += contexto.esDomingo
-        ? `<p class="tenant-label">Selecciona tu sección de aspirante. Compatibilidad temporal para jornada dominical.</p>`
-        : `<p class="tenant-label">Selecciona tu sección de aspirante para completar el registro.</p>`
+        ? `<p class="context-note">Selecciona tu sección de aspirante. Compatibilidad temporal para jornada dominical.</p>`
+        : `<p class="context-note">Selecciona tu sección de aspirante para completar el registro.</p>`
 
     cursoSecciones.forEach(sec => {
         const dias = Array.isArray(sec.dias) ? sec.dias.join(", ") : ""
@@ -1114,13 +1169,9 @@ function limpiarCamposAspirante(resetValidacion = true) {
     apellidos.value = ""
     ubo.value = ""
 
-    nombres.readOnly = false
-    apellidos.readOnly = false
-    ubo.readOnly = false
-
-    nombres.style.backgroundColor = ""
-    apellidos.style.backgroundColor = ""
-    ubo.style.backgroundColor = ""
+    aplicarReadonlyVisual(nombres, false)
+    aplicarReadonlyVisual(apellidos, false)
+    aplicarReadonlyVisual(ubo, false)
 
     if (resetValidacion) {
         validacionCursoAspirante = { dni: "", permitido: true, legacy: false, bloqueado: false }
@@ -1333,9 +1384,9 @@ async function guardarAsistencia() {
         const warnings = construirWarningsRegistro(data, contextoAsistencia)
 
         if (warnings.length > 0) {
-            setMensaje(`✅ Registrado con alerta: ${warnings.join(" | ")}`, "warning")
+            setMensaje(`✅ Asistencia registrada. ${warnings.join(" | ")}`, "warning")
         } else {
-            setMensaje("✅ Registrado", "ok")
+            setMensaje("✅ Asistencia registrada correctamente.", "ok")
         }
 
         debugContextLog("guardarAsistencia: registro exitoso", {

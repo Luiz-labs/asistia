@@ -22,6 +22,7 @@ body {
     radial-gradient(circle at top, rgba(37, 99, 235, 0.14), transparent 30%),
     linear-gradient(180deg, #eef3ff 0%, #f7f9fc 48%, #eef1f7 100%);
   color: #162033;
+  -webkit-font-smoothing: antialiased;
 }
 
 .public-shell {
@@ -30,7 +31,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 22px 18px;
+  padding: calc(22px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));
   gap: 16px;
 }
 
@@ -41,7 +42,7 @@ body {
   border: 1px solid rgba(28, 47, 94, 0.08);
   border-radius: 28px;
   box-shadow: 0 18px 48px rgba(27, 45, 91, 0.12);
-  padding: 26px 20px 22px;
+  padding: 26px 20px 24px;
   backdrop-filter: blur(14px);
 }
 
@@ -89,7 +90,7 @@ body {
 .step-block {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .text-input {
@@ -101,6 +102,11 @@ body {
   font: inherit;
   background: #fbfcff;
   color: #162033;
+  appearance: none;
+  -webkit-appearance: none;
+  opacity: 1;
+  -webkit-text-fill-color: #162033;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
 .text-input::placeholder {
@@ -113,10 +119,19 @@ body {
   box-shadow: 0 0 0 4px var(--brand-soft);
 }
 
+.text-input[readonly],
+.text-input.is-readonly {
+  background: #fbfcff;
+  color: #162033;
+  opacity: 1;
+  -webkit-text-fill-color: #162033;
+}
+
 .step-actions {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
+  margin-top: 4px;
 }
 
 button {
@@ -147,8 +162,83 @@ button {
 .mobile-sections-container {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.context-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 246, 255, 0.96));
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  box-shadow: 0 10px 24px rgba(27, 45, 91, 0.08);
+}
+
+.context-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.context-title {
+  margin: 0;
+  font-family: "Outfit", sans-serif;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #17233a;
+}
+
+.context-person {
+  margin: 0;
+  font-size: 0.93rem;
+  font-weight: 600;
+  color: #41506d;
+  line-height: 1.45;
+}
+
+.context-grid {
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 10px;
-  margin-top: 4px;
+}
+
+.context-item {
+  padding: 12px 13px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(37, 99, 235, 0.1);
+}
+
+.context-item-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6c7a94;
+}
+
+.context-item-value {
+  display: block;
+  font-size: 0.93rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #17233a;
+}
+
+.context-note {
+  margin: 0;
+  padding: 12px 13px;
+  border-radius: 14px;
+  background: #f7faff;
+  border: 1px solid #d8e6ff;
+  color: #51627f;
+  font-size: 0.84rem;
+  line-height: 1.5;
 }
 
 .mobile-section-btn {
@@ -174,12 +264,13 @@ button {
   font-size: 12px;
   line-height: 1.55;
   color: var(--footer);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .message-box {
   min-height: 22px;
   margin: 14px 0 0;
-  padding: 0;
+  padding: 0 2px;
   font-size: 0.9rem;
   font-weight: 600;
   line-height: 1.45;
@@ -218,6 +309,10 @@ button {
 
 @media (min-width: 560px) {
   .step-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .context-grid {
     grid-template-columns: 1fr 1fr;
   }
 }
