@@ -3599,6 +3599,34 @@ function normalizarPathname(pathname) {
     return path
 }
 
+function resolverRutaPublicaModerna() {
+    const path = normalizarPathname(window.location.pathname)
+    const segments = path.replace(/^\/|\/$/g, "").split("/").filter(Boolean)
+    const slug = String(segments[0] || "").trim().toLowerCase()
+    const subruta = String(segments[1] || "").trim().toLowerCase()
+
+    if (!slug || !esSlugTenantRuteable(slug)) return null
+    if (subruta !== "asistencia" && subruta !== "staff-asistencia") return null
+
+    const params = new URLSearchParams(window.location.search || "")
+    if (!params.get("tenant")) {
+        params.set("tenant", slug)
+    }
+
+    const destinoBase = subruta === "staff-asistencia"
+        ? "/staff-asistencia/index.html"
+        : "/asistencia/index.html"
+    const qs = params.toString()
+    return qs ? `${destinoBase}?${qs}` : destinoBase
+}
+
+function redirigirRutaPublicaModernaSiCorresponde() {
+    const destino = resolverRutaPublicaModerna()
+    if (!destino) return false
+    window.location.replace(destino)
+    return true
+}
+
 function esSlugTenantRuteable(slug) {
     const limpio = String(slug || "").trim().toLowerCase()
     if (!limpio) return false
@@ -8513,6 +8541,7 @@ function actualizarEstadoChecks() {
 }
 
 window.onload = async () => {
+    if (redirigirRutaPublicaModernaSiCorresponde()) return
     if (redirigirRutaPublicaLegadaCurso()) return
     if (redirigirRutaBackofficeLegada()) return
     enlazarIdsGlobales()
