@@ -8019,7 +8019,13 @@ function renderReportesStaff(data) {
 async function cargarReportesStaff() {
     if (!tablaStaffReportes) return
     const tenantRuta = resolverAccesoDesdeRuta()
-    const tenantReporteId = String(tenantActivoId || tenantRuta?.tenantId || "").trim().toLowerCase()
+    const tenantReporteId = String(tenantRuta?.tenantId || tenantActivoId || "").trim().toLowerCase()
+
+    console.log("[asistIA-staff-report-debug] contexto tenant", {
+        tenantActivoId,
+        tenantRuta: tenantRuta?.tenantId || "",
+        tenantReporteId
+    })
 
     if (!haySupabase() || !tenantReporteId) {
         tablaStaffReportes.innerHTML = buildEmptyStateHTML(
@@ -8034,7 +8040,7 @@ async function cargarReportesStaff() {
         .from("staff_asistencias")
         .select("fecha,hora_ingreso,codigo_bombero,nombre,grado,ubo_origen,tipo_staff,jornada,tenant_id")
 
-    if (MULTITENANT_MODE && tenantScopeBackendReady) {
+    if (tenantReporteId) {
         q = q.eq("tenant_id", tenantReporteId)
     }
 
@@ -8043,12 +8049,23 @@ async function cargarReportesStaff() {
     if (staffReporteTipo?.value) q = q.eq("tipo_staff", staffReporteTipo.value)
     if (staffReporteUbo?.value) q = q.ilike("ubo_origen", `%${String(staffReporteUbo.value || "").trim()}%`)
 
+    console.log("[asistIA-staff-report-debug] filtros", {
+        desde: staffReporteDesde?.value || "",
+        hasta: staffReporteHasta?.value || "",
+        tipo: staffReporteTipo?.value || "",
+        ubo: String(staffReporteUbo?.value || "").trim()
+    })
+
     let data = []
     try {
         const response = await q
             .order("fecha", { ascending: false })
             .order("hora_ingreso", { ascending: false })
         data = response.data || []
+
+        console.log("[asistIA-staff-report-debug] filas supabase", {
+            total: data.length
+        })
 
         if (response.error) {
             console.error("Error cargando reportes staff:", response.error)
@@ -8076,6 +8093,10 @@ async function cargarReportesStaff() {
     const rowsFiltradasTenant = (data || []).filter(item =>
         String(item?.tenant_id || "").trim().toLowerCase() === tenantReporteId
     )
+
+    console.log("[asistIA-staff-report-debug] filas locales", {
+        total: rowsFiltradasTenant.length
+    })
 
     const baseRows = rowsFiltradasTenant.map(item => ({
         fecha: item.fecha || "",
