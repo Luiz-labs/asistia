@@ -7400,13 +7400,15 @@ async function cargarSedesUbo() {
 }
 
 async function cargarSeccionesCursoDesdeSupabase() {
-    let q = withTenantScope(
-        supabaseClient
-            .from("curso_jornada_reglas")
-            .select("seccion,modalidad,hora_inicio,dias_semana,activa")
-    )
-    q = q.eq("curso_id", cursoActualId || 1)
-    q = q.eq("activa", true)
+    const tenantCursoId = String(tenantActivoId || "").trim().toLowerCase()
+    const cursoId = cursoActualId || 1
+    let q = supabaseClient
+        .from("curso_jornada_reglas")
+        .select("tenant_id,curso_id,seccion,modalidad,dias_semana,hora_inicio,activa")
+        .eq("tenant_id", tenantCursoId)
+        .eq("curso_id", cursoId)
+        .eq("activa", true)
+
     const { data, error } = await q
         .order("seccion", { ascending: true })
         .order("hora_inicio", { ascending: true })
@@ -7417,7 +7419,14 @@ async function cargarSeccionesCursoDesdeSupabase() {
         return null
     }
 
-    return deduplicarSeccionesDesdeReglas(data || [])
+    const secciones = deduplicarSeccionesDesdeReglas(data || [])
+    console.debug("[asistIA-course-config-debug] cargarSeccionesCursoDesdeSupabase", {
+        tenantActivoId: tenantCursoId,
+        cursoActualId: cursoId,
+        totalFilas: Array.isArray(data) ? data.length : 0,
+        totalSecciones: secciones.length
+    })
+    return secciones
 }
 
 async function cargarSedesCursoDesdeSupabase() {
