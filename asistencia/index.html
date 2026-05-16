@@ -62,6 +62,29 @@
       const path = String(window.location.pathname || "")
       const isAsistenciaRoute = /(^|\/)asistencia(\/|$)/.test(path) && !/staff-asistencia/.test(path)
 
+      function redirigirRutaPublicaBonitaSiCorresponde() {
+        const segments = path.split("/").filter(Boolean)
+        const idxAsistencia = segments.indexOf("asistencia")
+        if (idxAsistencia <= 0) return false
+
+        const tenant = String(segments[idxAsistencia - 1] || "").trim().toLowerCase()
+        if (!tenant) return false
+
+        const params = new URLSearchParams(window.location.search || "")
+        if (!params.get("tenant")) {
+          params.set("tenant", tenant)
+        }
+
+        const destino = `/asistencia/index.html?${params.toString()}`
+        if (window.location.pathname === "/asistencia/index.html") return false
+        window.location.replace(destino)
+        return true
+      }
+
+      if (redirigirRutaPublicaBonitaSiCorresponde()) {
+        return
+      }
+
       function appendScript(src) {
         const script = document.createElement("script")
         script.src = src
