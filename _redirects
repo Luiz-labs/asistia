@@ -1,13 +1,16 @@
 # staff público multi-tenant
 /*/staff-asistencia/*     /staff-asistencia/index.html   200!
+/*/staff-asistencia/      /staff-asistencia/index.html   200!
 /*/staff-asistencia       /staff-asistencia/index.html   200!
 
 # asistencia pública multi-tenant
 /*/asistencia/*           /asistencia/index.html         200!
+/*/asistencia/            /asistencia/index.html         200!
 /*/asistencia             /asistencia/index.html         200!
 
 # backoffice institucional multi-tenant
 /*/backoffice/*           /index.html                    200!
+/*/backoffice/            /index.html                    200!
 /*/backoffice             /index.html                    200!
 
 # fallback SPA
