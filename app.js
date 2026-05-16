@@ -8018,7 +8018,10 @@ function renderReportesStaff(data) {
 
 async function cargarReportesStaff() {
     if (!tablaStaffReportes) return
-    if (!haySupabase() || !tenantActivoId) {
+    const tenantRuta = resolverAccesoDesdeRuta()
+    const tenantReporteId = String(tenantActivoId || tenantRuta?.tenantId || "").trim().toLowerCase()
+
+    if (!haySupabase() || !tenantReporteId) {
         tablaStaffReportes.innerHTML = buildEmptyStateHTML(
             "Sin conexión disponible",
             "No se pudo cargar el reporte staff porque falta Supabase o el tenant activo.",
@@ -8027,11 +8030,13 @@ async function cargarReportesStaff() {
         return
     }
 
-    let q = withTenantScope(
-        supabaseClient
-            .from("staff_asistencias")
-            .select("fecha,hora_ingreso,codigo_bombero,nombre,grado,ubo_origen,tipo_staff,jornada,tenant_id")
-    )
+    let q = supabaseClient
+        .from("staff_asistencias")
+        .select("fecha,hora_ingreso,codigo_bombero,nombre,grado,ubo_origen,tipo_staff,jornada,tenant_id")
+
+    if (MULTITENANT_MODE && tenantScopeBackendReady) {
+        q = q.eq("tenant_id", tenantReporteId)
+    }
 
     if (staffReporteDesde?.value) q = q.gte("fecha", staffReporteDesde.value)
     if (staffReporteHasta?.value) q = q.lte("fecha", staffReporteHasta.value)
@@ -8068,7 +8073,11 @@ async function cargarReportesStaff() {
         return
     }
 
-    const baseRows = filtrarDataTenantActivo(data).map(item => ({
+    const rowsFiltradasTenant = (data || []).filter(item =>
+        String(item?.tenant_id || "").trim().toLowerCase() === tenantReporteId
+    )
+
+    const baseRows = rowsFiltradasTenant.map(item => ({
         fecha: item.fecha || "",
         hora_ingreso: item.hora_ingreso || "",
         codigo_bombero: normalizarCodigoBombero(item.codigo_bombero),
