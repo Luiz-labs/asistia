@@ -2260,7 +2260,8 @@ function sincronizarTenantsDesdeInstituciones() {
 }
 
 function obtenerInstitucionLuiz(tenantId) {
-    return institucionesLuiz.find(x => x.slug === String(tenantId || ""))
+    const slug = String(tenantId || "").trim().toLowerCase()
+    return institucionesLuiz.find(x => String(x.slug || "").trim().toLowerCase() === slug)
 }
 
 function mostrarVistaLuizLabs(vista) {
@@ -3598,6 +3599,40 @@ function normalizarPathname(pathname) {
     return path
 }
 
+function esSlugTenantRuteable(slug) {
+    const limpio = String(slug || "").trim().toLowerCase()
+    if (!limpio) return false
+    if (!/^[a-z0-9][a-z0-9-]*$/i.test(limpio)) return false
+    return !["asistencia", "staff-asistencia", "backoffice", "index.html"].includes(limpio)
+}
+
+function construirTenantProvisional(slug) {
+    const limpio = String(slug || "").trim().toLowerCase()
+    if (!esSlugTenantRuteable(limpio)) return null
+
+    const institucion = obtenerInstitucionLuiz(limpio)
+    return {
+        id: limpio,
+        nombre: institucion?.nombre || limpio,
+        linea: "Módulo institucional",
+        curso: "Instrucción asistIA",
+        logo: obtenerLogoInstitucion(institucion),
+        habilitado: institucion ? institucion.estado === "activo" : true,
+        usuariosSistema: []
+    }
+}
+
+function asegurarTenantDisponible(id) {
+    const limpio = String(id || "").trim().toLowerCase()
+    if (!esSlugTenantRuteable(limpio)) return null
+    if (!TENANTS[limpio]) {
+        const provisional = construirTenantProvisional(limpio)
+        if (!provisional) return null
+        TENANTS[limpio] = provisional
+    }
+    return TENANTS[limpio] || null
+}
+
 function obtenerRutaTenant(id) {
     const clean = String(id || "").trim().replace(/^\/+|\/+$/g, "")
     return clean ? `/${clean}/` : "/"
@@ -3614,7 +3649,7 @@ function resolverAccesoDesdeRuta() {
         const segments = path.replace(/^\/|\/$/g, "").split("/").filter(Boolean)
         const slug = String(segments[0] || "").trim()
         const subruta = String(segments[1] || "").trim().toLowerCase()
-        const tenant = TENANTS[slug]
+        const tenant = asegurarTenantDisponible(slug)
         if (tenant && (!subruta || subruta === "backoffice")) {
             return { staff: false, tenantId: tenant.id }
         }
@@ -3630,7 +3665,8 @@ function redirigirRutaPublicaLegadaCurso() {
     if (path === "/" || /\/asistencia\/|\/backoffice\//i.test(path)) return false
 
     const slug = path.replace(/^\/|\/$/g, "")
-    if (!slug || !TENANTS[slug]) return false
+    if (!esSlugTenantRuteable(slug)) return false
+    asegurarTenantDisponible(slug)
 
     const destino = `/${slug}/asistencia/${window.location.search || ""}`
     window.location.replace(destino)
@@ -3642,7 +3678,8 @@ function redirigirRutaBackofficeLegada() {
     if (path === "/" || /\/asistencia\/|\/backoffice\//i.test(path)) return false
 
     const slug = path.replace(/^\/|\/$/g, "")
-    if (!slug || !TENANTS[slug]) return false
+    if (!esSlugTenantRuteable(slug)) return false
+    asegurarTenantDisponible(slug)
 
     window.location.replace(obtenerRutaTenantBackoffice(slug))
     return true
@@ -3700,11 +3737,14 @@ function aplicarAccesoDesdeRuta() {
 
 function obtenerTenantActivo() {
     const id = String(tenantActivoId || "").trim()
-    return id ? (TENANTS[id] || null) : null
+    return id ? asegurarTenantDisponible(id) : null
 }
 
 function asignarTenantActivo(id) {
-    tenantActivoId = String(id || "")
+    tenantActivoId = String(id || "").trim().toLowerCase()
+    if (tenantActivoId) {
+        asegurarTenantDisponible(tenantActivoId)
+    }
     aplicarTenantEnUI()
     actualizarInfoSesionHeader()
 }
@@ -8317,7 +8357,7 @@ function aplicarLayout() {
     if (!accesoDirectoInstitucion) {
         document.title = "asistIA - Panel Administrativo";
     } else {
-        const t = institucionesLuiz.find(x => x.id === tenantActivoId);
+        const t = obtenerInstitucionLuiz(tenantActivoId);
         document.title = (t && t.nombre ? t.nombre : "Institución") + " - Panel Administrativo";
     }
 
