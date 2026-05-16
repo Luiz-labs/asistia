@@ -3806,15 +3806,8 @@ function aplicarTenantEnUI() {
         loginCardCaption.style.display = esModoStaff ? "none" : "block"
     }
 
-    if (tenantTituloMovil) tenantTituloMovil.innerText = titulo
-    if (tenantSubtituloMovil) tenantSubtituloMovil.innerText = linea
-    if (tenantCursoMovil) tenantCursoMovil.innerText = curso
-
     if (tenantPanelTitulo) tenantPanelTitulo.innerText = `asistIA Panel Administrativo - ${titulo}`
     if (tenantLogoLoginCard) tenantLogoLoginCard.src = logoRuta
-    if (tenantLogoMovil) tenantLogoMovil.src = logoRuta
-    if (tenantLogoMovilInicio) tenantLogoMovilInicio.src = logoRuta
-    if (tenantLogoFormulario) tenantLogoFormulario.src = logoRuta
     if (tenantLogoPanel) tenantLogoPanel.src = logoRuta
 }
 
@@ -4460,9 +4453,6 @@ function irEscritorioAdmin() {
     const elTenant = document.getElementById("tenantScreen")
     const elLogin = document.getElementById("loginScreen")
     const elDesktop = document.getElementById("vistaDesktop")
-    const elFormulario = document.getElementById("formulario")
-    const elMovilInicio = document.getElementById("vistaMovilInicio")
-    const elMovil = document.getElementById("vistaMovil")
     setVistaManual("desktop")
     if (!haySesionAdminActiva()) {
         if (!esModoStaff) {
@@ -4472,10 +4462,6 @@ function irEscritorioAdmin() {
         if (elTenant) elTenant.style.display = "none"
         if (elLogin) elLogin.style.display = "flex"
         if (elDesktop) elDesktop.style.display = "none"
-        if (elFormulario) elFormulario.style.display = "none"
-        if (elMovilInicio) elMovilInicio.style.display = "none"
-        if (elMovil) elMovil.style.display = "none"
-        mostrarPasoMovil("ingreso")
     }
 }
 
@@ -4506,12 +4492,6 @@ function aplicarRangoMesActualEnFiltros() {
 }
 
 function mostrarPasoMovil(paso) {
-    console.log("mostrarPasoMovil llamado desde:", paso)
-    if (estaInputDniMovilActivo()) return
-    const elIngreso = document.getElementById("mobileStepIngreso")
-    const elScan = document.getElementById("mobileStepScan")
-    if (elIngreso) elIngreso.style.display = paso === "ingreso" ? "block" : "none"
-    if (elScan) elScan.style.display = paso === "scan" ? "block" : "none"
     aplicarVisibilidadAccesoAdminInstitucional()
 }
 
@@ -4522,6 +4502,7 @@ function seleccionarBotonSeccion(valor) {
 }
 
 function setMensaje(texto, tipo = "") {
+    if (!mensaje) return
     mensaje.className = ""
     mensaje.innerText = texto || ""
     if (!texto) return
@@ -4529,9 +4510,7 @@ function setMensaje(texto, tipo = "") {
 }
 
 function estaInputDniMovilActivo() {
-    const activeId = String(document.activeElement?.id || "")
-    if (activeId === "mobileDni" || activeId === "mobileDniInicio") return true
-    return Date.now() < inputDniFocusLockUntil
+    return false
 }
 
 function hayCampoEditableActivo() {
@@ -4553,8 +4532,6 @@ function activarLockInputDniMovil(ms = 450) {
 
 function liberarLockInputDniMovilConEspera(ms = 180) {
     window.setTimeout(() => {
-        const activeId = String(document.activeElement?.id || "")
-        if (activeId === "mobileDni" || activeId === "mobileDniInicio") return
         inputDniFocusLockUntil = 0
     }, ms)
 }
@@ -8379,20 +8356,6 @@ function obtenerClavesAlertaDispositivo(data) {
     return claves
 }
 
-function abrirScanner() {
-    if (scanningActivo) return
-    scanningActivo = true
-    scanOverlay.style.display = "flex"
-    video.style.display = "block"
-}
-
-function cerrarScanner() {
-    scanningActivo = false
-    detenerCamara()
-    scanOverlay.style.display = "none"
-    video.style.display = "none"
-}
-
 function aplicarLayout() {
     console.trace("aplicarLayout ejecutado")
     if (estaInputDniMovilActivo()) {
@@ -8403,13 +8366,9 @@ function aplicarLayout() {
     const elLogin = document.getElementById("loginScreen")
     const elDesktop = document.getElementById("vistaDesktop")
     const elLuizLabs = document.getElementById("vistaLuizLabs")
-    const elMovilInicio = document.getElementById("vistaMovilInicio")
-    const elMovil = document.getElementById("vistaMovil")
-    const elFormulario = document.getElementById("formulario")
     const elBtnInstitucion = document.getElementById("btnInstitucion")
     const elBtnVolverLuizLabs = document.getElementById("btnVolverLuizLabs")
     const vista = getVistaActiva()
-    const inputDniMovilEnUso = estaInputDniMovilActivo()
 
     // --- Lógica de Title Dinámico ---
     if (!accesoDirectoInstitucion) {
@@ -8430,13 +8389,9 @@ function aplicarLayout() {
 
     if (vista === "mobile") {
         if (puedeEntrarPanelAdmin()) {
-            cerrarScanner()
             if (elTenant) elTenant.style.display = "none"
             if (elLogin) elLogin.style.display = "none"
             if (elLuizLabs) elLuizLabs.style.display = "none"
-            if (elMovilInicio) elMovilInicio.style.display = "none"
-            if (elMovil) elMovil.style.display = "none"
-            if (elFormulario) elFormulario.style.display = "none"
             if (elDesktop) elDesktop.style.display = "block"
             aplicarRestriccionesPanelPorContexto()
             if (!vistaAdminActual) {
@@ -8444,15 +8399,10 @@ function aplicarLayout() {
             }
         } else {
             if (!esModoStaff) {
-                cerrarScanner()
                 if (elTenant) elTenant.style.display = "none"
                 if (elLogin) elLogin.style.display = "flex"
                 if (elDesktop) elDesktop.style.display = "none"
                 if (elLuizLabs) elLuizLabs.style.display = "none"
-                if (elMovilInicio) elMovilInicio.style.display = "none"
-                if (elMovil) elMovil.style.display = "none"
-                if (elFormulario) elFormulario.style.display = "none"
-                mostrarPasoMovil("ingreso")
                 actualizarBotonesVista()
                 aplicarVisibilidadAccesoAdminInstitucional()
                 return
@@ -8461,9 +8411,6 @@ function aplicarLayout() {
                 if (elTenant) elTenant.style.display = "none"
                 if (elLogin) elLogin.style.display = "none"
                 if (elDesktop) elDesktop.style.display = "none"
-                if (elMovilInicio) elMovilInicio.style.display = "none"
-                if (elMovil) elMovil.style.display = "none"
-                if (elFormulario) elFormulario.style.display = "none"
                 if (elLuizLabs) elLuizLabs.style.display = "block"
                 renderPanelLuizLabs()
                 return
@@ -8472,21 +8419,9 @@ function aplicarLayout() {
             if (elLogin) elLogin.style.display = "none"
             if (elDesktop) elDesktop.style.display = "none"
             if (elLuizLabs) elLuizLabs.style.display = "none"
-            if (!inputDniMovilEnUso) {
-                if (elMovilInicio) elMovilInicio.style.display = dniMovil ? "none" : "flex"
-                if (elMovil) elMovil.style.display = dniMovil ? "block" : "none"
-            }
-
-            if (!inputDniMovilEnUso && elFormulario && elFormulario.style.display !== "block") {
-                mostrarPasoMovil(dniMovil ? "scan" : "ingreso")
-            }
+            if (elTenant) elTenant.style.display = "flex"
         }
     } else {
-        cerrarScanner()
-        if (elMovilInicio) elMovilInicio.style.display = "none"
-        if (elMovil) elMovil.style.display = "none"
-        if (elFormulario) elFormulario.style.display = "none"
-
         if (puedeEntrarPanelLuizLabs()) {
             if (elTenant) elTenant.style.display = "none"
             if (elLogin) elLogin.style.display = "none"
@@ -8506,10 +8441,6 @@ function aplicarLayout() {
                 if (elLogin) elLogin.style.display = "flex"
                 if (elDesktop) elDesktop.style.display = "none"
                 if (elLuizLabs) elLuizLabs.style.display = "none"
-                if (elMovilInicio) elMovilInicio.style.display = "none"
-                if (elMovil) elMovil.style.display = "none"
-                if (elFormulario) elFormulario.style.display = "none"
-                mostrarPasoMovil("ingreso")
                 actualizarBotonesVista()
                 aplicarVisibilidadAccesoAdminInstitucional()
                 return
@@ -9143,361 +9074,8 @@ function logout() {
     location.reload()
 }
 
-/* QR */
-let stream, seccion = ""
-
-function renderSeccionesMovil() {
-    const container = document.getElementById("mobileSectionsContainer")
-    if (!container) return
-
-    const seccionDetectada = obtenerSeccionAspiranteDetectada()
-    seccion = seccionDetectada || ""
-    seleccionarBotonSeccion(seccion)
-    container.innerHTML = ""
-    const contexto = resolverContextoAsistencia(new Date(), seccionDetectada)
-    const nombre = cursoConfigCache?.nombre_curso || "Curso"
-    let html = `<p style="font-size:14px;color:#555;margin-bottom:4px;font-weight:700;text-transform:uppercase;">${nombre}</p>`
-    const nombreCompleto = `${String(nombres?.value || "").trim()} ${String(apellidos?.value || "").trim()}`.replace(/\s+/g, " ").trim()
-    if (nombreCompleto) {
-        html += `<p style="font-size:16px;color:#27364f;margin-bottom:8px;font-weight:700;">${nombreCompleto}</p>`
-    }
-    if (seccionDetectada) {
-        html += `<p style="font-size:13px;color:#777;margin-bottom:8px;">Sección ${seccionDetectada}</p>`
-    }
-    html += `<p style="font-size:13px;color:#777;margin-bottom:8px;">Jornada de hoy: ${formatearTipoJornadaAmigable(contexto.jornada_label)}</p>`
-    html += `<p style="font-size:13px;color:#777;margin-bottom:12px;">Modalidad: ${formatearModalidadAmigable(contexto.modalidad) || "Pendiente de resolver"}</p>`
-
-    if (!cursoSecciones || cursoSecciones.length === 0) {
-        if (!seccionDetectada) {
-            html += `<p style="color:#666;font-size:14px;padding:10px;">No hay secciones configuradas para este curso.</p>`
-        }
-        container.innerHTML = html
-        return
-    }
-
-    if (seccionDetectada) {
-        container.innerHTML = html
-        return
-    }
-
-    html += contexto.esDomingo
-        ? "<p style=\"font-size:13px;color:#777;margin-bottom:12px;\">Selecciona tu sección de aspirante. Compatibilidad temporal para jornada dominical.</p>"
-        : "<p style=\"font-size:13px;color:#777;margin-bottom:12px;\">Selecciona tu sección de aspirante para registrar asistencia.</p>"
-    cursoSecciones.forEach(sec => {
-        const d = Array.isArray(sec.dias) ? sec.dias.join(", ") : ""
-        const modalidadLabel = formatearModalidadAmigable(sec.modalidad)
-        const label = `Sección ${sec.seccion}${d ? ` · ${d}` : ""}${modalidadLabel ? ` · ${modalidadLabel}` : ""}`
-        html += `<button class="mobile-section-btn" data-seccion="${sec.seccion}" onclick="setSeccion('${sec.seccion}')">${label}</button>`
-    })
-
-    container.innerHTML = html
-}
-
-function ingresarMovilInicio() {
-    const input = document.getElementById("mobileDniInicio")
-    const dniLimpio = (input?.value || "").replace(/\D/g, "").slice(0, 8)
-    if (input) input.value = dniLimpio
-
-    if (!dniLimpio) {
-        alert("Ingresa tu DNI para continuar")
-        return
-    }
-
-    dniMovil = dniLimpio
-    if (mobileDni) mobileDni.value = dniLimpio
-
-    vistaMovilInicio.style.display = "none"
-    vistaMovil.style.display = "block"
-    mostrarPasoMovil("scan")
-}
-
-function ingresarMovil() {
-    const dniLimpio = (mobileDni.value || "").replace(/\D/g, "").slice(0, 8)
-    mobileDni.value = dniLimpio
-
-    if (!dniLimpio) {
-        alert("Ingresa tu DNI para continuar")
-        return
-    }
-
-    dniMovil = dniLimpio
-    mostrarPasoMovil("scan")
-}
-
-function iniciarEscaneo() {
-    if (!dniMovil) {
-        alert("Primero ingresa tu DNI")
-        mostrarPasoMovil("ingreso")
-        return
-    }
-
-    abrirScanner()
-
-    navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }
-    })
-        .then(s => {
-            stream = s
-            video.srcObject = s
-            video.play()
-            scanQR()
-        })
-        .catch(err => {
-            cerrarScanner()
-            alert("Error cámara: " + err)
-            console.error(err)
-        })
-}
-
-async function scanQR() {
-    if (!scanningActivo) return
-
-    const ctx = canvas.getContext("2d")
-
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.width = video.videoWidth
-        canvas.height = video.videoHeight
-        ctx.drawImage(video, 0, 0)
-
-        const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        const code = jsQR(img.data, img.width, img.height)
-
-        if (code) {
-            cerrarScanner()
-
-            const tokenQR = obtenerCursoTokenDesdeTextoQR(code.data) || obtenerCursoTokenDesdeURL()
-            const cursoValido = await resolverCursoPorToken(tokenQR)
-
-            if (!cursoValido || !cursoQRValido) {
-                setMensaje("⚠ Acceso no válido. Escanee el código QR oficial del curso.", "error")
-                vistaMovil.style.display = "block"
-                formulario.style.display = "none"
-                mostrarPasoMovil(dniMovil ? "scan" : "ingreso")
-                aplicarVisibilidadAccesoAdminInstitucional()
-                return
-            }
-
-            setMensaje("", "")
-            renderSeccionesMovil()
-            vistaMovil.style.display = "none"
-            formulario.style.display = "block"
-            aplicarVisibilidadAccesoAdminInstitucional()
-
-            return
-        }
-    }
-    requestAnimationFrame(scanQR)
-}
-
-function detenerCamara() {
-    if (stream) stream.getTracks().forEach(t => t.stop())
-}
-
-function volverInicio() {
-    cerrarScanner()
-    formulario.style.display = "none"
-    vistaMovil.style.display = "block"
-    mostrarPasoMovil(dniMovil ? "scan" : "ingreso")
-    aplicarVisibilidadAccesoAdminInstitucional()
-    setMensaje("")
-}
-
-function setSeccion(s) {
-    seccion = normalizarCodigoSeccion(s)
-    seleccionarBotonSeccion(seccion)
-}
-
-function getDeviceId() {
-    let id = localStorage.getItem("dev")
-    if (!id) {
-        id = "dev-" + Math.random()
-        localStorage.setItem("dev", id)
-    }
-    return id
-}
-
-async function guardarAsistencia() {
-    const dniRegistro = (dniMovil || mobileDni.value || "").replace(/\D/g, "")
-    const nombresValor = (nombres.value || "").trim()
-    const apellidosValor = (apellidos.value || "").trim()
-    const uboValor = (ubo.value || "").replace(/\D/g, "")
-    const deviceId = getDeviceId()
-    const nombreCompleto = `${nombresValor} ${apellidosValor}`.replace(/\s+/g, " ").trim()
-    const now = new Date()
-    const fechaHoy = now.toISOString().slice(0, 10)
-    const horaHoy = now.toTimeString().slice(0, 8)
-    const seccionBase = seccion || obtenerSeccionAspiranteDetectada()
-    const contextoAsistencia = resolverContextoAsistencia(now, seccionBase)
-    const seccionRegistro = contextoAsistencia.seccion
-
-    if (!dniRegistro) {
-        setMensaje("⚠ DNI no válido", "error")
-        return
-    }
-
-    if (!cursoQRValido) {
-        setMensaje("⚠ Acceso no válido. Escanee el código QR del curso.", "error")
-        return
-    }
-
-    if (
-        validacionCursoAspirante?.dni === dniRegistro &&
-        validacionCursoAspirante?.bloqueado
-    ) {
-        setMensaje("⚠ El aspirante no pertenece al curso de este QR.", "error")
-        return
-    }
-
-    if (!nombresValor || !apellidosValor) {
-        setMensaje("⚠ Completa nombres y apellidos", "error")
-        return
-    }
-
-    if (!uboValor) {
-        setMensaje("⚠ UBO debe ser numérico", "error")
-        return
-    }
-
-    if (!seccionRegistro) {
-        setMensaje("⚠ Selecciona una sección", "error")
-        return
-    }
-
-    // Lógica local de dispositivos y duplicados delegada a la RPC rpc_registrar_asistencia
-
-    if (cursoConfigCache?.gps_activo) {
-        if (cursoConfigCache.fecha_inicio && fechaHoy < cursoConfigCache.fecha_inicio) {
-            setMensaje("⚠ El curso aún no inicia para marcar asistencia", "error")
-            return
-        }
-
-        if (cursoConfigCache.fecha_fin && fechaHoy > cursoConfigCache.fecha_fin) {
-            setMensaje("⚠ El curso ya finalizó para marcar asistencia", "error")
-            return
-        }
-
-        const radio = Number(cursoConfigCache?.radio_m || 50)
-
-        const sedesAsignadas = cursoSedesUbo.filter(s => String(s.seccion).toUpperCase() === String(seccionRegistro).toUpperCase() && s.ubo)
-
-        if (sedesAsignadas.length === 0) {
-            setMensaje(`⚠ No hay UBO sede configurada para Sección ${seccionRegistro}`, "error")
-            return
-        }
-
-        let coords
-        try {
-            coords = await obtenerGeoActual()
-        } catch (err) {
-            setMensaje("⚠ No se pudo obtener GPS del dispositivo", "error")
-            return
-        }
-
-        let enRango = false
-        let detalleErrorUbos = []
-        let menorDistancia = Infinity
-        let uboMasCercano = null
-
-        for (const asignada of sedesAsignadas) {
-            const uboSedeReq = asignada.ubo
-            const sedeCache = ubosSedeCache.find(x => String(x.ubo) === String(uboSedeReq))
-
-            if (!sedeCache || sedeCache.lat == null || sedeCache.lng == null) {
-                detalleErrorUbos.push(`La UBO sede ${uboSedeReq} no tiene coordenadas`)
-                continue
-            }
-
-            const dist = distanciaMetros(
-                Number(coords.latitude), Number(coords.longitude),
-                Number(sedeCache.lat), Number(sedeCache.lng)
-            )
-
-            if (dist <= radio) {
-                enRango = true
-                break
-            }
-
-            if (dist < menorDistancia) {
-                menorDistancia = dist
-                uboMasCercano = uboSedeReq
-            }
-        }
-
-        if (!enRango) {
-            if (uboMasCercano === null) {
-                setMensaje(`⚠ ${detalleErrorUbos[0] || "No hay UBO válida con coordenadas"}`, "error")
-                return
-            }
-
-            await registrarAlerta({
-                fecha: fechaHoy,
-                hora: horaHoy,
-                dni: dniRegistro,
-                nombre: nombreCompleto,
-                ubo: uboValor,
-                seccion: seccionRegistro,
-                tipo: "fuera_rango_gps",
-                detalle: `Fuera de rango (${Math.round(menorDistancia)}m de UBO ${uboMasCercano}, radio ${radio}m)`,
-                device_id: deviceId,
-                lat: Number(coords.latitude),
-                lng: Number(coords.longitude),
-                ubo_sede: String(uboMasCercano),
-                distancia_m: Math.round(menorDistancia),
-                radio_m: radio
-            })
-
-            alert("⚠ Usted se encuentra fuera del rango de la(s) UBO(s) sede(s). No se permite marcar asistencia.")
-            setMensaje("⚠ Fuera de rango GPS. Registro bloqueado.", "error")
-            return
-        }
-    }
-
-    let lat = 0, lng = 0;
-    try {
-        if (typeof coords !== 'undefined' && coords) {
-            lat = Number(coords.latitude);
-            lng = Number(coords.longitude);
-        }
-    } catch (e) { }
-
-    const { data, error } = await supabaseClient.rpc('rpc_registrar_asistencia', {
-        p_dni: dniRegistro,
-        p_tenant_id: tenantActivoId,
-        p_seccion: seccionRegistro,
-        p_latitud: lat,
-        p_longitud: lng,
-        p_device_id: deviceId,
-        p_timestamp_local: new Date().toISOString(),
-        p_curso_id: cursoActualId || 1,
-        p_origen_registro: "qr_publico"
-    });
-
-    if (error) {
-        console.error("Error RPC asistencia:", error);
-        setMensaje("⚠ Error de comunicación con el servidor", "error");
-        return;
-    }
-
-    if (!data.success) {
-        setMensaje(`⚠ ${data.message}`, "error");
-        return;
-    }
-
-    if (data.warning) {
-        const warnMsgs = Array.isArray(data.warnings) ? data.warnings.join(" | ") : "Atención requerida";
-        alert(`⚠ Atención: ${warnMsgs}`);
-        setMensaje(`✅ Registrado con alerta: ${warnMsgs}`, "warning");
-    } else {
-        setMensaje("✅ Registrado", "ok");
-    }
-
-    nombres.value = ""
-    apellidos.value = ""
-    ubo.value = ""
-    perfilAspiranteActual = { dni: "", seccion: "" }
-    seccion = ""
-    seleccionarBotonSeccion("")
-}
+/* Legacy public attendance flow removed.
+   The only public attendance flow now lives in /asistencia/index.html. */
 
 /* ADMIN */
 async function cargarDatos() {
@@ -11216,167 +10794,6 @@ tenantAdminUser?.addEventListener("keydown", (e) => {
     }
 })
 
-let debounceTimerAutocompletar = null;
-
-async function procesarAutocompletadoDni(dniValue) {
-    const dniLimpio = (dniValue || "").replace(/\D/g, "").slice(0, 8);
-    if (dniLimpio.length === 8) {
-        clearTimeout(debounceTimerAutocompletar);
-        debounceTimerAutocompletar = setTimeout(async () => {
-            if (!haySupabase() || !tenantActivoId) return;
-            try {
-                const cursoEsperado = Number(cursoActualId || 1) || 1
-                let data = null
-                let error = null
-
-                ;({ data, error } = await supabaseClient
-                    .from('aspirantes')
-                    .select('nombres, apellidos, ubo, curso_id, seccion')
-                    .eq('dni', dniLimpio)
-                    .eq('tenant_id', tenantActivoId)
-                    .single())
-
-                if (error && /seccion/i.test(String(error.message || ""))) {
-                    const fallback = await supabaseClient
-                        .from('aspirantes')
-                        .select('nombres, apellidos, ubo, curso_id')
-                        .eq('dni', dniLimpio)
-                        .eq('tenant_id', tenantActivoId)
-                        .single()
-                    data = fallback.data
-                    error = fallback.error
-                }
-
-                if (data && !error) {
-                    const cursoAspirante = data.curso_id == null ? null : Number(data.curso_id)
-
-                    if (cursoAspirante != null && cursoAspirante !== cursoEsperado) {
-                        perfilAspiranteActual = { dni: "", seccion: "" }
-                        validacionCursoAspirante = {
-                            dni: dniLimpio,
-                            permitido: false,
-                            legacy: false,
-                            bloqueado: true
-                        }
-                        limpiarCamposAspirante(false);
-                        setMensaje("⚠ El aspirante no pertenece al curso de este QR.", "error");
-                        return;
-                    }
-
-                    if (cursoAspirante == null) {
-                        console.warn("Aspirante sin curso_id; compatibilidad legacy aplicada para DNI:", dniLimpio)
-                    }
-
-                    validacionCursoAspirante = {
-                        dni: dniLimpio,
-                        permitido: true,
-                        legacy: cursoAspirante == null,
-                        bloqueado: false
-                    }
-                    perfilAspiranteActual = {
-                        dni: dniLimpio,
-                        seccion: esSeccionLegacy(data.seccion) ? "" : normalizarCodigoSeccion(data.seccion)
-                    }
-                    nombres.value = data.nombres || "";
-                    apellidos.value = data.apellidos || "";
-                    ubo.value = data.ubo || "";
-
-                    nombres.readOnly = true;
-                    apellidos.readOnly = true;
-                    ubo.readOnly = true;
-                    if (ubo.tagName === "SELECT") ubo.disabled = true;
-
-                    nombres.style.backgroundColor = "#f0f4f8";
-                    apellidos.style.backgroundColor = "#f0f4f8";
-                    ubo.style.backgroundColor = "#f0f4f8";
-                    if (formulario?.style.display !== "none") {
-                        renderSeccionesMovil()
-                    }
-                    setMensaje("");
-                } else {
-                    perfilAspiranteActual = { dni: "", seccion: "" }
-                    limpiarCamposAspirante();
-                    setMensaje("⚠ El DNI ingresado no existe en el padrón de la institución.", "warning");
-                }
-            } catch (e) {
-                console.error("Error al autocompletar aspirante:", e);
-                perfilAspiranteActual = { dni: "", seccion: "" }
-                limpiarCamposAspirante();
-            }
-        }, 300);
-    } else {
-        limpiarCamposAspirante();
-        setMensaje("");
-    }
-}
-
-function limpiarCamposAspirante(resetValidacion = true) {
-    nombres.value = "";
-    apellidos.value = "";
-    ubo.value = "";
-
-    nombres.readOnly = false;
-    apellidos.readOnly = false;
-    ubo.readOnly = false;
-    if (ubo.tagName === "SELECT") ubo.disabled = false;
-
-    nombres.style.backgroundColor = "";
-    apellidos.style.backgroundColor = "";
-    ubo.style.backgroundColor = "";
-
-    if (resetValidacion) {
-        validacionCursoAspirante = { dni: "", permitido: true, legacy: false, bloqueado: false }
-        perfilAspiranteActual = { dni: "", seccion: "" }
-    }
-}
-
-mobileDni?.addEventListener("input", () => {
-    mobileDni.value = mobileDni.value.replace(/\D/g, "").slice(0, 8)
-    procesarAutocompletadoDni(mobileDni.value)
-})
-
-mobileDniInicio?.addEventListener("input", () => {
-    mobileDniInicio.value = mobileDniInicio.value.replace(/\D/g, "").slice(0, 8)
-    procesarAutocompletadoDni(mobileDniInicio.value)
-})
-
-mobileDni?.addEventListener("focus", () => {
-    console.log("FOCUS DNI", "mobileDni")
-    activarLockInputDniMovil()
-})
-
-mobileDniInicio?.addEventListener("focus", () => {
-    console.log("FOCUS DNI", "mobileDniInicio")
-    activarLockInputDniMovil()
-})
-
-mobileDni?.addEventListener("blur", (event) => {
-    console.log("BLUR DNI", "mobileDni", "relatedTarget:", event.relatedTarget)
-    console.trace("blur detectado")
-    liberarLockInputDniMovilConEspera()
-})
-
-mobileDniInicio?.addEventListener("blur", (event) => {
-    console.log("BLUR DNI", "mobileDniInicio", "relatedTarget:", event.relatedTarget)
-    console.trace("blur detectado")
-    liberarLockInputDniMovilConEspera()
-})
-
-mobileDni?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-        ingresarMovil()
-    }
-})
-
-mobileDniInicio?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-        ingresarMovilInicio()
-    }
-})
-
-ubo?.addEventListener("input", () => {
-    ubo.value = ubo.value.replace(/\D/g, "")
-})
 
 cursoNombre?.addEventListener("input", () => {
     cursoNombre.value = cursoNombre.value.toUpperCase()
