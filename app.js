@@ -4611,6 +4611,49 @@ function diasTexto(dias) {
     return arr.length ? arr.join(", ") : "-"
 }
 
+function diasSemanaReglasTexto(dias = []) {
+    const mapa = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
+    const únicos = Array.from(new Set(
+        (Array.isArray(dias) ? dias : [])
+            .map(valor => Number(valor))
+            .filter(valor => Number.isInteger(valor) && valor >= 0 && valor <= 6)
+    ))
+    únicos.sort((a, b) => a - b)
+    return únicos.map(valor => mapa[valor]).filter(Boolean)
+}
+
+function deduplicarSeccionesDesdeReglas(rows = []) {
+    const map = new Map()
+    rows.forEach(item => {
+        const seccion = normalizarCodigoSeccion(item?.seccion)
+        if (!seccion) return
+
+        if (!map.has(seccion)) {
+            map.set(seccion, {
+                seccion,
+                modalidad: normalizarModalidad(item?.modalidad || "PRESENCIAL"),
+                hora_inicio: item?.hora_inicio || "",
+                dias: diasSemanaReglasTexto(item?.dias_semana),
+                activa: item?.activa !== false
+            })
+            return
+        }
+
+        const actual = map.get(seccion)
+        const dias = Array.from(new Set([...(actual.dias || []), ...diasSemanaReglasTexto(item?.dias_semana)]))
+        actual.dias = dias
+        actual.activa = actual.activa || item?.activa !== false
+        if (!actual.hora_inicio && item?.hora_inicio) actual.hora_inicio = item.hora_inicio
+        if (!actual.modalidad && item?.modalidad) actual.modalidad = normalizarModalidad(item.modalidad)
+    })
+
+    return Array.from(map.values()).sort((a, b) => {
+        const secCmp = String(a.seccion || "").localeCompare(String(b.seccion || ""))
+        if (secCmp !== 0) return secCmp
+        return String(a.hora_inicio || "").localeCompare(String(b.hora_inicio || ""))
+    })
+}
+
 function normalizarTextoDia(txt) {
     return String(txt || "")
         .normalize("NFD")
@@ -4960,6 +5003,10 @@ function normalizarOrigenRegistroLabel(origen) {
     return raw.replace(/_/g, " ").replace(/\b\w/g, char => char.toUpperCase())
 }
 
+function formatearHoraVisible(valor) {
+    return String(valor || "").trim().slice(0, 8)
+}
+
 function exportarReportesExcel() {
     if (!cacheReportes.length) {
         alert("No hay datos para exportar")
@@ -4974,7 +5021,7 @@ function exportarReportesExcel() {
         Seccion_Aspirante: formatearSeccionRegistro(r.seccion, r.jornada),
         Modalidad: formatearModalidadAmigable(r.modalidad),
         Fecha: r.fecha || "",
-        Hora: r.hora || "",
+        Hora: formatearHoraVisible(r.hora || ""),
         Origen: r.origen || "",
         Import_Batch_ID: r.import_batch_id || "",
         Fuente_Importacion: r.fuente_importacion || r.archivo_origen || "",
@@ -7353,23 +7400,24 @@ async function cargarSedesUbo() {
 }
 
 async function cargarSeccionesCursoDesdeSupabase() {
-    let q = withTenantScope(supabaseClient.from("curso_secciones").select("*"))
+    let q = withTenantScope(
+        supabaseClient
+            .from("curso_jornada_reglas")
+            .select("seccion,modalidad,hora_inicio,dias_semana,activa")
+    )
     q = q.eq("curso_id", cursoActualId || 1)
+    q = q.eq("activa", true)
     const { data, error } = await q
         .order("seccion", { ascending: true })
+        .order("hora_inicio", { ascending: true })
 
     if (error) {
         if (esTablaNoExiste(error)) return null
-        console.warn("No se pudo cargar curso_secciones:", error.message)
+        console.warn("No se pudo cargar curso_jornada_reglas:", error.message)
         return null
     }
 
-    return (data || []).map(x => ({
-        seccion: normalizarCodigoSeccion(x.seccion),
-        modalidad: normalizarModalidad(x.modalidad || "PRESENCIAL"),
-        hora_inicio: x.hora_inicio || "",
-        dias: Array.isArray(x.dias) ? x.dias : []
-    })).filter(x => x.seccion)
+    return deduplicarSeccionesDesdeReglas(data || [])
 }
 
 async function cargarSedesCursoDesdeSupabase() {
@@ -8162,10 +8210,29 @@ function actualizarUIModoEdicionSeccion() {
     const banner = document.getElementById("courseSecEditBanner")
     const label = document.getElementById("courseSecEditLabel")
     const module = document.getElementById("courseModuleSecciones")
+    const legacyDisabled = true
+    const inputs = [
+        document.getElementById("secCursoNombre"),
+        document.getElementById("secCursoModalidad"),
+        document.getElementById("secCursoHora"),
+        document.getElementById("secCursoDiasSelect")
+    ]
     const editing = editSeccionCursoIndex >= 0
-    if (btn) btn.textContent = editing ? "GUARDAR CAMBIOS" : "CREAR SECCIÓN"
-    if (btnCancel) btnCancel.textContent = editing ? "Cancelar edición" : "Limpiar formulario"
-    if (banner) banner.hidden = !editing
+    if (btn) {
+        btn.textContent = "SOLO LECTURA"
+        btn.disabled = legacyDisabled
+        btn.title = "La edición se migrará al modelo backend-driven."
+    }
+    if (btnCancel) {
+        btnCancel.textContent = "Solo lectura"
+        btnCancel.disabled = legacyDisabled
+    }
+    inputs.forEach(input => {
+        if (!input) return
+        input.disabled = legacyDisabled
+        input.title = "La edición se migrará al modelo backend-driven."
+    })
+    if (banner) banner.hidden = true
     if (label && editing) {
         const item = cursoSecciones[editSeccionCursoIndex]
         label.textContent = item ? String(item.seccion || "").trim() || "—" : "—"
@@ -9104,8 +9171,8 @@ function renderTabla(data) {
         .filter(r => r.estado !== "retirado")
         .slice()
         .sort((a, b) => {
-            const aKey = `${a.fecha || ""} ${a.hora || ""}`
-            const bKey = `${b.fecha || ""} ${b.hora || ""}`
+            const aKey = `${a.fecha || ""} ${formatearHoraVisible(a.hora || "")}`
+            const bKey = `${b.fecha || ""} ${formatearHoraVisible(b.hora || "")}`
             return bKey.localeCompare(aKey)
         })
     const hayFiltroUbo = !!String(filtroUbo?.value || "").trim()
@@ -9151,7 +9218,7 @@ function renderTabla(data) {
             seccion: r.seccion || "",
             modalidad: resolverModalidadRegistro(r),
             fecha: r.fecha || "",
-            hora: r.hora || "",
+            hora: formatearHoraVisible(r.hora || ""),
             origen: normalizarOrigenRegistroLabel(r.origen_registro),
             import_batch_id: r.import_batch_id || "",
             fuente_importacion: r.fuente_importacion || "",
@@ -9170,7 +9237,7 @@ function renderTabla(data) {
         <td>${formatearSeccionRegistro(r.seccion, r.tipo_jornada)}</td>
         <td>${formatearModalidadAmigable(resolverModalidadRegistro(r)) || "-"}</td>
         <td>${r.fecha}</td>
-        <td>${r.hora}</td>
+        <td>${formatearHoraVisible(r.hora)}</td>
         <td>${escapeHtml(normalizarOrigenRegistroLabel(r.origen_registro) || "-")}</td>
         <td>
           <span class="badge-alerta ${hayAlerta ? "warn" : "ok"}">
@@ -9221,6 +9288,8 @@ async function cargarAlertasReporte() {
     }
 
     const { data, error } = await q
+        .order("fecha", { ascending: false })
+        .order("hora", { ascending: false })
 
     if (error) {
         console.warn("No se pudo cargar asistencia_alertas:", error.message)
@@ -10311,8 +10380,8 @@ function renderSeccionesCurso() {
     if (!cursoSecciones.length) {
         tablaSeccionesCurso.innerHTML = buildEmptyTableRow(
             5,
-            "Sin secciones creadas",
-            "Todavia no hay secciones registradas para el curso activo.",
+            "Sin secciones sincronizadas",
+            "No se encontraron reglas activas en curso_jornada_reglas para el curso activo.",
             "🗂️"
         )
         return
@@ -10327,12 +10396,7 @@ function renderSeccionesCurso() {
         <td>${s.modalidad}</td>
         <td>${s.hora_inicio || "-"}</td>
         <td>${diasTexto(s.dias)}</td>
-        <td>
-          <div class="table-actions">
-            <button onclick="editarSeccionCurso(${idx})">Modificar</button>
-            <button class="secondary" onclick="eliminarSeccionCurso(${idx})">Eliminar</button>
-          </div>
-        </td>
+        <td>${s.activa ? "Sí" : "No"}</td>
       </tr>
     `
     })

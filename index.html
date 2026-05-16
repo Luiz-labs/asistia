@@ -1127,9 +1127,8 @@
 
             <div class="course-module" id="courseModuleSecciones">
             <h4>Secciones del curso</h4>
-            <p class="hint course-module-hint">Crea una sección nueva o usa <strong>Modificar</strong> en la tabla
-              para
-              editarla.</p>
+            <p class="hint course-module-hint">Configuración sincronizada con reglas reales del backend.</p>
+            <p class="hint course-module-hint">Las secciones se leen desde <code>curso_jornada_reglas</code>. La edición desde este bloque está deshabilitada temporalmente mientras se migra el CRUD al modelo backend-driven.</p>
             <div id="courseSecEditBanner" class="course-edit-banner" hidden>
               <span class="course-edit-badge">Modo edición</span>
               <span class="course-edit-banner-text">Estás editando: <strong id="courseSecEditLabel"></strong></span>
@@ -1178,7 +1177,7 @@
                     <th>Modalidad</th>
                     <th>Hora Inicio</th>
                     <th>Días</th>
-                    <th>Acciones</th>
+                    <th>Activa</th>
                   </tr>
                 </thead>
                 <tbody id="tablaSeccionesCurso"></tbody>
