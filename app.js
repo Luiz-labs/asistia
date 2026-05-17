@@ -9322,6 +9322,7 @@ async function cargarAlertasReporte() {
     let q = withTenantScope(supabaseClient
         .from("asistencia_alertas")
         .select("*")
+        .eq("curso_id", cursoActualId || 1)
         .order("fecha", { ascending: false })
         .order("hora", { ascending: false })
         .limit(120))
@@ -9607,6 +9608,7 @@ async function cargarDashboard() {
     let alertasQ = withTenantScope(supabaseClient
         .from("asistencia_alertas")
         .select("id", { count: "exact", head: true })
+        .eq("curso_id", cursoActualId || 1)
         .eq("tipo", "dni_en_otro_dispositivo"))
 
     if (dashDesde.value) {
@@ -9626,7 +9628,8 @@ async function cargarDashboard() {
 
     let alertasDetalleQ = withTenantScope(supabaseClient
         .from("asistencia_alertas")
-        .select("fecha,hora,dni,nombre,ubo,seccion,detalle,device_id")
+        .select("fecha,hora,dni,nombre,ubo,seccion,detalle,device_id,tenant_id,curso_id")
+        .eq("curso_id", cursoActualId || 1)
         .eq("tipo", "dni_en_otro_dispositivo")
         .order("fecha", { ascending: false })
         .order("hora", { ascending: false })
