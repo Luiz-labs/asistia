@@ -9481,13 +9481,14 @@ async function cargarDashboardStaffOperativo() {
         return
     }
 
-    let presentesQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("fecha", hoy))
-    let adjuntosQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("fecha", hoy).eq("tipo_staff", "ADJUNTO"))
-    let apoyosQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("fecha", hoy).eq("tipo_staff", "APOYO"))
+    let presentesQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("fecha", hoy).eq("curso_id", cursoActualId || 1))
+    let adjuntosQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("fecha", hoy).eq("tipo_staff", "ADJUNTO").eq("curso_id", cursoActualId || 1))
+    let apoyosQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("fecha", hoy).eq("tipo_staff", "APOYO").eq("curso_id", cursoActualId || 1))
     let ultimaQ = withTenantScope(
         supabaseClient
             .from("staff_asistencias")
-            .select("fecha,hora_ingreso,codigo_bombero,nombre,tipo_staff,ubo_origen")
+            .select("fecha,hora_ingreso,codigo_bombero,nombre,tipo_staff,ubo_origen,tenant_id,curso_id")
+            .eq("curso_id", cursoActualId || 1)
             .order("fecha", { ascending: false })
             .order("hora_ingreso", { ascending: false })
             .limit(1)
@@ -9495,7 +9496,8 @@ async function cargarDashboardStaffOperativo() {
     let recientesQ = withTenantScope(
         supabaseClient
             .from("staff_asistencias")
-            .select("fecha,hora_ingreso,codigo_bombero,nombre,tipo_staff,jornada,ubo_origen")
+            .select("fecha,hora_ingreso,codigo_bombero,nombre,tipo_staff,jornada,ubo_origen,tenant_id,curso_id")
+            .eq("curso_id", cursoActualId || 1)
             .gte("fecha", from)
             .lte("fecha", to)
             .order("fecha", { ascending: false })
