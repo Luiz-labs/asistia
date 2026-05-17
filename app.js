@@ -691,20 +691,108 @@ async function insertarActividadLogEnSupabase(entry) {
 }
 
 async function hidratarActividadLogsInicial() {
+    // Solo sube logs locales sin sincronizar si los hay (modo offline contingency buffer)
+    // Pero NO descarga los logs de Supabase a LocalStorage para evitar consumo de memoria.
     const logsLocales = leerActividadLogs()
-    const logsSupabase = await cargarActividadLogsDesdeSupabase()
-    if (!Array.isArray(logsSupabase)) {
-        return
-    }
-    if (logsSupabase.length) {
-        guardarActividadLogs(logsSupabase)
-        return
-    }
     if (logsLocales.length) {
-        for (const entry of logsLocales.slice(0, 200).reverse()) {
+        for (const entry of logsLocales.slice(0, 10).reverse()) {
             await insertarActividadLogEnSupabase(entry)
         }
     }
+}
+
+// Variables de paginación para Actividad Reciente
+let offsetActividadTenant = 0
+let offsetActividadGlobal = 0
+const PAGINA_LOGS_TAMANIO = 50
+let logsTenantActuales = []
+let logsGlobalActuales = []
+
+async function consultarActividadLogsSupabase(opts = {}) {
+    if (!haySupabase()) return { data: [], total: 0 }
+    const limit = opts.limit || PAGINA_LOGS_TAMANIO
+    const offset = opts.offset || 0
+    
+    let query = supabaseClient.from("actividad_logs").select("*", { count: "exact" })
+    
+    // Filtro de aislamiento Multitenant y Scopes
+    if (opts.esGlobal) {
+        if (opts.tenantId) {
+            query = query.eq("tenant_id", opts.tenantId)
+        }
+    } else {
+        query = withTenantScope(query)
+        // Soporte para logs del curso activo o globales de administración (curso_id is null)
+        const cId = Number(cursoActualId || 1) || 1
+        query = query.or(`curso_id.eq.${cId},curso_id.is.null`)
+    }
+    
+    // Rango de fechas
+    if (opts.desde) {
+        query = query.gte("fecha", `${opts.desde}T00:00:00.000Z`)
+    }
+    if (opts.hasta) {
+        query = query.lte("fecha", `${opts.hasta}T23:59:59.999Z`)
+    }
+    
+    // Búsqueda de texto (Or indexado rápido sobre columnas clave)
+    if (opts.texto) {
+        const txt = opts.texto.trim()
+        query = query.or(`accion.ilike.%${txt}%,usuario.ilike.%${txt}%,rol.ilike.%${txt}%,device_label.ilike.%${txt}%,device_id.ilike.%${txt}%,ruta.ilike.%${txt}%`)
+    }
+    
+    query = query.order("fecha", { ascending: false })
+                 .range(offset, offset + limit - 1)
+                 
+    const { data, error, count } = await query
+    
+    if (error) {
+        console.warn("No se pudo consultar actividad_logs:", error.message)
+        return { data: [], total: 0 }
+    }
+    
+    const mapped = (data || []).map(mapearActividadSupabaseALocal)
+    return { data: mapped, total: count || 0 }
+}
+
+async function cargarMasActividadTenant() {
+    offsetActividadTenant += PAGINA_LOGS_TAMANIO
+    const texto = document.getElementById("filtroActividadTenantTexto")?.value || ""
+    const desde = document.getElementById("filtroActividadTenantDesde")?.value || ""
+    const hasta = document.getElementById("filtroActividadTenantHasta")?.value || ""
+    
+    const res = await consultarActividadLogsSupabase({
+        esGlobal: false,
+        texto,
+        desde,
+        hasta,
+        offset: offsetActividadTenant,
+        limit: PAGINA_LOGS_TAMANIO
+    })
+    
+    logsTenantActuales = logsTenantActuales.concat(res.data)
+    renderTablaActividadTenant(logsTenantActuales, logsTenantActuales.length < res.total)
+}
+
+async function cargarMasActividadGlobal() {
+    offsetActividadGlobal += PAGINA_LOGS_TAMANIO
+    const texto = document.getElementById("filtroActividadGlobalTexto")?.value || ""
+    const desde = document.getElementById("filtroActividadGlobalDesde")?.value || ""
+    const hasta = document.getElementById("filtroActividadGlobalHasta")?.value || ""
+    const tenantId = document.getElementById("filtroActividadGlobalTenant")?.value || ""
+    
+    const res = await consultarActividadLogsSupabase({
+        esGlobal: true,
+        texto,
+        desde,
+        hasta,
+        tenantId,
+        offset: offsetActividadGlobal,
+        limit: PAGINA_LOGS_TAMANIO
+    })
+    
+    logsGlobalActuales = logsGlobalActuales.concat(res.data)
+    renderTablaActividadGlobal(logsGlobalActuales, logsGlobalActuales.length < res.total)
 }
 
 function leerActividadLogs() {
@@ -927,7 +1015,7 @@ function poblarFiltroTenantLogsGlobal() {
     }
 }
 
-function renderTablaActividadTenant(rows = []) {
+function renderTablaActividadTenant(rows = [], hasMore = false) {
     const tbody = document.getElementById("tablaActividadTenant")
     if (!tbody) return
     if (!rows.length) {
@@ -937,10 +1025,12 @@ function renderTablaActividadTenant(rows = []) {
             "Sin actividad registrada en este rango.",
             "🧾"
         )
+        const btnContainer = document.getElementById("btnCargarMasLogsTenantContainer")
+        if (btnContainer) btnContainer.style.display = "none"
         return
     }
     let html = ""
-    rows.slice(0, 500).forEach(item => {
+    rows.forEach(item => {
         html += `
       <tr>
         <td>${formatearFechaActividad(item.fecha)}</td>
@@ -953,9 +1043,26 @@ function renderTablaActividadTenant(rows = []) {
     `
     })
     tbody.innerHTML = html
+
+    // Inyección dinámica y control de display del botón "Cargar más"
+    const wrapper = tbody.closest(".table-wrap")
+    if (wrapper) {
+        let btnContainer = document.getElementById("btnCargarMasLogsTenantContainer")
+        if (!btnContainer) {
+            btnContainer = document.createElement("div")
+            btnContainer.id = "btnCargarMasLogsTenantContainer"
+            btnContainer.className = "logs-load-more-container"
+            btnContainer.style.textAlign = "center"
+            btnContainer.style.marginTop = "15px"
+            btnContainer.style.marginBottom = "15px"
+            btnContainer.innerHTML = `<button class="secondary" onclick="cargarMasActividadTenant()">Cargar más registros</button>`
+            wrapper.parentNode.insertBefore(btnContainer, wrapper.nextSibling)
+        }
+        btnContainer.style.display = hasMore ? "block" : "none"
+    }
 }
 
-function renderTablaActividadGlobal(rows = []) {
+function renderTablaActividadGlobal(rows = [], hasMore = false) {
     const tbody = document.getElementById("tablaActividadGlobal")
     if (!tbody) return
     if (!rows.length) {
@@ -965,10 +1072,12 @@ function renderTablaActividadGlobal(rows = []) {
             "Sin actividad registrada en este rango.",
             "🧾"
         )
+        const btnContainer = document.getElementById("btnCargarMasLogsGlobalContainer")
+        if (btnContainer) btnContainer.style.display = "none"
         return
     }
     let html = ""
-    rows.slice(0, 700).forEach(item => {
+    rows.forEach(item => {
         html += `
       <tr>
         <td>${formatearFechaActividad(item.fecha)}</td>
@@ -982,6 +1091,23 @@ function renderTablaActividadGlobal(rows = []) {
     `
     })
     tbody.innerHTML = html
+
+    // Inyección dinámica y control de display del botón "Cargar más"
+    const wrapper = tbody.closest(".table-wrap")
+    if (wrapper) {
+        let btnContainer = document.getElementById("btnCargarMasLogsGlobalContainer")
+        if (!btnContainer) {
+            btnContainer = document.createElement("div")
+            btnContainer.id = "btnCargarMasLogsGlobalContainer"
+            btnContainer.className = "logs-load-more-container"
+            btnContainer.style.textAlign = "center"
+            btnContainer.style.marginTop = "15px"
+            btnContainer.style.marginBottom = "15px"
+            btnContainer.innerHTML = `<button class="secondary" onclick="cargarMasActividadGlobal()">Cargar más registros</button>`
+            wrapper.parentNode.insertBefore(btnContainer, wrapper.nextSibling)
+        }
+        btnContainer.style.display = hasMore ? "block" : "none"
+    }
 }
 
 function actualizarEtiquetaRangoLogs() {
@@ -1012,13 +1138,25 @@ function aplicarRangoMesActualEnLogs() {
     actualizarEtiquetaRangoLogs()
 }
 
-function cargarActividadTenant() {
-    const base = obtenerActividadPorScope("tenant")
+async function cargarActividadTenant() {
+    offsetActividadTenant = 0
+    logsTenantActuales = []
+    
     const texto = document.getElementById("filtroActividadTenantTexto")?.value || ""
     const desde = document.getElementById("filtroActividadTenantDesde")?.value || ""
     const hasta = document.getElementById("filtroActividadTenantHasta")?.value || ""
-    const filtrada = filtrarLogsActividad(base, { texto, desde, hasta })
-    renderTablaActividadTenant(filtrada)
+    
+    const res = await consultarActividadLogsSupabase({
+        esGlobal: false,
+        texto,
+        desde,
+        hasta,
+        offset: 0,
+        limit: PAGINA_LOGS_TAMANIO
+    })
+    
+    logsTenantActuales = res.data
+    renderTablaActividadTenant(logsTenantActuales, logsTenantActuales.length < res.total)
     actualizarEtiquetaRangoLogs()
 }
 
@@ -1030,17 +1168,30 @@ function limpiarActividadTenant() {
     if (elTexto) elTexto.value = ""
     if (elDesde) elDesde.value = from
     if (elHasta) elHasta.value = to
-    cargarActividadTenant()
+    void cargarActividadTenant()
 }
 
-function cargarActividadGlobal() {
-    const base = obtenerActividadPorScope("global")
+async function cargarActividadGlobal() {
+    offsetActividadGlobal = 0
+    logsGlobalActuales = []
+    
     const texto = document.getElementById("filtroActividadGlobalTexto")?.value || ""
     const desde = document.getElementById("filtroActividadGlobalDesde")?.value || ""
     const hasta = document.getElementById("filtroActividadGlobalHasta")?.value || ""
     const tenantId = document.getElementById("filtroActividadGlobalTenant")?.value || ""
-    const filtrada = filtrarLogsActividad(base, { texto, desde, hasta, tenantId })
-    renderTablaActividadGlobal(filtrada)
+    
+    const res = await consultarActividadLogsSupabase({
+        esGlobal: true,
+        texto,
+        desde,
+        hasta,
+        tenantId,
+        offset: 0,
+        limit: PAGINA_LOGS_TAMANIO
+    })
+    
+    logsGlobalActuales = res.data
+    renderTablaActividadGlobal(logsGlobalActuales, logsGlobalActuales.length < res.total)
     actualizarEtiquetaRangoLogs()
 }
 
@@ -1054,17 +1205,27 @@ function limpiarActividadGlobal() {
     if (elDesde) elDesde.value = from
     if (elHasta) elHasta.value = to
     if (elTenant) elTenant.value = ""
-    cargarActividadGlobal()
+    void cargarActividadGlobal()
 }
 
-function exportarActividadCSV(scope = "tenant") {
+async function exportarActividadCSV(scope = "tenant") {
     const esGlobal = scope === "global"
-    const base = obtenerActividadPorScope(esGlobal ? "global" : "tenant")
     const texto = document.getElementById(esGlobal ? "filtroActividadGlobalTexto" : "filtroActividadTenantTexto")?.value || ""
     const desde = document.getElementById(esGlobal ? "filtroActividadGlobalDesde" : "filtroActividadTenantDesde")?.value || ""
     const hasta = document.getElementById(esGlobal ? "filtroActividadGlobalHasta" : "filtroActividadTenantHasta")?.value || ""
     const tenantId = esGlobal ? (document.getElementById("filtroActividadGlobalTenant")?.value || "") : ""
-    const rows = filtrarLogsActividad(base, { texto, desde, hasta, tenantId })
+    
+    // Consulta dinámica y directa de Supabase con un límite amplio de exportación de seguridad (10,000 registros)
+    const res = await consultarActividadLogsSupabase({
+        esGlobal,
+        texto,
+        desde,
+        hasta,
+        tenantId,
+        offset: 0,
+        limit: 10000
+    })
+    const rows = res.data
 
     if (!rows.length) {
         alert("No hay logs para exportar.")
