@@ -463,6 +463,33 @@ function resetEstadoSesionAdminUI() {
     if (mobileDniInicio) mobileDniInicio.value = ""
     sessionStorage.removeItem(VISTA_MODO_KEY)
     localStorage.removeItem(VISTA_MODO_KEY)
+
+    // Agresivamente limpiar todas las claves de sesión locales y de Supabase
+    try {
+        const storageKeys = []
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)
+            if (key && (key.includes("asistia") || key.includes("sb-") || key.includes("supabase") || key.includes("auth") || key.includes("token"))) {
+                storageKeys.push(key)
+            }
+        }
+        storageKeys.forEach(k => localStorage.removeItem(k))
+    } catch (e) {
+        console.warn("Error al limpiar localStorage de sesión:", e)
+    }
+
+    try {
+        const sessionKeys = []
+        for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i)
+            if (key && (key.includes("asistia") || key.includes("sb-") || key.includes("supabase") || key.includes("auth") || key.includes("token"))) {
+                sessionKeys.push(key)
+            }
+        }
+        sessionKeys.forEach(k => sessionStorage.removeItem(k))
+    } catch (e) {
+        console.warn("Error al limpiar sessionStorage de sesión:", e)
+    }
 }
 
 async function asegurarSesionSupabaseValida() {
@@ -1478,6 +1505,14 @@ function resolverPerfilActivoId() {
     const perfilSesion = normalizarPerfilId(sesion.perfilId || "")
     if (perfilSesion && obtenerPerfilPorId(perfilSesion)) {
         return perfilSesion
+    }
+
+    // Fallback por defecto si es administrador institucional y no tiene perfil explícito asignado
+    const sesionRol = normalizarRolUsuario(sesion.rol || "")
+    if (sesionRol === ROLES_ADMIN.ADMINISTRADOR) {
+        if (obtenerPerfilPorId("administrador")) {
+            return "administrador"
+        }
     }
 
     return ""
@@ -9333,7 +9368,21 @@ function abrirModalRecuperacionAcceso() {
     modal.style.display = "flex"
 }
 
+let logoutInProgress = false
 async function logout() {
+    if (logoutInProgress) return
+    logoutInProgress = true
+
+    // Deshabilitar todos los botones de Salir visualmente y bloquear interacciones
+    const logoutButtons = ["btnSalirTenant", "btnHeaderLogout", "btnHeaderLogoutLuiz", "btnCuentaLogout"]
+    logoutButtons.forEach(id => {
+        const btn = document.getElementById(id)
+        if (btn) {
+            btn.disabled = true
+            btn.textContent = "Saliendo..."
+        }
+    })
+
     const sesionPrev = obtenerSesionAdminActiva()
     const origenSesion = sesionPrev.origen || ""
     if (sesionPrev?.autenticado) {
@@ -9358,12 +9407,16 @@ async function logout() {
     }
     resetEstadoSesionAdminUI()
 
+    const urlObj = new URL(window.location.href)
+    urlObj.searchParams.set("logout", "1")
+    urlObj.searchParams.set("t", Date.now().toString())
+
     if (accesoDirectoInstitucion && origenSesion === "staff_root") {
-        window.location.href = "/"
+        window.location.replace("/?logout=1&t=" + Date.now().toString())
         return
     }
 
-    window.location.replace(window.location.pathname + window.location.search)
+    window.location.replace(window.location.pathname + urlObj.search)
 }
 
 /* Legacy public attendance flow removed.
