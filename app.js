@@ -8434,8 +8434,8 @@ function actualizarUIModoEdicionSede() {
         btn.title = "La activación de este módulo será revisada en una próxima versión."
     }
     if (btnCancel) {
-        btn.textContent = "Próximamente"
-        btn.disabled = upcomingDisabled
+        btnCancel.textContent = "Próximamente"
+        btnCancel.disabled = upcomingDisabled
     }
     inputs.forEach(input => {
         if (!input) return
@@ -8459,13 +8459,18 @@ function abrirInfoSedeUboProximamente(event) {
         event.preventDefault()
         event.stopPropagation()
     }
-    modalTitulo.innerText = "Función próximamente"
-    modalContenido.innerHTML = buildEmptyStateHTML(
-        "Función próximamente",
-        "La asignación de UBO sede por sección será implementada en una próxima versión.",
-        "🧭"
-    )
-    modal.style.display = "flex"
+    const m = document.getElementById("modal")
+    const mT = document.getElementById("modalTitulo")
+    const mC = document.getElementById("modalContenido")
+    if (mT) mT.innerText = "Función próximamente"
+    if (mC) {
+        mC.innerHTML = buildEmptyStateHTML(
+            "Función próximamente",
+            "La asignación de UBO sede por sección será implementada en una próxima versión.",
+            "🧭"
+        )
+    }
+    if (m) m.style.display = "flex"
 }
 
 function activarInfoSedeUboProximamente(event) {
@@ -9358,10 +9363,6 @@ async function logout() {
         return
     }
 
-    if (esModoStaff) {
-        aplicarLayout()
-        return
-    }
     window.location.replace(window.location.pathname + window.location.search)
 }
 
