@@ -8255,10 +8255,31 @@ function actualizarUIModoEdicionSede() {
     const banner = document.getElementById("courseSedeEditBanner")
     const label = document.getElementById("courseSedeEditLabel")
     const module = document.getElementById("courseModuleSedeUbo")
+    const upcomingDisabled = true
+    const inputs = [
+        document.getElementById("uboSecNombre"),
+        document.getElementById("uboSecUbo"),
+        document.getElementById("uboSecHora"),
+        document.getElementById("uboSecModalidad"),
+        document.getElementById("uboSecDiasSelect"),
+        document.getElementById("uboSecTodosDias")
+    ]
     const editing = editSedeUboIndex >= 0
-    if (btn) btn.textContent = editing ? "GUARDAR CAMBIOS" : "CREAR SEDE UBO"
-    if (btnCancel) btnCancel.textContent = editing ? "Cancelar edición" : "Limpiar formulario"
-    if (banner) banner.hidden = !editing
+    if (btn) {
+        btn.textContent = "PRÓXIMAMENTE"
+        btn.disabled = upcomingDisabled
+        btn.title = "La activación de este módulo será revisada en una próxima versión."
+    }
+    if (btnCancel) {
+        btn.textContent = "Próximamente"
+        btn.disabled = upcomingDisabled
+    }
+    inputs.forEach(input => {
+        if (!input) return
+        input.disabled = upcomingDisabled
+        input.title = "La activación de este módulo será revisada en una próxima versión."
+    })
+    if (banner) banner.hidden = true
     if (label && editing) {
         const item = cursoSedesUbo[editSedeUboIndex]
         if (item) {
@@ -10639,9 +10660,9 @@ function renderSedesUbo() {
     if (!cursoSedesUbo.length) {
         tablaSedesUbo.innerHTML = buildEmptyTableRow(
             6,
-            "Sin UBOs o sedes configuradas",
-            "Todavia no hay asignaciones de UBO sede para las secciones del curso.",
-            "📍"
+            "Módulo próximamente",
+            "La asignación de UBO sede por sección se habilitará en una próxima versión.",
+            "🧭"
         )
         return
     }
