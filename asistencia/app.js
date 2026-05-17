@@ -141,6 +141,14 @@ function deduplicarMensajes(messages = []) {
     })
 }
 
+function normalizarMensajePublicoFinal(texto = "") {
+    const partes = String(texto || "")
+        .split("|")
+        .map(item => String(item || "").trim())
+        .filter(Boolean)
+    return deduplicarMensajes(partes).join(" | ")
+}
+
 function construirClaveMensajePublico(item) {
     const code = String(item?.code || "").trim().toLowerCase()
     const message = String(item?.message || item || "").trim().toLowerCase()
@@ -1414,26 +1422,41 @@ async function guardarAsistencia() {
         }
 
         if (!data?.success) {
-            setMensaje(String(data?.message || "Ocurrió un problema al procesar la solicitud."), "error")
+            setMensaje(
+                normalizarMensajePublicoFinal(String(data?.message || "Ocurrió un problema al procesar la solicitud.")),
+                "error"
+            )
+            programarRetornoPostRegistro()
             return
         }
 
         if (!data?.registrado && data?.code === "asistencia_duplicada") {
-            setMensaje(String(data?.message || "El aspirante ya registró asistencia hoy."), "warning")
+            setMensaje(
+                normalizarMensajePublicoFinal(String(data?.message || "El aspirante ya registró asistencia hoy.")),
+                "warning"
+            )
+            programarRetornoPostRegistro()
             return
         }
 
         if (!data?.registrado && data?.code && data?.code !== "ok") {
-            setMensaje(String(data?.message || "No se pudo registrar la asistencia."), "error")
+            setMensaje(
+                normalizarMensajePublicoFinal(String(data?.message || "No se pudo registrar la asistencia.")),
+                "error"
+            )
+            programarRetornoPostRegistro()
             return
         }
 
         const warnings = construirWarningsRegistro(data, contextoAsistencia)
 
         if (warnings.length > 0) {
-            setMensaje(`✅ Asistencia registrada. ${warnings.join(" | ")}`, "warning")
+            setMensaje(
+                normalizarMensajePublicoFinal(`✅ Asistencia registrada. ${warnings.join(" | ")}`),
+                "warning"
+            )
         } else {
-            setMensaje("✅ Asistencia registrada correctamente.", "ok")
+            setMensaje(normalizarMensajePublicoFinal("✅ Asistencia registrada correctamente."), "ok")
         }
 
         debugContextLog("guardarAsistencia: registro exitoso", {
