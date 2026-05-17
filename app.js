@@ -332,9 +332,7 @@ function primerTenantFallback() {
 }
 let tenantActivoId = ""
 function normalizarTenantId(id) {
-    const tid = String(id || "").trim().toLowerCase()
-    if (tid === "esbas-24-demo") return "esbas-24"
-    return tid
+    return String(id || "").trim().toLowerCase()
 }
 let esModoStaff = true
 let accesoDirectoInstitucion = false
@@ -9364,7 +9362,7 @@ async function logout() {
         aplicarLayout()
         return
     }
-    location.reload()
+    window.location.replace(window.location.pathname + window.location.search)
 }
 
 /* Legacy public attendance flow removed.
