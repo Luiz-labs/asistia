@@ -8291,6 +8291,27 @@ function actualizarUIModoEdicionSede() {
     if (module) module.classList.toggle("course-module--editing", editing)
 }
 
+function abrirInfoSedeUboProximamente(event) {
+    if (event) {
+        event.preventDefault()
+        event.stopPropagation()
+    }
+    modalTitulo.innerText = "Función próximamente"
+    modalContenido.innerHTML = buildEmptyStateHTML(
+        "Función próximamente",
+        "La asignación de UBO sede por sección será implementada en una próxima versión.",
+        "🧭"
+    )
+    modal.style.display = "flex"
+}
+
+function activarInfoSedeUboProximamente(event) {
+    if (!event) return
+    if (event.key === "Enter" || event.key === " ") {
+        abrirInfoSedeUboProximamente(event)
+    }
+}
+
 function cancelarEdicionSeccionCurso() {
     const wasEditing = editSeccionCursoIndex >= 0
     limpiarFormSeccionCurso()

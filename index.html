@@ -1185,10 +1185,13 @@
             </div>
             </div>
 
-            <div class="course-module" id="courseModuleSedeUbo">
+            <div class="course-module" id="courseModuleSedeUbo" role="button" tabindex="0"
+              onclick="abrirInfoSedeUboProximamente(event)"
+              onkeydown="activarInfoSedeUboProximamente(event)">
             <h4>UBOs sede por sección</h4>
             <p class="hint course-module-hint">Función próximamente</p>
             <p class="hint course-module-hint">Esta función está reservada para la asignación avanzada de UBO sede por sección. Actualmente el motor de asistencia usa las reglas backend-driven del curso. La activación de este módulo será revisada en una próxima versión.</p>
+            <div id="courseModuleSedeUboContent" hidden>
             <div id="courseSedeEditBanner" class="course-edit-banner" hidden>
               <span class="course-edit-badge">Modo edición</span>
               <span class="course-edit-banner-text">Estás editando sede: <strong
@@ -1254,6 +1257,7 @@
                 </thead>
                 <tbody id="tablaSedesUbo"></tbody>
               </table>
+            </div>
             </div>
             </div>
 
