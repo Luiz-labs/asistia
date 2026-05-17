@@ -331,6 +331,11 @@ function primerTenantFallback() {
     return vals.length ? vals[0] : null
 }
 let tenantActivoId = ""
+function normalizarTenantId(id) {
+    const tid = String(id || "").trim().toLowerCase()
+    if (tid === "esbas-24-demo") return "esbas-24"
+    return tid
+}
 let esModoStaff = true
 let accesoDirectoInstitucion = false
 let mostrarSelectorStaff = false
@@ -659,9 +664,6 @@ async function cargarActividadLogsDesdeSupabase() {
 async function insertarActividadLogEnSupabase(entry) {
     if (!haySupabase()) return
     if (soporteActividadLogsSupabase === false) return
-    if (!esModoStaff) {
-        return
-    }
 
     const payload = {
         fecha: entry.fecha || new Date().toISOString(),
@@ -718,7 +720,7 @@ async function consultarActividadLogsSupabase(opts = {}) {
     // Filtro de aislamiento Multitenant y Scopes
     if (opts.esGlobal) {
         if (opts.tenantId) {
-            query = query.eq("tenant_id", opts.tenantId)
+            query = query.eq("tenant_id", normalizarTenantId(opts.tenantId))
         }
     } else {
         query = withTenantScope(query)
@@ -729,10 +731,10 @@ async function consultarActividadLogsSupabase(opts = {}) {
     
     // Rango de fechas
     if (opts.desde) {
-        query = query.gte("fecha", `${opts.desde}T00:00:00.000Z`)
+        query = query.gte("fecha", `${opts.desde}T00:00:00-05:00`)
     }
     if (opts.hasta) {
-        query = query.lte("fecha", `${opts.hasta}T23:59:59.999Z`)
+        query = query.lte("fecha", `${opts.hasta}T23:59:59-05:00`)
     }
     
     // Búsqueda de texto (Or indexado rápido sobre columnas clave)
@@ -887,7 +889,7 @@ function registrarActividad(accion, detalle = {}, opts = {}) {
         logs.length = ACTIVITY_LOGS_MAX
     }
     guardarActividadLogs(logs)
-    void insertarActividadLogEnSupabase(entry)
+    return insertarActividadLogEnSupabase(entry)
 }
 
 function obtenerActividadPorScope(scope = "actual") {
@@ -4042,7 +4044,7 @@ function volverSeleccionCliente() {
 
 function withTenantScope(query) {
     if (!MULTITENANT_MODE || !tenantActivoId || !tenantScopeBackendReady) return query
-    const tid = String(tenantActivoId).trim().toLowerCase()
+    const tid = normalizarTenantId(tenantActivoId)
     if (esTenantConDatosLegacy(tid)) {
         return query.or(`tenant_id.eq.${tid},tenant_id.is.null`)
     }
@@ -4051,7 +4053,7 @@ function withTenantScope(query) {
 
 function withTenantPayload(payload) {
     if (!MULTITENANT_MODE || !tenantActivoId) return payload
-    const tid = String(tenantActivoId).trim().toLowerCase()
+    const tid = normalizarTenantId(tenantActivoId)
     return Object.assign({}, payload, { tenant_id: tid })
 }
 
@@ -4063,9 +4065,9 @@ function filtrarDataTenantActivo(rows) {
     if (!MULTITENANT_MODE || !tenantActivoId) {
         return Array.isArray(rows) ? rows : []
     }
-    const tenant = String(tenantActivoId || "").trim().toLowerCase()
+    const tenant = normalizarTenantId(tenantActivoId)
     return (rows || []).filter(r => {
-        const tenantFila = String(r?.tenant_id || "").trim().toLowerCase()
+        const tenantFila = normalizarTenantId(r?.tenant_id)
         if (tenantFila) {
             return tenantFila === tenant
         }
@@ -5309,6 +5311,7 @@ async function cargarUsuariosAdminDesdeSupabase() {
         }
         usuariosAdmin = []
         renderUsuariosAdmin()
+        actualizarInfoSesionHeader()
         return
     }
 
@@ -5327,6 +5330,7 @@ async function cargarUsuariosAdminDesdeSupabase() {
         authUserId: String(u.auth_user_id || "").trim()
     }))
     renderUsuariosAdmin()
+    actualizarInfoSesionHeader()
 }
 
 function renderUsuariosAdmin() {
@@ -7561,7 +7565,7 @@ async function cargarSedesUbo() {
 }
 
 async function cargarSeccionesCursoDesdeSupabase() {
-    const tenantCursoId = String(tenantActivoId || "").trim().toLowerCase()
+    const tenantCursoId = normalizarTenantId(tenantActivoId)
     const cursoId = cursoActualId || 1
     let q = supabaseClient
         .from("curso_jornada_reglas")
@@ -8242,7 +8246,7 @@ function renderReportesStaff(data) {
 async function cargarReportesStaff() {
     if (!tablaStaffReportes) return
     const tenantRuta = resolverAccesoDesdeRuta()
-    const tenantReporteId = String(tenantRuta?.tenantId || tenantActivoId || "").trim().toLowerCase()
+    const tenantReporteId = normalizarTenantId(tenantRuta?.tenantId || tenantActivoId || "")
 
     console.log("[asistIA-staff-report-debug] contexto tenant", {
         tenantActivoId,
@@ -8735,7 +8739,9 @@ function aplicarLayout() {
     actualizarBotonesVista()
     aplicarVisibilidadAccesoAdminInstitucional()
     actualizarInfoSesionHeader()
-    evaluarInicioTutorialAutomatico()
+    if (typeof evaluarInicioTutorialAutomatico === "function") {
+        evaluarInicioTutorialAutomatico()
+    }
 }
 
 function actualizarEstadoChecks() {
@@ -8894,7 +8900,7 @@ async function autenticarAdminConSupabaseAuth(usuario, clave) {
     const userDb = (usuariosAdmin || []).find(u => u.usuario === usuario)
 
     const candidatos = []
-    const correoDb = String(userDb.correo || "").trim().toLowerCase()
+    const correoDb = userDb ? String(userDb.correo || "").trim().toLowerCase() : ""
     if (correoDb && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correoDb)) {
         candidatos.push(correoDb)
     }
@@ -9324,20 +9330,28 @@ function abrirModalRecuperacionAcceso() {
     modal.style.display = "flex"
 }
 
-function logout() {
-    if (haySupabase()) {
-        void supabaseClient.auth.signOut()
-    }
+async function logout() {
     const sesionPrev = obtenerSesionAdminActiva()
     const origenSesion = sesionPrev.origen || ""
     if (sesionPrev?.autenticado) {
-        registrarActividad("logout_admin", {
-            origen: origenSesion
-        }, {
-            usuario: sesionPrev.usuario,
-            rol: sesionPrev.rol,
-            tenantId: sesionPrev.tenantId || tenantActivoId || ""
-        })
+        try {
+            await registrarActividad("logout_admin", {
+                origen: origenSesion
+            }, {
+                usuario: sesionPrev.usuario,
+                rol: sesionPrev.rol,
+                tenantId: sesionPrev.tenantId || tenantActivoId || ""
+            })
+        } catch (e) {
+            console.warn("Error al registrar actividad de logout:", e)
+        }
+    }
+    if (haySupabase()) {
+        try {
+            await supabaseClient.auth.signOut()
+        } catch (e) {
+            console.warn("Error signing out from Supabase:", e)
+        }
     }
     resetEstadoSesionAdminUI()
 
