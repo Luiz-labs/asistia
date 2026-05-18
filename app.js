@@ -9232,6 +9232,7 @@ async function loginAccesoAdminInstitucional() {
     cerrarAccesoAdminInstitucional()
     aplicarLayout()
     mostrarVista("reportes")
+    await cargarConfigCurso()
     cargarDatos()
 
     await bootstrapAuthorizedApp();
@@ -9324,6 +9325,7 @@ async function login() {
             }, { usuario: resultado.usuario, rol: resultado.rol, tenantId: tenantActivoId })
             aplicarLayout()
             mostrarVista("reportes")
+            await cargarConfigCurso()
             cargarDatos()
             await bootstrapAuthorizedApp();
         } else {
@@ -10214,7 +10216,7 @@ function mostrarVista(vista) {
     if (vista === "reportes") {
         vistaReportes.style.display = "block"
         if (!tabla.innerHTML.trim()) cargarDatos()
-        if (!tablaStaffReportes.innerHTML.trim() || /Sin registros consultados/i.test(tablaStaffReportes.innerHTML)) cargarReportesStaff()
+        if (!tablaStaffReportes.innerHTML.trim() || /Sin registros consultados|Sin registros de staff|No se pudo cargar/i.test(tablaStaffReportes.innerHTML)) cargarReportesStaff()
     }
 
     if (vista === "config") {
