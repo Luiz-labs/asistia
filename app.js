@@ -9401,14 +9401,17 @@ function logout() {
         }
     })
 
-    const sesionPrev = obtenerSesionAdminActiva()
-    const origenSesion = sesionPrev.origen || ""
-    const usuarioPrev = sesionPrev.usuario || ""
-    const rolPrev = sesionPrev.rol || ""
-    const tenantIdPrev = sesionPrev.tenantId || tenantActivoId || ""
-
-    // 2. Capturar destino
+    // 2. Calcular destinoFinal
     let destino = window.location.pathname
+    let origenSesion = ""
+    try {
+        const raw = sessionStorage.getItem("asistia_admin_session_v1")
+        if (raw) {
+            const parsed = JSON.parse(raw)
+            origenSesion = parsed?.origen || ""
+        }
+    } catch (e) {}
+
     if (accesoDirectoInstitucion && origenSesion === "staff_root") {
         destino = "/"
     }
@@ -9419,32 +9422,48 @@ function logout() {
     urlObj.searchParams.set("t", Date.now().toString())
     const destinoFinal = urlObj.pathname + urlObj.search
 
-    // 3. Limpiar sesión local INMEDIATAMENTE
-    resetEstadoSesionAdminUI()
-    sesionAdminActiva = crearSesionAdminVacia()
-
-    // 4. Intentar registrarActividad() en background sin await y sin bloquear
-    if (sesionPrev?.autenticado) {
+    // 3. Bloque de limpieza y redirección ultra robusto
+    try {
+        // Limpieza de sessionStorage básica
         try {
-            registrarActividad("logout_admin", {
-                origen: origenSesion
-            }, {
-                usuario: usuarioPrev,
-                rol: rolPrev,
-                tenantId: tenantIdPrev
-            }).catch(function() {})
+            const keysToRemove = []
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i)
+                if (key && (key.includes("asistia") || key.includes("sb-") || key.includes("supabase") || key.includes("auth") || key.includes("token"))) {
+                    keysToRemove.push(key)
+                }
+            }
+            keysToRemove.forEach(k => sessionStorage.removeItem(k))
         } catch (e) {}
-    }
 
-    // 5. Intentar signOut() en background sin await y sin bloquear
-    if (haySupabase()) {
+        // Limpieza de localStorage básica
         try {
-            supabaseClient.auth.signOut().catch(function() {})
+            const keysToRemove = []
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i)
+                if (key && (key.includes("asistia") || key.includes("sb-") || key.includes("supabase") || key.includes("auth") || key.includes("token"))) {
+                    keysToRemove.push(key)
+                }
+            }
+            keysToRemove.forEach(k => localStorage.removeItem(k))
         } catch (e) {}
-    }
 
-    // 6. Redirección INMEDIATA usando window.location.href
-    window.location.href = destinoFinal
+        // Limpieza de variables globales básicas
+        sesionAdminActiva = {
+            autenticado: false,
+            usuario: "",
+            rol: "",
+            tenantId: "",
+            origen: ""
+        }
+        tenantActivoId = ""
+
+    } catch (err) {
+        console.error("[logout-hard]", err)
+    } finally {
+        // Redirección sí o sí en el bloque finally
+        window.location.href = destinoFinal
+    }
 }
 
 /* Legacy public attendance flow removed.
