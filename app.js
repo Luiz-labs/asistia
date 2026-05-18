@@ -8463,6 +8463,14 @@ function actualizarUIModoEdicionSede() {
     const banner = document.getElementById("courseSedeEditBanner")
     const label = document.getElementById("courseSedeEditLabel")
     const module = document.getElementById("courseModuleSedeUbo")
+
+    // Garantizar que el listener de click esté programáticamente enlazado para abrir el modal de proximamente
+    if (module) {
+        module.onclick = function(e) {
+            abrirInfoSedeUboProximamente(e)
+        }
+    }
+
     const upcomingDisabled = true
     const inputs = [
         document.getElementById("uboSecNombre"),
@@ -9379,11 +9387,11 @@ function abrirModalRecuperacionAcceso() {
 }
 
 let logoutInProgress = false
-async function logout() {
+function logout() {
     if (logoutInProgress) return
     logoutInProgress = true
 
-    // 2. Deshabilitar botones de Salir visualmente y bloquear interacciones
+    // 1. Deshabilitar botones de Salir visualmente y bloquear interacciones
     const logoutButtons = ["btnSalirTenant", "btnHeaderLogout", "btnHeaderLogoutLuiz", "btnCuentaLogout"]
     logoutButtons.forEach(id => {
         const btn = document.getElementById(id)
@@ -9399,7 +9407,7 @@ async function logout() {
     const rolPrev = sesionPrev.rol || ""
     const tenantIdPrev = sesionPrev.tenantId || tenantActivoId || ""
 
-    // 3. Capturar path actual y preparar redirección
+    // 2. Capturar destino
     let destino = window.location.pathname
     if (accesoDirectoInstitucion && origenSesion === "staff_root") {
         destino = "/"
@@ -9411,53 +9419,32 @@ async function logout() {
     urlObj.searchParams.set("t", Date.now().toString())
     const destinoFinal = urlObj.pathname + urlObj.search
 
-    // 6. Limpiar localStorage/sessionStorage de sesión de inmediato (sincrónico)
+    // 3. Limpiar sesión local INMEDIATAMENTE
     resetEstadoSesionAdminUI()
-
-    // 7. Limpiar variables globales (sincrónico, sin aplicar layouts visuales intermedios)
     sesionAdminActiva = crearSesionAdminVacia()
 
-    // Helper para ejecutar promesas asíncronas con un timeout corto
-    const runWithTimeout = (promise, ms) => {
-        return new Promise(resolve => {
-            const timer = setTimeout(() => {
-                console.warn(`[logout] Timeout reached: ${ms}ms`);
-                resolve(null);
-            }, ms);
-            promise.then(
-                res => {
-                    clearTimeout(timer);
-                    resolve(res);
-                },
-                err => {
-                    clearTimeout(timer);
-                    console.warn(`[logout] Promise rejected:`, err);
-                    resolve(null);
-                }
-            );
-        });
-    };
-
-    // 4. Intentar registrarActividad en background con timeout máximo de 800ms
+    // 4. Intentar registrarActividad() en background sin await y sin bloquear
     if (sesionPrev?.autenticado) {
-        const registrarPromise = registrarActividad("logout_admin", {
-            origen: origenSesion
-        }, {
-            usuario: usuarioPrev,
-            rol: rolPrev,
-            tenantId: tenantIdPrev
-        });
-        await runWithTimeout(registrarPromise, 800);
+        try {
+            registrarActividad("logout_admin", {
+                origen: origenSesion
+            }, {
+                usuario: usuarioPrev,
+                rol: rolPrev,
+                tenantId: tenantIdPrev
+            }).catch(function() {})
+        } catch (e) {}
     }
 
-    // 5. Intentar supabaseClient.auth.signOut() con timeout máximo de 1200ms
+    // 5. Intentar signOut() en background sin await y sin bloquear
     if (haySupabase()) {
-        const signOutPromise = supabaseClient.auth.signOut();
-        await runWithTimeout(signOutPromise, 1200);
+        try {
+            supabaseClient.auth.signOut().catch(function() {})
+        } catch (e) {}
     }
 
-    // 8. window.location.replace para evitar volver atrás con el botón del navegador
-    window.location.replace(destinoFinal)
+    // 6. Redirección INMEDIATA usando window.location.href
+    window.location.href = destinoFinal
 }
 
 /* Legacy public attendance flow removed.
