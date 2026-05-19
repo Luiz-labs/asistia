@@ -5389,6 +5389,19 @@ body {
   text-transform: uppercase;
 }
 
+/* Recovery Modal Apple-Style Enhancements */
+#modal.modal-recuperar-acceso > div {
+  width: min(90%, 460px) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 20px 50px rgba(10, 20, 40, 0.15) !important;
+  padding: 24px !important;
+  border: 1px solid rgba(164, 179, 211, 0.2) !important;
+}
+
+#modal.modal-recuperar-acceso > div > div:first-child {
+  display: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

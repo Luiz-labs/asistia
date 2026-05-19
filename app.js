@@ -9366,16 +9366,41 @@ function togglePasswordVisibility(inputId, triggerEl) {
 }
 
 function abrirModalRecuperacionAcceso() {
+    modal.classList.add("modal-recuperar-acceso")
+
+    const prefilledUser = String(document.getElementById("loginUser")?.value || "").trim()
+
     modalTitulo.innerText = "Recuperar acceso"
     modalContenido.innerHTML = `
-      <div class="empty-state empty-state-compact">
-        <div class="empty-state-icon" aria-hidden="true">🔐</div>
-        <div class="empty-state-title">Recuperar acceso</div>
-        <div class="empty-state-text">Solicita a un administrador de tu institución que restablezca tu clave.</div>
-        <button type="button" class="secondary" onclick="cerrarModal()">Entendido</button>
+      <div style="font-size: 48px; margin-bottom: 16px; text-align: center;">🔐</div>
+      <h2 style="font-size: 22px; font-weight: 700; margin: 0 0 12px; color: #1a2e57; font-family: 'Sora', sans-serif; text-align: center;">Recuperar acceso</h2>
+      <p style="font-size: 15px; line-height: 1.5; color: #4b5563; margin: 0 0 20px; text-align: center;">
+        Por seguridad, el restablecimiento de clave será atendido por soporte.<br>
+        Solicita el reset por WhatsApp e indica tu usuario o correo registrado.
+      </p>
+
+      <div style="margin-bottom: 20px; text-align: left;">
+        <label style="display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px;">Usuario o correo registrado</label>
+        <input id="recoveryUserVal" type="text" placeholder="Tu usuario o correo" style="width: 100%; height: 44px; border-radius: 10px; border: 1px solid #d1d5db; padding: 0 12px; font-size: 15px;" value="${prefilledUser}">
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button type="button" class="primary" style="width: 100%; min-height: 48px; border-radius: 12px; font-size: 15px; font-weight: 600;" onclick="solicitarResetWhatsApp()">
+          Solicitar reset por WhatsApp
+        </button>
+        <button type="button" class="secondary" style="width: 100%; min-height: 48px; border-radius: 12px; font-size: 15px; font-weight: 600; background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb;" onclick="cerrarModal()">
+          Cerrar
+        </button>
       </div>
     `
     modal.style.display = "flex"
+}
+
+function solicitarResetWhatsApp() {
+    const userVal = String(document.getElementById("recoveryUserVal")?.value || "").trim() || "______"
+    const text = `Hola Luiz-Labs, necesito resetear mi clave de acceso a AsistIA. Mi usuario/correo es: ${userVal}`
+    const url = `https://wa.me/51983230353?text=${encodeURIComponent(text)}`
+    window.open(url, "_blank")
 }
 
 let logoutInProgress = false
@@ -10325,6 +10350,7 @@ async function cargarUbos() {
 
 function cerrarModal() {
     modal.style.display = "none"
+    modal.classList.remove("modal-recuperar-acceso")
 }
 
 function cerrarModalPorBackdrop(event) {
