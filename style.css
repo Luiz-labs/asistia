@@ -1690,15 +1690,18 @@ select {
 }
 
 .login-submit-btn {
-  width: 100%;
-  min-height: 52px;
+  display: block;
+  width: min(80%, 340px);
+  margin: 0 auto;
+  min-height: 48px;
   border-radius: 12px;
   font-size: 15px;
   font-weight: 700;
 }
 
 .login-help-link {
-  margin-top: 10px;
+  display: block;
+  margin: 8px auto 0;
   min-width: 0;
   width: auto;
   height: auto;
