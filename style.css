@@ -1690,9 +1690,7 @@ select {
 }
 
 .login-submit-btn {
-  display: block;
-  width: min(80%, 340px);
-  margin: 0 auto;
+  width: 100%;
   min-height: 48px;
   border-radius: 12px;
   font-size: 15px;
