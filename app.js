@@ -315,7 +315,7 @@ const TENANTS = {
         linea: "Módulo institucional",
         curso: "Próximamente",
         logo: "/B129logo.png",
-        habilitado: false,
+        habilitado: true,
         usuariosSistema: []
     }
 }
@@ -5182,7 +5182,7 @@ function normalizarOrigenRegistroLabel(origen) {
     const raw = String(origen || "").trim().toLowerCase()
     if (!raw) return ""
     if (raw === "importacion_historica") return "Importado"
-    if (raw === "qr" || raw === "qr_aspirantes" || raw === "qr_publico" || raw === "qr_staff") return "QR / Actual"
+    if (raw === "qr" || raw === "qr_aspirantes" || raw === "qr_publico" || raw === "qr_staff" || raw === "mobile_public" || raw === "mobile_public_legacy") return "QR / Actual"
     if (raw.includes("offline")) return "Offline / Contingencia"
     return raw.replace(/_/g, " ").replace(/\b\w/g, char => char.toUpperCase())
 }
@@ -7587,13 +7587,14 @@ async function cargarSedesUbo() {
 
 async function cargarSeccionesCursoDesdeSupabase() {
     const tenantCursoId = normalizarTenantId(tenantActivoId)
-    const cursoId = cursoActualId || 1
-    let q = supabaseClient
-        .from("curso_jornada_reglas")
-        .select("tenant_id,curso_id,seccion,modalidad,dias_semana,hora_inicio,activa")
-        .eq("tenant_id", tenantCursoId)
-        .eq("curso_id", cursoId)
-        .eq("activa", true)
+    const cursoId = Number(cursoActualId || 1) || 1
+    let q = withTenantScope(
+        supabaseClient
+            .from("curso_jornada_reglas")
+            .select("tenant_id,curso_id,seccion,modalidad,dias_semana,hora_inicio,activa")
+    )
+    q = q.eq("curso_id", cursoId)
+         .eq("activa", true)
 
     const { data, error } = await q
         .order("seccion", { ascending: true })
@@ -8791,6 +8792,12 @@ function actualizarEstadoChecks() {
 }
 
 window.onload = async () => {
+    // Limpiar URL si viene de un flujo de logout
+    const paramsUrl = new URLSearchParams(window.location.search || "")
+    if (paramsUrl.has("logout")) {
+        window.history.replaceState({}, "", window.location.pathname)
+    }
+
     if (redirigirRutaPublicaModernaSiCorresponde()) return
     if (redirigirRutaPublicaLegadaCurso()) return
     if (redirigirRutaBackofficeLegada()) return
