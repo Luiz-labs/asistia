@@ -699,7 +699,7 @@
             <section class="course-module">
               <div class="historical-import-head">
                 <div>
-                  <h4>Migración</h4>
+                  <h4>Importación Histórica</h4>
                   <p class="hint course-module-hint">Importa y concilia asistencias históricas desde Google Forms o archivos Excel.</p>
                 </div>
                 <span class="historical-import-chip">Históricos</span>
@@ -774,7 +774,7 @@
             <section class="course-module historical-import-block">
               <div class="historical-import-head">
                 <div>
-                  <h4>4. Preview</h4>
+                  <h4>4. Vista Previa</h4>
                   <p class="hint course-module-hint">Revisa el estado de cada fila antes de habilitar la siguiente fase.</p>
                 </div>
                 <span id="historicalImportPreviewCount" class="historical-inline-counter">0 registros listados</span>
@@ -809,7 +809,7 @@
               <div class="historical-import-shell">
                 <section class="course-module historical-import-block">
                   <h4>5. Trazabilidad y conciliación</h4>
-              <p class="hint course-module-hint">AsistIA intenta asociar cada fila histórica con un aspirante existente del tenant activo para sugerir el DNI antes de una futura importación.</p>
+              <p class="hint course-module-hint">AsistIA asocia el registro histórico con los aspirantes registrados en la institución seleccionada para validar sus DNI antes de importar.</p>
               <div class="historical-kpi-grid">
                 <div class="card kpi-card historical-kpi-card">
                   <span id="historicalConciliationLabel">Conciliados</span>
@@ -834,7 +834,7 @@
 
                 <section class="course-module historical-import-block">
                   <h4>6. Acción</h4>
-              <p id="historicalActionHint" class="hint course-module-hint">Esta acción insertará registros históricos conciliados en <strong>asistencias</strong> bajo confirmación explícita. Los registros importados se integrarán a reportes y exportaciones con trazabilidad.</p>
+              <p id="historicalActionHint" class="hint course-module-hint">Esta acción registrará de forma permanente las asistencias validadas del historial. Una vez guardadas, se integrarán a los reportes y exportaciones de la plataforma.</p>
               <div class="config-actions">
                 <button type="button" id="historicalPrepareButton" onclick="prepararImportacionHistorica()" disabled>Preparar importación</button>
                 <button type="button" id="historicalReportsButton" class="secondary" onclick="abrirReportesImportacionHistorica()" hidden>Ver reportes</button>
@@ -1071,7 +1071,7 @@
               <div class="course-module-head">
                 <div>
                   <h4>Curso activo</h4>
-                  <p class="course-module-hint">Esta pantalla edita el curso activo actual del tenant. Guardar cambios actualiza nombre, fechas y radio GPS del curso en uso; no crea un curso nuevo.</p>
+                  <p class="course-module-hint">Esta pantalla edita el curso activo actual de la institución. Al guardar se actualizará el nombre, las fechas y el rango de ubicación GPS del curso en uso.</p>
                 </div>
                 <span class="course-section-badge">Activo</span>
               </div>
@@ -1106,7 +1106,7 @@
               <div class="course-qr-head">
                 <div>
                   <h4>QR del curso activo</h4>
-                  <p class="course-module-hint">Cada curso reutiliza su token persistente actual para generar enlaces públicos permanentes de Aspirantes y Staff.</p>
+                  <p class="course-module-hint">Cada curso utiliza un código de enlace permanente para generar los accesos públicos de Aspirantes y Staff.</p>
                   <p class="course-qr-assurance">El QR pertenece al curso activo y no cambia al guardar nombre, fechas o radio GPS.</p>
                 </div>
               </div>
@@ -1145,7 +1145,7 @@
                   </div>
                 </article>
               </div>
-              <p class="course-qr-footnote">El QR es permanente para este curso. Copiar, descargar o imprimir no modifica el token.</p>
+              <p class="course-qr-footnote">El código QR es permanente para este curso. Copiar, descargar o imprimir no modifica la clave de acceso del mismo.</p>
             </div>
 
             <div class="config-actions course-footer-actions">
@@ -1160,7 +1160,7 @@
               <div class="course-module-head">
                 <div>
                   <h4>Acciones peligrosas</h4>
-                  <p class="course-module-hint">Estas acciones afectan la estructura operativa del curso activo. No modifican el QR ni el token del curso, pero sí eliminan secciones y sedes UBO configuradas.</p>
+                  <p class="course-module-hint">Estas acciones afectan la estructura operativa del curso activo. No modifican el código QR ni el identificador del curso, pero sí eliminan las secciones y sedes UBO configuradas.</p>
                 </div>
                 <span class="course-section-badge danger">Cuidado</span>
               </div>
@@ -1172,8 +1172,8 @@
 
             <div class="course-module" id="courseModuleSecciones">
             <h4>Secciones del curso</h4>
-            <p class="hint course-module-hint">Configuración sincronizada con reglas reales del backend.</p>
-            <p class="hint course-module-hint">Las secciones se leen desde <code>curso_jornada_reglas</code>. La edición desde este bloque está deshabilitada temporalmente mientras se migra el CRUD al modelo backend-driven.</p>
+            <p class="hint course-module-hint">La configuración del curso se encuentra activa y sincronizada.</p>
+            <p class="hint course-module-hint">Las secciones y horarios del curso están definidos institucionalmente y no pueden editarse de forma individual en esta sección.</p>
             <div id="courseSecEditBanner" class="course-edit-banner" hidden>
               <span class="course-edit-badge">Modo edición</span>
               <span class="course-edit-banner-text">Estás editando: <strong id="courseSecEditLabel"></strong></span>
@@ -1235,7 +1235,7 @@
               onkeydown="activarInfoSedeUboProximamente(event)">
             <h4>UBOs sede por sección</h4>
             <p class="hint course-module-hint">Función próximamente</p>
-            <p class="hint course-module-hint">Esta función está reservada para la asignación avanzada de UBO sede por sección. Actualmente el motor de asistencia usa las reglas backend-driven del curso. La activación de este módulo será revisada en una próxima versión.</p>
+            <p class="hint course-module-hint">Esta función está reservada para la asignación avanzada de sedes por sección. Actualmente el registro de asistencia utiliza la programación general del curso.</p>
             <div id="courseModuleSedeUboContent" hidden>
             <div id="courseSedeEditBanner" class="course-edit-banner" hidden>
               <span class="course-edit-badge">Modo edición</span>

@@ -249,7 +249,7 @@ function formatearTipoJornadaAmigable(valor) {
     const jornada = String(valor || "").trim().toUpperCase()
     if (jornada === "DOMINICAL" || jornada === "DOMINICAL_GRUPAL") return "Dominical grupal"
     if (jornada === "SECCION" || jornada === "SECCION_REGULAR") return "Regular de sección"
-    if (jornada === "GENERAL") return "General (legacy)"
+    if (jornada === "GENERAL") return "General"
     return jornada || "Regular de sección"
 }
 

@@ -3134,7 +3134,7 @@ async function regenerarClaveUsuarioAdminLuiz(idx) {
     if (!user) return
     if (!esUsuarioInstitucionalLuiz(user) && !esUsuarioGlobalAsistIA(user)) return
     if (esUsuarioProtegidoLuiz(user.usuario)) {
-        alert("El usuario legacy está protegido y no se puede modificar aquí.")
+        alert("Este usuario del sistema está protegido y no se puede modificar.")
         return
     }
     const nuevaClave = generarClaveTemporal(8)
@@ -3159,7 +3159,7 @@ async function toggleEstadoUsuarioAdminLuiz(idx) {
     if (!user) return
     if (!esUsuarioInstitucionalLuiz(user)) return
     if (esUsuarioProtegidoLuiz(user.usuario)) {
-        alert("El usuario legacy está protegido y no se puede modificar aquí.")
+        alert("Este usuario del sistema está protegido y no se puede modificar.")
         return
     }
     user.estado = user.estado === "activo" ? "inactivo" : "activo"
@@ -3179,7 +3179,7 @@ async function eliminarUsuarioAdminLuiz(idx) {
     if (!user) return
     if (!esUsuarioInstitucionalLuiz(user)) return
     if (esUsuarioProtegidoLuiz(user.usuario)) {
-        alert("El usuario legacy está protegido y no se puede eliminar.")
+        alert("Este usuario del sistema está protegido y no se puede eliminar.")
         return
     }
     const ok = confirm(`¿Eliminar usuario admin "${user.usuario}"?`)
@@ -3314,7 +3314,7 @@ async function toggleEstadoUsuarioGlobalLuiz(idx) {
     const user = usuariosAdminLuiz[idx]
     if (!user || !esUsuarioGlobalAsistIA(user)) return
     if (esUsuarioProtegidoLuiz(user.usuario)) {
-        alert("El usuario legacy está protegido y no se puede modificar aquí.")
+        alert("Este usuario del sistema está protegido y no se puede modificar.")
         return
     }
     user.estado = user.estado === "activo" ? "inactivo" : "activo"
@@ -3332,7 +3332,7 @@ async function eliminarUsuarioGlobalLuiz(idx) {
     const user = usuariosAdminLuiz[idx]
     if (!user || !esUsuarioGlobalAsistIA(user)) return
     if (esUsuarioProtegidoLuiz(user.usuario)) {
-        alert("El usuario legacy está protegido y no se puede eliminar.")
+        alert("Este usuario del sistema está protegido y no se puede eliminar.")
         return
     }
     const ok = confirm(`¿Eliminar usuario global "${user.usuario}"?`)
@@ -3513,7 +3513,7 @@ function editarUsuarioAdminLuiz(idx) {
     if (!u) return
     if (!esUsuarioInstitucionalLuiz(u)) return
     if (esUsuarioProtegidoLuiz(u.usuario)) {
-        alert("El usuario legacy está protegido y no se edita desde este módulo.")
+        alert("Este usuario del sistema está protegido y no se gestiona aquí.")
         return
     }
 
@@ -3577,7 +3577,7 @@ async function guardarUsuarioAdminLuiz() {
         return
     }
     if (esUsuarioProtegidoLuiz(usuario)) {
-        alert("El usuario legacy está protegido y no se gestiona desde aquí.")
+        alert("Este usuario del sistema está protegido y no se gestiona aquí.")
         return
     }
     const usuarioReservadoSistema = SYSTEM_USERS.some(u => String(u.usuario || "").toLowerCase() === usuario)
@@ -3617,7 +3617,7 @@ async function guardarUsuarioAdminLuiz() {
             return
         }
         if (esUsuarioProtegidoLuiz(actual.usuario)) {
-            alert("El usuario legacy está protegido.")
+            alert("Este usuario del sistema está protegido.")
             limpiarUsuarioAdminLuizForm()
             return
         }
@@ -6179,7 +6179,7 @@ function renderHistoricalPreview(rows = []) {
     if (!rows.length) {
         previewBody.innerHTML = buildEmptyTableRow(
             11,
-            "Sin preview disponible",
+            "Sin vista previa disponible",
             "Valida un archivo para revisar registros, observaciones y errores.",
             "🧪"
         )
@@ -6402,10 +6402,10 @@ function buildHistoricalAspiranteDisplayName(record = {}) {
 
 async function fetchHistoricalAspirantesTenant() {
     if (!haySupabase()) {
-        return { available: false, rows: [], reason: "Supabase no está disponible para conciliar aspirantes." }
+        return { available: false, rows: [], reason: "El servidor no está disponible para realizar la validación de aspirantes." }
     }
     if (!tenantActivoId) {
-        return { available: false, rows: [], reason: "No hay tenant activo para conciliar aspirantes." }
+        return { available: false, rows: [], reason: "No hay una institución activa seleccionada para validar aspirantes." }
     }
 
     let data = []
@@ -6542,7 +6542,7 @@ function renderHistoricalManualResolutionResults() {
     if (!results.length) {
         searchResultsEl.innerHTML = buildEmptyStateHTML(
             "Sin resultados",
-            "Ajusta la búsqueda para encontrar un aspirante local del tenant activo.",
+            "Ajusta el texto de búsqueda para encontrar un aspirante registrado en la institución seleccionada.",
             "🔎",
             true
         )
@@ -7215,7 +7215,7 @@ async function validateHistoricalRows() {
             ? `Hay ${getHistoricalImportableRows().length} registro(s) conciliado(s) listo(s) para insertarse en asistencias con trazabilidad.`
             : historicalImportState.reconciliation.conciliated > 0
                 ? "Hay conciliaciones, pero todavía faltan campos obligatorios antes de insertar los registros."
-                : "Preview validado. La importación real insertará registros en asistencias cuando haya conciliación previa.",
+                : "Vista previa validada. La importación registrará las asistencias una vez que hayan sido asociadas correctamente.",
         getHistoricalImportableRows().length > 0 ? "info" : "warning"
     )
     updateHistoricalActionState()
@@ -8055,7 +8055,7 @@ async function cargarStaffInstruccion() {
 
 async function guardarStaffInstruccion() {
     if (!haySupabase() || !tenantActivoId) {
-        mostrarMsgCursoModulo("msgStaffInstruccion", "Sin conexión a Supabase o sin tenant activo.", "error")
+        mostrarMsgCursoModulo("msgStaffInstruccion", "Sin conexión al servidor o sin institución seleccionada.", "error")
         return
     }
 
@@ -8300,7 +8300,7 @@ async function cargarReportesStaff() {
     if (!haySupabase() || !tenantReporteId) {
         tablaStaffReportes.innerHTML = buildEmptyStateHTML(
             "Sin conexión disponible",
-            "No se pudo cargar el reporte staff porque falta Supabase o el tenant activo.",
+            "No se pudo cargar el reporte de personal de apoyo porque no hay una institución seleccionada.",
             "⚠️"
         )
         return
@@ -8415,7 +8415,7 @@ function limpiarCargaAspirantesUI() {
         tablaAspirantesCargados.innerHTML = buildEmptyTableRow(
             5,
             "Vista limpiada",
-            "La carga local y el preview del módulo fueron restablecidos. No se modificaron datos guardados.",
+            "La carga local y la vista previa del módulo fueron restablecidas. No se modificaron datos guardados.",
             "🧹"
         )
     }
@@ -10018,7 +10018,7 @@ async function cargarDashboard() {
     }
 
     topUbo.innerHTML = html
-    semaforoInfo.innerText = "Semáforo: usa primero estado_asistencia guardado por backend (Puntual, Tardanza, Fuera de horario). Solo si el registro no tiene estado_asistencia, aplica fallback legacy por hora/días."
+    semaforoInfo.innerText = "Semáforo de asistencia: utiliza los estados registrados automáticamente (Puntual, Tardanza, Fuera de horario). Si un registro no cuenta con estado asignado, se aplica el criterio general por horario del curso."
     riesgoInfo.innerText = "Riesgo por UBO: acumulado de aspirantes con tardanza o fuera de horario/día en el rango filtrado."
 
     try {
@@ -10376,7 +10376,7 @@ document.addEventListener("keydown", e => {
 
 async function guardarCurso() {
     if (!haySupabase()) {
-        mostrarMsgCursoModulo("msgCursoFooter", "Sin conexión a Supabase. No se puede guardar la configuración del curso.", "error")
+        mostrarMsgCursoModulo("msgCursoFooter", "Sin conexión al servidor. No se puede guardar la configuración del curso en este momento.", "error")
         return
     }
     const mapSedes = {}
@@ -10497,7 +10497,7 @@ function limpiarFormSedeUbo() {
 
 async function guardarSeccionCurso() {
     if (!haySupabase()) {
-        mostrarMsgCursoModulo("msgCursoSeccion", "Sin conexión a Supabase. No se puede guardar la sección.", "error")
+        mostrarMsgCursoModulo("msgCursoSeccion", "Sin conexión al servidor. No se puede guardar la sección en este momento.", "error")
         return
     }
     const seccionValor = String(secCursoNombre.value || "").trim().toUpperCase()
@@ -10699,7 +10699,7 @@ function renderSeccionesCurso() {
 
 async function guardarSedeUbo() {
     if (!haySupabase()) {
-        mostrarMsgCursoModulo("msgCursoSede", "Sin conexión a Supabase. No se puede guardar la sede UBO.", "error")
+        mostrarMsgCursoModulo("msgCursoSede", "Sin conexión al servidor. No se puede guardar la sede UBO en este momento.", "error")
         return
     }
     const seccionValor = String(uboSecNombre.value || "").trim().toUpperCase()
@@ -10974,7 +10974,7 @@ function limpiarDashboard() {
     kpiDispCard.style.opacity = "0.75"
 
     topUbo.innerHTML = ""
-    semaforoInfo.innerText = "Semáforo: usa estado_asistencia backend y fallback legacy si el histórico no lo tiene."
+    semaforoInfo.innerText = "Semáforo: utiliza los estados automáticos registrados y aplica el criterio por horario para registros históricos sin estado."
     riesgoInfo.innerText = "Riesgo UBO: tardanza o fuera de horario/día por UBO."
 
     // limpiar memoria
@@ -10997,7 +10997,7 @@ async function limpiarCurso() {
     if (!haySupabase()) {
         mostrarMsgCursoModulo(
             "msgCursoFooter",
-            "Sin conexión a Supabase. No se puede completar la operación.",
+            "Sin conexión al servidor. No se puede completar la operación.",
             "error"
         )
         return
