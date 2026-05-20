@@ -25,6 +25,51 @@
 </head>
 
 <body>
+  <script>
+    (function() {
+      function showError(title, msg) {
+        var div = document.createElement("div");
+        div.style.position = "fixed";
+        div.style.top = "0";
+        div.style.left = "0";
+        div.style.width = "100%";
+        div.style.zIndex = "999999";
+        div.style.backgroundColor = "#fee2e2";
+        div.style.color = "#991b1b";
+        div.style.padding = "16px";
+        div.style.borderBottom = "2px solid #ef4444";
+        div.style.fontFamily = "monospace";
+        div.style.fontSize = "14px";
+        div.style.boxSizing = "border-box";
+        div.style.whiteSpace = "pre-wrap";
+        div.innerHTML = "<strong>" + title + "</strong><br>" + msg;
+        if (document.body) {
+          document.body.appendChild(div);
+        } else {
+          document.documentElement.appendChild(div);
+        }
+      }
+      window.onerror = function(message, source, lineno, colno, error) {
+        var details = message + "\nEn: " + source + ":" + lineno + ":" + colno;
+        if (error && error.stack) {
+          details += "\nStack: " + error.stack;
+        }
+        showError("No se pudo cargar AsistIA. Error:", details);
+        return false;
+      };
+      window.onunhandledrejection = function(event) {
+        var reason = event.reason;
+        var msg = "Error desconocido";
+        if (reason) {
+          msg = reason.message || String(reason);
+          if (reason.stack) {
+            msg += "\nStack: " + reason.stack;
+          }
+        }
+        showError("No se pudo cargar AsistIA. Promesa rechazada:", msg);
+      };
+    })();
+  </script>
 
   <!-- SELECCIÓN INSTITUCIONAL -->
   <div id="tenantScreen" class="tenant-screen">
@@ -1800,6 +1845,9 @@
 
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="/app.js?v=0.9.6-beta-10014"></script>
   <script src="/pwa-register.js"></script>
 

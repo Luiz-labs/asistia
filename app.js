@@ -5168,26 +5168,15 @@ function cargarFiltroSeccionDashboard() {
 }
 
 function asegurarLibreria(url, globalVar) {
-    return new Promise((resolve) => {
-        if (window[globalVar] || (globalVar === "jspdf" && window.jspdf?.jsPDF)) {
-            resolve(true)
-            return
-        }
-        const script = document.createElement("script")
-        script.src = url
-        script.onload = () => resolve(true)
-        script.onerror = () => resolve(false)
-        document.head.appendChild(script)
-    })
+    return Promise.resolve(true)
 }
 
 async function asegurarLibreriasExcel() {
-    return await asegurarLibreria("https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js", "XLSX")
+    return true
 }
 
 async function asegurarLibreriasPDF() {
-    await asegurarLibreria("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js", "jspdf")
-    await asegurarLibreria("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js", "html2canvas")
+    return true
 }
 
 async function descargarExcelDesdeJSON(filename, rows) {
