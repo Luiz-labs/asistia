@@ -237,7 +237,6 @@ async function bootstrapAuthorizedApp() {
 let adminAutenticado = false
 let dniMovil = ""
 let resizeTimer
-let scanningActivo = false
 let cursoConfigCache = null
 let ubosSedeCache = []
 let cursoSecciones = []

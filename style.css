@@ -884,126 +884,6 @@ h2 {
   }
 }
 
-#tutorialOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1390;
-  display: none;
-  background: rgba(14, 24, 44, 0.56);
-  backdrop-filter: blur(1.5px);
-}
-
-#tutorialTooltip {
-  position: fixed;
-  z-index: 1400;
-  display: none;
-  box-sizing: border-box;
-  /* Evita 100vw “suelto” en iOS + safe area; el JS ya centra con left/top */
-  width: min(360px,
-      calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
-  max-width: min(360px,
-      calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
-  background: #ffffff;
-  border: 1px solid rgba(215, 225, 242, 0.95);
-  border-radius: 16px;
-  box-shadow:
-    0 24px 48px rgba(17, 36, 72, 0.14),
-    0 8px 18px rgba(17, 36, 72, 0.1);
-  padding: 16px;
-  color: #1e2b47;
-}
-
-.tutorial-tooltip-title {
-  font-size: 15px;
-  font-weight: 700;
-  margin-bottom: 8px;
-  letter-spacing: -0.15px;
-  line-height: 1.25;
-}
-
-.tutorial-tooltip-desc {
-  font-size: 13px;
-  line-height: 1.55;
-  color: #4e628b;
-  margin-bottom: 14px;
-  white-space: pre-line;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.tutorial-tooltip-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.tutorial-tooltip-step {
-  font-size: 12px;
-  color: #6a7fa8;
-  font-weight: 600;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.tutorial-tooltip-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  flex: 1 1 220px;
-  min-width: 0;
-}
-
-.tutorial-tooltip-actions button {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.tutorial-spotlight-target {
-  position: relative;
-  z-index: 1395 !important;
-  border-radius: 12px;
-  box-shadow: 0 0 0 3px rgba(152, 192, 255, 0.95), 0 0 28px rgba(46, 115, 236, 0.32);
-}
-
-@media (max-width: 760px) {
-  #tutorialTooltip {
-    width: min(340px,
-        calc(100vw - 20px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
-    max-width: min(340px,
-        calc(100vw - 20px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
-    padding: 14px 14px 12px;
-  }
-
-  .tutorial-tooltip-foot {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .tutorial-tooltip-step {
-    text-align: center;
-  }
-
-  .tutorial-tooltip-actions {
-    flex: none;
-    width: 100%;
-    justify-content: stretch;
-    gap: 8px;
-  }
-
-  .tutorial-tooltip-actions button {
-    flex: 1 1 calc(33.333% - 6px);
-    min-width: 0;
-    font-size: 12px;
-    padding: 0 8px;
-    height: 38px;
-  }
-}
-
 .sidebar {
   width: 228px;
   min-width: 228px;
@@ -3843,65 +3723,6 @@ select {
   }
 }
 
-#scanOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(11, 20, 38, 0.58);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 1200;
-  padding: 16px;
-}
-
-#scanCard {
-  width: min(100%, 420px);
-  background: var(--surface);
-  border: 1px solid rgba(164, 179, 211, 0.35);
-  border-radius: 16px;
-  box-shadow: var(--shadow);
-  padding: 14px;
-}
-
-#scanCardHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-#scanCardHeader strong {
-  font-size: 14px;
-}
-
-#scanOverlay video {
-  width: 100%;
-  max-height: 52vh;
-  object-fit: cover;
-  border-radius: 12px;
-  background: #111;
-}
-
-.scan-close {
-  min-width: auto !important;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  padding: 0;
-  background: #eef3ff;
-  color: #21457f;
-  border: 1px solid #cfdbf3;
-  box-shadow: none !important;
-  font-size: 18px;
-  line-height: 1;
-}
-
-.scan-close:hover {
-  background: #dfeaff;
-  transform: none;
-  filter: none;
-}
-
 #formulario {
   max-width: 420px;
   margin: 0 auto;
@@ -4912,10 +4733,6 @@ body {
     bottom: calc(16px + env(safe-area-inset-bottom));
   }
 
-  #scanOverlay {
-    padding-top: calc(16px + env(safe-area-inset-top));
-    padding-bottom: calc(16px + env(safe-area-inset-bottom));
-  }
 }
 
 /* ===== UPGRADE VISUAL TIPO APP IPHONE ===== */
