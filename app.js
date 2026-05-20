@@ -5294,32 +5294,97 @@ async function exportarDashboardPDF() {
         return
     }
 
+    const vistaDashboard = document.getElementById("vistaDashboard")
     const objetivo = document.getElementById("dashboardKpiCapture")
-    if (!objetivo) {
-        alert("No se encontró el bloque de KPIs para exportar")
+    const semaforoInfoEl = document.getElementById("semaforoInfo")
+    const riesgoCardEl = document.getElementById("topUbo")?.closest(".card")
+    const compactRowEl = document.querySelector("#vistaDashboard .dashboard-flex-row.is-compact")
+    if (!vistaDashboard || !objetivo || !semaforoInfoEl || !riesgoCardEl || !compactRowEl) {
+        alert("No se encontró el bloque útil del dashboard para exportar")
         return
     }
 
-    html2canvas(objetivo, { scale: 2, backgroundColor: "#eff2f7" })
+    const exportNode = document.createElement("div")
+    exportNode.style.position = "fixed"
+    exportNode.style.left = "-20000px"
+    exportNode.style.top = "0"
+    exportNode.style.width = "1360px"
+    exportNode.style.padding = "24px"
+    exportNode.style.boxSizing = "border-box"
+    exportNode.style.background = "#eff2f7"
+    exportNode.style.color = "#1f2937"
+    exportNode.style.fontFamily = "inherit"
+
+    const titulo = document.createElement("div")
+    titulo.style.marginBottom = "18px"
+    titulo.innerHTML = `
+      <div style="font-size:28px;font-weight:800;color:#16213e;">Dashboard ESBAS</div>
+      <div style="margin-top:6px;font-size:14px;color:#5b6c8a;">
+        Rango: ${escapeHtml(String(dashDesde?.value || "-"))} a ${escapeHtml(String(dashHasta?.value || "-"))}
+        · UBO: ${escapeHtml(String(dashUbo?.value || "Todas"))}
+        · Sección: ${escapeHtml(String(dashSeccion?.value || "Todas"))}
+      </div>
+    `
+    exportNode.appendChild(titulo)
+    exportNode.appendChild(objetivo.cloneNode(true))
+    exportNode.appendChild(semaforoInfoEl.cloneNode(true))
+    exportNode.appendChild(compactRowEl.cloneNode(true))
+    exportNode.appendChild(riesgoCardEl.cloneNode(true))
+    document.body.appendChild(exportNode)
+
+    const scale = Math.min(window.devicePixelRatio || 1, 2)
+
+    html2canvas(exportNode, {
+        scale,
+        backgroundColor: "#eff2f7",
+        useCORS: true,
+        logging: false,
+        width: exportNode.scrollWidth,
+        windowWidth: exportNode.scrollWidth
+    })
         .then(canvas => {
-            const imgData = canvas.toDataURL("image/png")
             const { jsPDF } = window.jspdf
-            const doc = new jsPDF("p", "mm", "a4")
+            const doc = new jsPDF("l", "mm", "a4")
             const pageW = doc.internal.pageSize.getWidth()
+            const pageH = doc.internal.pageSize.getHeight()
             const margin = 10
-            const maxW = pageW - margin * 2
-            const imgW = canvas.width
-            const imgH = canvas.height
-            const pdfH = (imgH * maxW) / imgW
+            const titleH = 8
+            const contentY = margin + titleH
+            const usableW = pageW - margin * 2
+            const usableH = pageH - contentY - margin
+            const pxPerPage = Math.floor((usableH * canvas.width) / usableW)
 
             doc.setFontSize(13)
-            doc.text("Dashboard ESBAS - KPIs", margin, 10)
-            doc.addImage(imgData, "PNG", margin, 14, maxW, pdfH)
+            doc.text("Dashboard ESBAS - KPIs", margin, margin + 2)
+
+            let pageIndex = 0
+            for (let sourceY = 0; sourceY < canvas.height; sourceY += pxPerPage) {
+                const sliceHeight = Math.min(pxPerPage, canvas.height - sourceY)
+                const pageCanvas = document.createElement("canvas")
+                pageCanvas.width = canvas.width
+                pageCanvas.height = sliceHeight
+                const pageCtx = pageCanvas.getContext("2d")
+                pageCtx.drawImage(
+                    canvas,
+                    0, sourceY, canvas.width, sliceHeight,
+                    0, 0, canvas.width, sliceHeight
+                )
+
+                const imgData = pageCanvas.toDataURL("image/png")
+                const renderH = (sliceHeight * usableW) / canvas.width
+                if (pageIndex > 0) doc.addPage("a4", "l")
+                doc.addImage(imgData, "PNG", margin, contentY, usableW, renderH, undefined, "FAST")
+                pageIndex++
+            }
+
             doc.save("dashboard_kpis_esbas.pdf")
         })
         .catch(err => {
             console.error(err)
             alert("No se pudo exportar la imagen del dashboard")
+        })
+        .finally(() => {
+            exportNode.remove()
         })
 }
 
