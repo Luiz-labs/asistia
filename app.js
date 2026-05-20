@@ -5305,6 +5305,7 @@ async function exportarDashboardPDF() {
     }
 
     const exportNode = document.createElement("div")
+    exportNode.className = "dashboard-export-clean"
     exportNode.style.position = "fixed"
     exportNode.style.left = "-20000px"
     exportNode.style.top = "0"

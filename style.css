@@ -5420,3 +5420,44 @@ body {
     transform: none !important;
   }
 }
+
+.dashboard-export-clean,
+.dashboard-export-clean * {
+  animation: none !important;
+  transition: none !important;
+}
+
+.dashboard-export-clean {
+  background: #eff2f7 !important;
+}
+
+.dashboard-export-clean .card,
+.dashboard-export-clean .kpi-card,
+.dashboard-export-clean .staff-ops-card,
+.dashboard-export-clean .user-table-card,
+.dashboard-export-clean .table-wrap {
+  background: #ffffff !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: 1px solid #d9e2ef !important;
+  border-radius: 12px !important;
+}
+
+.dashboard-export-clean .dashboard-flex-row .card,
+.dashboard-export-clean #vistaDashboard .dashboard-flex-row .card {
+  overflow: hidden !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+.dashboard-export-clean .kpi-card-clickable,
+.dashboard-export-clean .btn-link,
+.dashboard-export-clean button {
+  box-shadow: none !important;
+}
+
+.dashboard-export-clean .section-note,
+.dashboard-export-clean .section-note-compact,
+.dashboard-export-clean .hint {
+  background: transparent !important;
+}
