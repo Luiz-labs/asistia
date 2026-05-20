@@ -158,6 +158,7 @@ function buildEmptyTableRow(colspan, title, text, icon = "○") {
 
 function limpiarCurrentProfileVisual() {
     window.currentProfile = null
+    resetCacheFlags()
 }
 
 function resolverDatosVisualesSesionActual() {
@@ -253,6 +254,22 @@ let staffInstruccionCache = []
 let cacheDashboardStaff = []
 let staffReportExpandedKey = ""
 let editStaffInstruccionId = null
+let configCursoCargada = false
+let aspirantesCargadosHidratados = false
+let staffInstruccionHidratado = false
+let usuariosAdminHidratados = false
+let datosAsistenciaCargando = false
+let reportesStaffCargando = false
+
+function resetCacheFlags() {
+    configCursoCargada = false
+    aspirantesCargadosHidratados = false
+    staffInstruccionHidratado = false
+    usuariosAdminHidratados = false
+    datosAsistenciaCargando = false
+    reportesStaffCargando = false
+}
+
 let vistaAdminActual = "reportes"
 let vistaLuizLabsActual = "instituciones"
 const HISTORICAL_IMPORT_FIELDS = Object.freeze([
@@ -3708,6 +3725,7 @@ async function guardarUsuarioAdminLuiz() {
     perfilesUsuariosLocales[usuario] = perfilId
     sincronizarPermisosPanelInstitucional()
     guardarLuizLabsEnStorage()
+    usuariosAdminHidratados = false
     await cargarUsuariosAdminDesdeSupabase()
     renderPanelLuizLabs()
     limpiarUsuarioAdminLuizForm()
@@ -5306,6 +5324,7 @@ async function exportarDashboardPDF() {
 }
 
 async function cargarUsuariosAdminDesdeSupabase() {
+    if (usuariosAdminHidratados) return
     if (!haySupabase()) {
         usuariosAdmin = []
         renderUsuariosAdmin()
@@ -5365,6 +5384,7 @@ async function cargarUsuariosAdminDesdeSupabase() {
     }))
     renderUsuariosAdmin()
     actualizarInfoSesionHeader()
+    usuariosAdminHidratados = true
 }
 
 function renderUsuariosAdmin() {
@@ -5605,6 +5625,7 @@ async function guardarUsuarioAdmin() {
         return
     }
 
+    usuariosAdminHidratados = false
     await cargarUsuariosAdminDesdeSupabase()
     if (previousUsuario && previousUsuario !== usuario) {
         delete perfilesUsuariosLocales[previousUsuario]
@@ -5655,6 +5676,7 @@ async function eliminarUsuarioAdmin(idx) {
         alert(`No se pudo eliminar usuario: ${error.message}`)
         return
     }
+    usuariosAdminHidratados = false
     await cargarUsuariosAdminDesdeSupabase()
     delete perfilesUsuariosLocales[String(u.usuario || "").toLowerCase()]
     guardarLuizLabsEnStorage()
@@ -5725,6 +5747,7 @@ async function cargarExcelAspirantes() {
     }
 
     msgCargaAspirantes.innerText = `Carga exitosa: ${payload.length} aspirantes procesados.`
+    aspirantesCargadosHidratados = false
     await cargarAspirantesCargados()
     registrarActividad("aspirantes_carga_excel", {
         total: payload.length
@@ -7368,10 +7391,11 @@ function bindHistoricalImportEvents() {
     })
 }
 
-async function cargarAspirantesCargados() {
+async function cargarAspirantesCargados(force = false) {
     const tablaEl = document.getElementById("tablaAspirantesCargados")
     const msgEl = document.getElementById("msgCargaAspirantes")
     if (!tablaEl) return
+    if (aspirantesCargadosHidratados && !force) return
     try {
         if (!haySupabase()) {
             tablaEl.innerHTML = buildEmptyTableRow(
@@ -7493,6 +7517,7 @@ async function cargarAspirantesCargados() {
         })
         tablaEl.innerHTML = html
         if (msgEl) msgEl.innerText = `Listado actualizado: ${lista.length} registro(s).`
+        aspirantesCargadosHidratados = true
     } catch (e) {
         console.error("Error en cargarAspirantesCargados:", e)
         tablaEl.innerHTML = buildEmptyTableRow(
@@ -8014,8 +8039,9 @@ function renderStaffInstruccion() {
     tablaStaffInstruccion.innerHTML = html
 }
 
-async function cargarStaffInstruccion() {
+async function cargarStaffInstruccion(force = false) {
     if (!tablaStaffInstruccion) return
+    if (staffInstruccionHidratado && !force) return
     if (!haySupabase() || !tenantActivoId) {
         tablaStaffInstruccion.innerHTML = buildEmptyTableRow(
             9,
@@ -8051,6 +8077,7 @@ async function cargarStaffInstruccion() {
     staffInstruccionCache = filtrarDataTenantActivo(data).map(normalizarStaffRow)
     renderStaffInstruccion()
     actualizarUIModoEdicionStaffInstruccion()
+    staffInstruccionHidratado = true
 }
 
 async function guardarStaffInstruccion() {
@@ -8137,6 +8164,7 @@ async function guardarStaffInstruccion() {
         return
     }
 
+    staffInstruccionHidratado = false
     await cargarStaffInstruccion()
     await cargarReportesStaff()
     limpiarFormStaffInstruccion()
@@ -8171,6 +8199,7 @@ async function toggleActivoStaffInstruccion(id, siguienteEstado) {
         return
     }
 
+    staffInstruccionHidratado = false
     await cargarStaffInstruccion()
     registrarActividad(
         siguienteEstado ? "staff_instruccion_activado" : "staff_instruccion_desactivado",
@@ -8288,108 +8317,114 @@ function renderReportesStaff(data) {
 
 async function cargarReportesStaff() {
     if (!tablaStaffReportes) return
-    const tenantRuta = resolverAccesoDesdeRuta()
-    const tenantReporteId = normalizarTenantId(tenantRuta?.tenantId || tenantActivoId || "")
-
-    console.log("[asistIA-staff-report-debug] contexto tenant", {
-        tenantActivoId,
-        tenantRuta: tenantRuta?.tenantId || "",
-        tenantReporteId
-    })
-
-    if (!haySupabase() || !tenantReporteId) {
-        tablaStaffReportes.innerHTML = buildEmptyStateHTML(
-            "Sin conexión disponible",
-            "No se pudo cargar el reporte de personal de apoyo porque no hay una institución seleccionada.",
-            "⚠️"
-        )
-        return
-    }
-
-    let q = supabaseClient
-        .from("staff_asistencias")
-        .select("fecha,hora_ingreso,codigo_bombero,nombre,grado,ubo_origen,tipo_staff,jornada,tenant_id")
-
-    if (tenantReporteId) {
-        q = q.eq("tenant_id", tenantReporteId)
-    }
-
-    if (staffReporteDesde?.value) q = q.gte("fecha", staffReporteDesde.value)
-    if (staffReporteHasta?.value) q = q.lte("fecha", staffReporteHasta.value)
-    if (staffReporteTipo?.value) q = q.eq("tipo_staff", staffReporteTipo.value)
-    if (staffReporteUbo?.value) q = q.ilike("ubo_origen", `%${String(staffReporteUbo.value || "").trim()}%`)
-
-    console.log("[asistIA-staff-report-debug] filtros", {
-        desde: staffReporteDesde?.value || "",
-        hasta: staffReporteHasta?.value || "",
-        tipo: staffReporteTipo?.value || "",
-        ubo: String(staffReporteUbo?.value || "").trim()
-    })
-
-    let data = []
+    if (reportesStaffCargando) return
+    reportesStaffCargando = true
     try {
-        const response = await q
-            .order("fecha", { ascending: false })
-            .order("hora_ingreso", { ascending: false })
-        data = response.data || []
+        const tenantRuta = resolverAccesoDesdeRuta()
+        const tenantReporteId = normalizarTenantId(tenantRuta?.tenantId || tenantActivoId || "")
 
-        console.log("[asistIA-staff-report-debug] filas supabase", {
-            total: data.length
+        console.log("[asistIA-staff-report-debug] contexto tenant", {
+            tenantActivoId,
+            tenantRuta: tenantRuta?.tenantId || "",
+            tenantReporteId
         })
 
-        if (response.error) {
-            console.error("Error cargando reportes staff:", response.error)
+        if (!haySupabase() || !tenantReporteId) {
+            tablaStaffReportes.innerHTML = buildEmptyStateHTML(
+                "Sin conexión disponible",
+                "No se pudo cargar el reporte de personal de apoyo porque no hay una institución seleccionada.",
+                "⚠️"
+            )
+            return
+        }
+
+        let q = supabaseClient
+            .from("staff_asistencias")
+            .select("fecha,hora_ingreso,codigo_bombero,nombre,grado,ubo_origen,tipo_staff,jornada,tenant_id")
+
+        if (tenantReporteId) {
+            q = q.eq("tenant_id", tenantReporteId)
+        }
+
+        if (staffReporteDesde?.value) q = q.gte("fecha", staffReporteDesde.value)
+        if (staffReporteHasta?.value) q = q.lte("fecha", staffReporteHasta.value)
+        if (staffReporteTipo?.value) q = q.eq("tipo_staff", staffReporteTipo.value)
+        if (staffReporteUbo?.value) q = q.ilike("ubo_origen", `%${String(staffReporteUbo.value || "").trim()}%`)
+
+        console.log("[asistIA-staff-report-debug] filtros", {
+            desde: staffReporteDesde?.value || "",
+            hasta: staffReporteHasta?.value || "",
+            tipo: staffReporteTipo?.value || "",
+            ubo: String(staffReporteUbo?.value || "").trim()
+        })
+
+        let data = []
+        try {
+            const response = await q
+                .order("fecha", { ascending: false })
+                .order("hora_ingreso", { ascending: false })
+            data = response.data || []
+
+            console.log("[asistIA-staff-report-debug] filas supabase", {
+                total: data.length
+            })
+
+            if (response.error) {
+                console.error("Error cargando reportes staff:", response.error)
+                tablaStaffReportes.innerHTML = buildEmptyStateHTML(
+                    "No se pudo cargar el reporte",
+                    esTablaNoExiste(response.error)
+                        ? "No se pudo cargar la información."
+                        : mensajeUsuarioAsistIA(response.error, "No se pudo cargar la información."),
+                    "⚠️"
+                )
+                cacheReportesStaff = []
+                return
+            }
+        } catch (error) {
+            console.error("Error inesperado cargando reportes staff:", error)
             tablaStaffReportes.innerHTML = buildEmptyStateHTML(
                 "No se pudo cargar el reporte",
-                esTablaNoExiste(response.error)
-                    ? "No se pudo cargar la información."
-                    : mensajeUsuarioAsistIA(response.error, "No se pudo cargar la información."),
+                mensajeUsuarioAsistIA(error, "No se pudo cargar la información."),
                 "⚠️"
             )
             cacheReportesStaff = []
             return
         }
-    } catch (error) {
-        console.error("Error inesperado cargando reportes staff:", error)
-        tablaStaffReportes.innerHTML = buildEmptyStateHTML(
-            "No se pudo cargar el reporte",
-            mensajeUsuarioAsistIA(error, "No se pudo cargar la información."),
-            "⚠️"
+
+        const rowsFiltradasTenant = (data || []).filter(item =>
+            String(item?.tenant_id || "").trim().toLowerCase() === tenantReporteId
         )
-        cacheReportesStaff = []
-        return
+
+        console.log("[asistIA-staff-report-debug] filas locales", {
+            total: rowsFiltradasTenant.length
+        })
+
+        const baseRows = rowsFiltradasTenant.map(item => ({
+            fecha: item.fecha || "",
+            hora_ingreso: item.hora_ingreso || "",
+            codigo_bombero: normalizarCodigoBombero(item.codigo_bombero),
+            nombre: normalizarTextoSimple(item.nombre),
+            grado: normalizarTextoSimple(item.grado),
+            ubo_origen: normalizarTextoSimple(item.ubo_origen),
+            tipo_staff: normalizarTextoSimple(item.tipo_staff).toUpperCase(),
+            jornada: normalizarTextoSimple(item.jornada)
+        }))
+        let fotoMap = {}
+        try {
+            fotoMap = await cargarFotosStaffPorCodigos(baseRows.map(item => item.codigo_bombero))
+        } catch (error) {
+            console.error("Error cargando fotos staff para reportes:", error)
+            fotoMap = {}
+        }
+        const rows = baseRows.map(item => ({
+            ...item,
+            foto_url: fotoMap[item.codigo_bombero]?.foto_url || ""
+        }))
+        renderReportesStaff(rows)
+    } finally {
+        reportesStaffCargando = false
     }
-
-    const rowsFiltradasTenant = (data || []).filter(item =>
-        String(item?.tenant_id || "").trim().toLowerCase() === tenantReporteId
-    )
-
-    console.log("[asistIA-staff-report-debug] filas locales", {
-        total: rowsFiltradasTenant.length
-    })
-
-    const baseRows = rowsFiltradasTenant.map(item => ({
-        fecha: item.fecha || "",
-        hora_ingreso: item.hora_ingreso || "",
-        codigo_bombero: normalizarCodigoBombero(item.codigo_bombero),
-        nombre: normalizarTextoSimple(item.nombre),
-        grado: normalizarTextoSimple(item.grado),
-        ubo_origen: normalizarTextoSimple(item.ubo_origen),
-        tipo_staff: normalizarTextoSimple(item.tipo_staff).toUpperCase(),
-        jornada: normalizarTextoSimple(item.jornada)
-    }))
-    let fotoMap = {}
-    try {
-        fotoMap = await cargarFotosStaffPorCodigos(baseRows.map(item => item.codigo_bombero))
-    } catch (error) {
-        console.error("Error cargando fotos staff para reportes:", error)
-        fotoMap = {}
-    }
-    const rows = baseRows.map(item => ({
-        ...item,
-        foto_url: fotoMap[item.codigo_bombero]?.foto_url || ""
-    }))
-    renderReportesStaff(rows)
 }
 
 function limpiarFiltrosStaffReportes() {
@@ -8610,7 +8645,8 @@ async function aplicarCursoEnUI(cfg) {
     renderModuloQrCurso()
 }
 
-async function cargarConfigCurso() {
+async function cargarConfigCurso(force = false) {
+    if (configCursoCargada && !force) return
     const cursoBase = await cargarCursoBaseDesdeSupabase()
     let q = withTenantScope(supabaseClient.from("curso_configuracion").select("*"))
     const { data, error } = await q
@@ -8626,6 +8662,7 @@ async function cargarConfigCurso() {
             gps_activo: false
         } : null
         await aplicarCursoEnUI(cursoConfigCache)
+        configCursoCargada = true
         return
     }
 
@@ -8641,6 +8678,7 @@ async function cargarConfigCurso() {
             gps_activo: false
         } : null)
     await aplicarCursoEnUI(cursoConfigCache)
+    configCursoCargada = true
 }
 
 function obtenerGeoActual() {
@@ -8812,34 +8850,56 @@ function actualizarEstadoChecks() {
 async function cargarDatosDeSesionAutorizada() {
     if (!haySupabase()) return
     try {
-        await cargarUbos()
-    } catch (e) {
-        console.error("Error cargando UBOs:", e)
-    }
-    try {
         await cargarConfigCurso()
     } catch (e) {
         console.error("Error cargando config curso:", e)
     }
-    try {
-        await cargarAspirantesCargados()
-    } catch (e) {
-        console.error("Error cargando aspirantes:", e)
-    }
-    try {
-        await cargarStaffInstruccion()
-    } catch (e) {
-        console.error("Error cargando staff de instruccion:", e)
-    }
-    try {
-        await cargarReportesStaff()
-    } catch (e) {
-        console.error("Error cargando reportes staff:", e)
-    }
-    try {
-        await cargarUsuariosAdminDesdeSupabase()
-    } catch (e) {
-        console.error("Error cargando usuarios admin:", e)
+
+    if (vistaAdminActual === "reportes") {
+        try {
+            await cargarDatos()
+        } catch (e) {
+            console.error("Error cargando datos de asistencia:", e)
+        }
+        try {
+            await cargarReportesStaff()
+        } catch (e) {
+            console.error("Error cargando reportes staff:", e)
+        }
+    } else if (vistaAdminActual === "config") {
+        try {
+            await cargarUbos()
+        } catch (e) {
+            console.error("Error cargando UBOs:", e)
+        }
+        try {
+            await cargarAspirantesCargados()
+        } catch (e) {
+            console.error("Error cargando aspirantes:", e)
+        }
+        try {
+            await cargarStaffInstruccion()
+        } catch (e) {
+            console.error("Error cargando staff de instruccion:", e)
+        }
+    } else if (vistaAdminActual === "usuarios") {
+        try {
+            await cargarUsuariosAdminDesdeSupabase()
+        } catch (e) {
+            console.error("Error cargando usuarios admin:", e)
+        }
+    } else if (vistaAdminActual === "actividad") {
+        try {
+            await cargarActividadTenant()
+        } catch (e) {
+            console.error("Error cargando actividad:", e)
+        }
+    } else if (vistaAdminActual === "dashboard") {
+        try {
+            await cargarDashboard()
+        } catch (e) {
+            console.error("Error cargando dashboard:", e)
+        }
     }
 }
 
@@ -9220,9 +9280,6 @@ async function loginAccesoAdminInstitucional() {
     cerrarAccesoAdminInstitucional()
     aplicarLayout()
     mostrarVista("reportes")
-    await cargarConfigCurso()
-    cargarDatos()
-
     await cargarDatosDeSesionAutorizada()
     await bootstrapAuthorizedApp();
 }
@@ -9315,8 +9372,6 @@ async function login() {
             }, { usuario: resultado.usuario, rol: resultado.rol, tenantId: tenantActivoId })
             aplicarLayout()
             mostrarVista("reportes")
-            await cargarConfigCurso()
-            cargarDatos()
             await cargarDatosDeSesionAutorizada()
             await bootstrapAuthorizedApp();
         } else {
@@ -9448,24 +9503,30 @@ function logout() {
 
 /* ADMIN */
 async function cargarDatos() {
-    let q = withTenantScope(supabaseClient.from("asistencias").select("*"))
+    if (datosAsistenciaCargando) return
+    datosAsistenciaCargando = true
+    try {
+        let q = withTenantScope(supabaseClient.from("asistencias").select("*"))
 
-    if (fechaDesde.value) {
-        q = q.gte("fecha", fechaDesde.value)
-    }
-    if (fechaHasta.value) {
-        q = q.lte("fecha", fechaHasta.value)
-    }
-    if (filtroUbo.value) {
-        q = q.ilike("ubo", "%" + filtroUbo.value + "%")
-    }
+        if (fechaDesde.value) {
+            q = q.gte("fecha", fechaDesde.value)
+        }
+        if (fechaHasta.value) {
+            q = q.lte("fecha", fechaHasta.value)
+        }
+        if (filtroUbo.value) {
+            q = q.ilike("ubo", "%" + filtroUbo.value + "%")
+        }
 
-    const { data } = await q
-        .order("fecha", { ascending: false })
-        .order("hora", { ascending: false })
-    const scopedData = filtrarDataTenantActivo(data)
-    renderTabla((scopedData || []).filter(d => d.estado !== "retirado"))
-    await cargarAlertasReporte()
+        const { data } = await q
+            .order("fecha", { ascending: false })
+            .order("hora", { ascending: false })
+        const scopedData = filtrarDataTenantActivo(data)
+        renderTabla((scopedData || []).filter(d => d.estado !== "retirado"))
+        await cargarAlertasReporte()
+    } finally {
+        datosAsistenciaCargando = false
+    }
 }
 
 function renderTabla(data) {
@@ -10245,7 +10306,9 @@ function mostrarVista(vista) {
 
     if (vista === "usuarios") {
         document.getElementById("vistaUsuarios").style.display = "block"
-        renderUsuariosAdmin()
+        cargarUsuariosAdminDesdeSupabase().then(() => {
+            renderUsuariosAdmin()
+        })
     }
 
     if (vista === "actividad") {
