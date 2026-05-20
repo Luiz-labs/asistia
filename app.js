@@ -292,7 +292,7 @@ const PROFILE_MODULES = Object.freeze([
     { id: "dashboard", label: "Dashboard" },
     { id: "config", label: "Configuración" },
     { id: "usuarios", label: "Usuarios" },
-    { id: "actividad", label: "Logs" }
+    { id: "actividad", label: "Actividad" }
 ])
 const ROLES_ADMIN = Object.freeze({
     SUPERUSUARIO: "superusuario",
