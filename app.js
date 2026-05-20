@@ -8457,7 +8457,7 @@ function limpiarCargaAspirantesUI() {
     }
 }
 
-async function refrescarListadoAspirantes() {
+window.refrescarListadoAspirantes = async function() {
     aspirantesCargadosHidratados = false
     await cargarAspirantesCargados(true)
 }
