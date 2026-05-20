@@ -7391,7 +7391,7 @@ function bindHistoricalImportEvents() {
     })
 }
 
-async function cargarAspirantesCargados(force = false) {
+async function cargarAspirantesCargados(force = true) {
     const tablaEl = document.getElementById("tablaAspirantesCargados")
     const msgEl = document.getElementById("msgCargaAspirantes")
     if (!tablaEl) return
@@ -8039,7 +8039,7 @@ function renderStaffInstruccion() {
     tablaStaffInstruccion.innerHTML = html
 }
 
-async function cargarStaffInstruccion(force = false) {
+async function cargarStaffInstruccion(force = true) {
     if (!tablaStaffInstruccion) return
     if (staffInstruccionHidratado && !force) return
     if (!haySupabase() || !tenantActivoId) {
@@ -8446,6 +8446,7 @@ function limpiarFiltrosStaffReportes() {
 function limpiarCargaAspirantesUI() {
     if (archivoAspirantes) archivoAspirantes.value = ""
     if (msgCargaAspirantes) msgCargaAspirantes.innerText = ""
+    aspirantesCargadosHidratados = false
     if (tablaAspirantesCargados) {
         tablaAspirantesCargados.innerHTML = buildEmptyTableRow(
             5,
@@ -8873,12 +8874,12 @@ async function cargarDatosDeSesionAutorizada() {
             console.error("Error cargando UBOs:", e)
         }
         try {
-            await cargarAspirantesCargados()
+            await cargarAspirantesCargados(false)
         } catch (e) {
             console.error("Error cargando aspirantes:", e)
         }
         try {
-            await cargarStaffInstruccion()
+            await cargarStaffInstruccion(false)
         } catch (e) {
             console.error("Error cargando staff de instruccion:", e)
         }
@@ -10300,8 +10301,8 @@ function mostrarVista(vista) {
         document.getElementById("vistaConfig").style.display = "block"
         cargarUbos()
         cargarConfigCurso()
-        cargarAspirantesCargados()
-        cargarStaffInstruccion()
+        cargarAspirantesCargados(false)
+        cargarStaffInstruccion(false)
     }
 
     if (vista === "usuarios") {
