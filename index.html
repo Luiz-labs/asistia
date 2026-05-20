@@ -427,7 +427,7 @@
                       <input type="date" id="fechaHasta">
                     </div>
                     <button onclick="aplicarFiltros()">Aplicar</button>
-                    <button class="secondary" onclick="limpiarFiltros()">Limpiar</button>
+                    <button class="secondary" onclick="limpiarFiltros()">Limpiar filtros</button>
                     <button onclick="cargarDatos()">Todos</button>
                     <button onclick="exportarReportesExcel()">Exportar Excel</button>
                   </div>
@@ -493,7 +493,7 @@
                     <input id="staffReporteUbo" placeholder="UBO origen" autocomplete="off">
 
                     <button type="button" onclick="cargarReportesStaff()">Aplicar</button>
-                    <button type="button" class="secondary" onclick="limpiarFiltrosStaffReportes()">Limpiar</button>
+                    <button type="button" class="secondary" onclick="limpiarFiltrosStaffReportes()">Limpiar filtros</button>
                     <button type="button" onclick="exportarReportesStaffExcel()">Exportar Excel</button>
                   </div>
 
@@ -677,7 +677,7 @@
                 <input type="file" id="archivoAspirantes" accept=".xlsx,.xls,.csv">
                 <button onclick="cargarExcelAspirantes()">Subir Archivo</button>
                 <button class="secondary" onclick="refrescarListadoAspirantes()">Refrescar Listado</button>
-                <button class="secondary" type="button" onclick="limpiarCargaAspirantesUI()">Limpiar</button>
+                <button class="secondary" type="button" onclick="limpiarCargaAspirantesUI()">Limpiar vista</button>
               </div>
               <p id="msgCargaAspirantes" class="hint"></p>
               <div class="table-wrap user-table-wrap">
@@ -1029,7 +1029,7 @@
             <select id="filtroUboConfig"></select>
             <input id="filtroTextoRetiro" placeholder="Buscar por DNI o nombre">
             <button onclick="buscarAspirantes()">Buscar</button>
-            <button class="secondary" onclick="limpiarRetiro()">Limpiar</button>
+            <button class="secondary" onclick="limpiarRetiro()">Limpiar búsqueda</button>
           </div>
 
           <div id="listaAspirantes"></div>
@@ -1044,7 +1044,7 @@
             <select id="filtroRetirados"></select>
             <input id="filtroTextoRetirados" placeholder="Buscar por DNI o nombre">
             <button onclick="cargarRetirados()">Buscar</button>
-            <button class="secondary" onclick="limpiarRetirados()">Limpiar</button>
+            <button class="secondary" onclick="limpiarRetirados()">Limpiar búsqueda</button>
           </div>
 
           <div id="listaRetirados"></div>
@@ -1349,7 +1349,7 @@
               <input id="filtroActividadTenantDesde" type="date">
               <input id="filtroActividadTenantHasta" type="date">
               <button onclick="cargarActividadTenant()">Filtrar</button>
-              <button class="secondary" onclick="limpiarActividadTenant()">Limpiar</button>
+              <button class="secondary" onclick="limpiarActividadTenant()">Limpiar filtros</button>
               <button class="secondary" onclick="exportarActividadCSV('tenant')">Exportar CSV</button>
             </div>
             </div>
@@ -1557,7 +1557,7 @@
                   <span>Copiar</span>
                 </button>
                 <button class="secondary" onclick="cancelarEdicionUsuarioGlobalLuiz()">Cancelar edición</button>
-                <button class="secondary" onclick="limpiarUsuarioGlobalLuizForm()">Limpiar</button>
+                <button class="secondary" onclick="limpiarUsuarioGlobalLuizForm()">Limpiar formulario</button>
               </div>
             </div>
 
@@ -1684,7 +1684,7 @@
                   <span>Copiar</span>
                 </button>
                 <button class="secondary" onclick="cancelarEdicionUsuarioAdminLuiz()">Cancelar edición</button>
-                <button class="secondary" onclick="limpiarUsuarioAdminLuizForm()">Limpiar</button>
+                <button class="secondary" onclick="limpiarUsuarioAdminLuizForm()">Limpiar formulario</button>
               </div>
             </div>
 
@@ -1764,7 +1764,7 @@
                 <div class="table-actions section-actions-spaced">
                   <button onclick="guardarPerfilLuiz()">Guardar perfil</button>
                   <button class="secondary" onclick="cancelarEdicionPerfilLuiz()">Cancelar edición</button>
-                  <button class="secondary" onclick="limpiarPerfilLuizForm()">Limpiar</button>
+                  <button class="secondary" onclick="limpiarPerfilLuizForm()">Limpiar formulario</button>
                 </div>
                 <div class="table-wrap">
                   <table class="luiz-users-table">
@@ -1810,7 +1810,7 @@
                   <input id="filtroActividadGlobalDesde" type="date">
                   <input id="filtroActividadGlobalHasta" type="date">
                   <button onclick="cargarActividadGlobal()">Filtrar</button>
-                  <button class="secondary" onclick="limpiarActividadGlobal()">Limpiar</button>
+                  <button class="secondary" onclick="limpiarActividadGlobal()">Limpiar filtros</button>
                   <button class="secondary" onclick="exportarActividadCSV('global')">Exportar CSV</button>
                 </div>
                 </div>
