@@ -941,6 +941,16 @@ function registrarActividad(accion, detalle = {}, opts = {}) {
     return insertarActividadLogEnSupabase(entry)
 }
 
+function registrarActividadBackofficeSegura(accion, detalle = {}, opts = {}) {
+    return Promise.resolve(
+        registrarActividad(
+            accion,
+            Object.assign({ origen: "backoffice" }, detalle || {}),
+            opts
+        )
+    ).catch(() => {})
+}
+
 function obtenerActividadPorScope(scope = "actual") {
     const logs = leerActividadLogs()
     if (scope === "global") {
@@ -1006,7 +1016,21 @@ function humanizarAccionActividad(accion) {
         perfil_creado: "Perfil creado",
         perfil_editado: "Perfil editado",
         perfil_estado_actualizado: "Estado de perfil actualizado",
-        perfil_eliminado: "Perfil eliminado"
+        perfil_eliminado: "Perfil eliminado",
+        vista_dashboard_abierta: "Entrada a Dashboard",
+        vista_reportes_abierta: "Entrada a Reportes",
+        vista_config_abierta: "Entrada a Configuración",
+        vista_usuarios_abierta: "Entrada a Usuarios",
+        vista_actividad_abierta: "Entrada a Actividad",
+        reportes_excel_exportado: "Exportar Excel",
+        dashboard_pdf_exportado: "Exportar PDF dashboard",
+        reporte_asistencia_filtros_aplicados: "Aplicar filtros en Reportes",
+        reporte_staff_filtros_aplicados: "Aplicar filtros en Reporte Staff",
+        reporte_asistencia_filtros_limpiados: "Limpiar filtros en Reportes",
+        reporte_staff_filtros_limpiados: "Limpiar filtros en Reporte Staff",
+        actividad_tenant_filtros_limpiados: "Limpiar filtros en Actividad",
+        actividad_global_filtros_limpiados: "Limpiar filtros en Actividad global",
+        aspirantes_listado_refrescado: "Refrescar listado de aspirantes"
     }
     return mapa[String(accion || "")] || String(accion || "-")
 }
@@ -1219,6 +1243,11 @@ function limpiarActividadTenant() {
     if (elTexto) elTexto.value = ""
     if (elDesde) elDesde.value = from
     if (elHasta) elHasta.value = to
+    void registrarActividadBackofficeSegura("actividad_tenant_filtros_limpiados", {
+        modulo: "actividad",
+        rangoDesde: from,
+        rangoHasta: to
+    }, { tenantId: tenantActivoId })
     void cargarActividadTenant()
 }
 
@@ -1256,6 +1285,11 @@ function limpiarActividadGlobal() {
     if (elDesde) elDesde.value = from
     if (elHasta) elHasta.value = to
     if (elTenant) elTenant.value = ""
+    void registrarActividadBackofficeSegura("actividad_global_filtros_limpiados", {
+        modulo: "actividad_global",
+        rangoDesde: from,
+        rangoHasta: to
+    }, { tenantId: tenantActivoId })
     void cargarActividadGlobal()
 }
 
@@ -5245,6 +5279,12 @@ function exportarReportesExcel() {
     }))
 
     descargarExcelDesdeJSON("reportes_asistencia.xlsx", rows)
+    void registrarActividadBackofficeSegura("reportes_excel_exportado", {
+        modulo: "reportes",
+        total: rows.length,
+        rangoDesde: String(fechaDesde?.value || ""),
+        rangoHasta: String(fechaHasta?.value || "")
+    }, { tenantId: tenantActivoId })
 }
 
 function exportarReportesStaffExcel() {
@@ -5379,6 +5419,13 @@ async function exportarDashboardPDF() {
             }
 
             doc.save("dashboard_kpis_esbas.pdf")
+            void registrarActividadBackofficeSegura("dashboard_pdf_exportado", {
+                modulo: "dashboard",
+                rangoDesde: String(dashDesde?.value || ""),
+                rangoHasta: String(dashHasta?.value || ""),
+                ubo: String(dashUbo?.value || ""),
+                seccion: String(dashSeccion?.value || "")
+            }, { tenantId: tenantActivoId })
         })
         .catch(err => {
             console.error(err)
@@ -5815,7 +5862,7 @@ async function cargarExcelAspirantes() {
     msgCargaAspirantes.innerText = `Carga exitosa: ${payload.length} aspirantes procesados.`
     aspirantesCargadosHidratados = false
     await cargarAspirantesCargados()
-    registrarActividad("aspirantes_carga_excel", {
+    void registrarActividadBackofficeSegura("aspirantes_carga_excel", {
         total: payload.length
     }, { tenantId: tenantActivoId })
 }
@@ -8381,7 +8428,7 @@ function renderReportesStaff(data) {
     tablaStaffReportes.innerHTML = html
 }
 
-async function cargarReportesStaff() {
+async function cargarReportesStaff(trigger = "auto") {
     if (!tablaStaffReportes) return
     if (reportesStaffCargando) return
     reportesStaffCargando = true
@@ -8488,9 +8535,23 @@ async function cargarReportesStaff() {
             foto_url: fotoMap[item.codigo_bombero]?.foto_url || ""
         }))
         renderReportesStaff(rows)
+        if (trigger === "manual") {
+            void registrarActividadBackofficeSegura("reporte_staff_filtros_aplicados", {
+                modulo: "reportes_staff",
+                total: rows.length,
+                rangoDesde: String(staffReporteDesde?.value || ""),
+                rangoHasta: String(staffReporteHasta?.value || ""),
+                tipo: String(staffReporteTipo?.value || ""),
+                ubo: String(staffReporteUbo?.value || "").trim()
+            }, { tenantId: tenantReporteId })
+        }
     } finally {
         reportesStaffCargando = false
     }
+}
+
+function aplicarFiltrosStaffReportes() {
+    void cargarReportesStaff("manual")
 }
 
 async function limpiarFiltrosStaffReportes() {
@@ -8507,6 +8568,11 @@ async function limpiarFiltrosStaffReportes() {
             "📋"
         )
     }
+    void registrarActividadBackofficeSegura("reporte_staff_filtros_limpiados", {
+        modulo: "reportes_staff",
+        rangoDesde: from,
+        rangoHasta: to
+    }, { tenantId: tenantActivoId })
     await cargarReportesStaff()
 }
 
@@ -8527,6 +8593,9 @@ function limpiarCargaAspirantesUI() {
 window.refrescarListadoAspirantes = async function() {
     aspirantesCargadosHidratados = false
     await cargarAspirantesCargados(true)
+    void registrarActividadBackofficeSegura("aspirantes_listado_refrescado", {
+        modulo: "configuracion_aspirantes"
+    }, { tenantId: tenantActivoId })
 }
 
 function actualizarUIModoEdicionSeccion() {
@@ -9827,6 +9896,13 @@ async function aplicarFiltros() {
     const scopedData = filtrarDataTenantActivo(data)
     renderTabla(scopedData.filter(d => d.estado !== "retirado"))
     await cargarAlertasReporte()
+    void registrarActividadBackofficeSegura("reporte_asistencia_filtros_aplicados", {
+        modulo: "reportes",
+        total: (scopedData || []).filter(d => d.estado !== "retirado").length,
+        ubo: String(filtroUbo?.value || ""),
+        rangoDesde: String(fechaDesde?.value || ""),
+        rangoHasta: String(fechaHasta?.value || "")
+    }, { tenantId: tenantActivoId })
 
 }
 
@@ -9846,6 +9922,11 @@ async function limpiarFiltros() {
         "La información se actualizó automáticamente.",
         "🔍"
     )
+    void registrarActividadBackofficeSegura("reporte_asistencia_filtros_limpiados", {
+        modulo: "reportes",
+        rangoDesde: from,
+        rangoHasta: to
+    }, { tenantId: tenantActivoId })
     await cargarDatos()
 }
 
@@ -10361,12 +10442,18 @@ function mostrarVista(vista) {
     if (vista === "dashboard") {
         document.getElementById("vistaDashboard").style.display = "block"
         cargarDashboard()
+        void registrarActividadBackofficeSegura("vista_dashboard_abierta", {
+            modulo: "dashboard"
+        }, { tenantId: tenantActivoId })
     }
 
     if (vista === "reportes") {
         vistaReportes.style.display = "block"
         if (!tabla.innerHTML.trim()) cargarDatos()
         if (!tablaStaffReportes.innerHTML.trim() || /Sin registros consultados|Sin registros de staff|No se pudo cargar/i.test(tablaStaffReportes.innerHTML)) cargarReportesStaff()
+        void registrarActividadBackofficeSegura("vista_reportes_abierta", {
+            modulo: "reportes"
+        }, { tenantId: tenantActivoId })
     }
 
     if (vista === "config") {
@@ -10375,6 +10462,9 @@ function mostrarVista(vista) {
         cargarConfigCurso()
         cargarAspirantesCargados(false)
         cargarStaffInstruccion(false)
+        void registrarActividadBackofficeSegura("vista_config_abierta", {
+            modulo: "configuracion"
+        }, { tenantId: tenantActivoId })
     }
 
     if (vista === "usuarios") {
@@ -10382,11 +10472,17 @@ function mostrarVista(vista) {
         cargarUsuariosAdminDesdeSupabase().then(() => {
             renderUsuariosAdmin()
         })
+        void registrarActividadBackofficeSegura("vista_usuarios_abierta", {
+            modulo: "usuarios"
+        }, { tenantId: tenantActivoId })
     }
 
     if (vista === "actividad") {
         document.getElementById("vistaActividad").style.display = "block"
         cargarActividadTenant()
+        void registrarActividadBackofficeSegura("vista_actividad_abierta", {
+            modulo: "actividad"
+        }, { tenantId: tenantActivoId })
     }
 
     vistaAdminActual = vista
