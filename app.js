@@ -458,7 +458,6 @@ async function tieneSesionSupabaseActiva() {
 
 function resetEstadoSesionAdminUI() {
     cerrarCuentaModal()
-    if (typeof cerrarTutorial === "function") cerrarTutorial()
     limpiarSesionAdminActiva()
 
     mostrarSelectorStaff = false
@@ -8796,9 +8795,6 @@ function aplicarLayout() {
     actualizarBotonesVista()
     aplicarVisibilidadAccesoAdminInstitucional()
     actualizarInfoSesionHeader()
-    if (typeof evaluarInicioTutorialAutomatico === "function") {
-        evaluarInicioTutorialAutomatico()
-    }
 }
 
 function actualizarEstadoChecks() {
@@ -10375,23 +10371,8 @@ document.addEventListener("keydown", e => {
         cerrarModal()
         cerrarCuentaModal()
         cerrarAccesoAdminInstitucional()
-        if (tutorialActivo && typeof cerrarTutorial === "function") {
-            cerrarTutorial()
-        }
     }
 })
-
-window.addEventListener("resize", () => {
-    if (!tutorialActivo) return
-    const step = tutorialSteps[tutorialPasoActual]
-    posicionarTooltipTutorial(obtenerTargetTutorial(step))
-})
-
-window.addEventListener("scroll", () => {
-    if (!tutorialActivo) return
-    const step = tutorialSteps[tutorialPasoActual]
-    posicionarTooltipTutorial(obtenerTargetTutorial(step))
-}, true)
 
 async function guardarCurso() {
     if (!haySupabase()) {
