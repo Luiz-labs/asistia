@@ -8457,6 +8457,11 @@ function limpiarCargaAspirantesUI() {
     }
 }
 
+async function refrescarListadoAspirantes() {
+    aspirantesCargadosHidratados = false
+    await cargarAspirantesCargados(true)
+}
+
 function actualizarUIModoEdicionSeccion() {
     const btn = document.getElementById("btnSecCursoPrimary")
     const btnCancel = document.getElementById("btnSecCursoCancel")
