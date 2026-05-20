@@ -8427,7 +8427,7 @@ async function cargarReportesStaff() {
     }
 }
 
-function limpiarFiltrosStaffReportes() {
+async function limpiarFiltrosStaffReportes() {
     const { from, to } = obtenerRangoMesActual()
     if (staffReporteDesde) staffReporteDesde.value = from
     if (staffReporteHasta) staffReporteHasta.value = to
@@ -8436,11 +8436,12 @@ function limpiarFiltrosStaffReportes() {
     staffReportExpandedKey = ""
     if (tablaStaffReportes) {
         tablaStaffReportes.innerHTML = buildEmptyStateHTML(
-            "Filtros restablecidos",
-            "Presiona Aplicar para consultar nuevamente el reporte staff.",
+            "Tienes filtros restablecidos.",
+            "La información se actualizó automáticamente.",
             "📋"
         )
     }
+    await cargarReportesStaff()
 }
 
 function limpiarCargaAspirantesUI() {
@@ -8450,8 +8451,8 @@ function limpiarCargaAspirantesUI() {
     if (tablaAspirantesCargados) {
         tablaAspirantesCargados.innerHTML = buildEmptyTableRow(
             5,
-            "Vista limpiada",
-            "La carga local y la vista previa del módulo fueron restablecidas. No se modificaron datos guardados.",
+            "Sin vista previa cargada",
+            "La vista temporal fue restablecida. No se modificaron datos guardados.",
             "🧹"
         )
     }
@@ -9763,23 +9764,23 @@ async function aplicarFiltros() {
 
 }
 
-function limpiarFiltros() {
+async function limpiarFiltros() {
     const { from, to } = obtenerRangoMesActual()
     filtroUbo.value = ""
     fechaDesde.value = from
     fechaHasta.value = to
 
     tabla.innerHTML = buildEmptyStateHTML(
-        "No hay registros disponibles",
-        "Ajusta los filtros para consultar asistencias registradas.",
+        "Tienes filtros restablecidos.",
+        "La información se actualizó automáticamente.",
         "🔎"
     )
     tablaAlertasContenido.innerHTML = buildEmptyStateHTML(
-        "Sin alertas registradas",
-        "Ajusta los filtros para consultar un periodo con actividad.",
+        "Tienes filtros restablecidos.",
+        "La información se actualizó automáticamente.",
         "🔍"
     )
-
+    await cargarDatos()
 }
 
 async function cargarDashboardStaffOperativo() {
