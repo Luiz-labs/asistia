@@ -156,16 +156,10 @@ function buildEmptyTableRow(colspan, title, text, icon = "○") {
     `
 }
 
-const BACKOFFICE_VIEW_LOADING_COPY = {
-    dashboard: "Cargando dashboard...",
-    reportes: "Cargando informacion...",
-    config: "Cargando configuracion...",
-    usuarios: "Cargando usuarios...",
-    actividad: "Cargando actividad..."
-}
-
 let backofficeLoadingTimer = 0
+let backofficeLoadingSafetyTimer = 0
 let backofficeLoadingView = ""
+let backofficeLoadingToken = 0
 
 function obtenerElementoVistaBackoffice(vista) {
     const mapa = {
@@ -192,32 +186,43 @@ function setBackofficeLoadingState(active, vista = "", mensaje = "") {
 
     if (active) {
         clearTimeout(backofficeLoadingTimer)
+        clearTimeout(backofficeLoadingSafetyTimer)
         backofficeLoadingView = vista
         backofficeLoadingTimer = window.setTimeout(() => {
-            text.textContent = mensaje || BACKOFFICE_VIEW_LOADING_COPY[vista] || "Cargando informacion..."
+            text.textContent = mensaje || "Cargando informacion..."
             shell.hidden = false
             const section = obtenerElementoVistaBackoffice(vista)
             if (section) section.classList.add("app-section-loading")
-        }, 120)
+        }, 250)
+        backofficeLoadingSafetyTimer = window.setTimeout(() => {
+            if (!backofficeLoadingView || backofficeLoadingView !== vista) return
+            setBackofficeLoadingState(false, vista)
+        }, 4000)
         return
     }
 
     clearTimeout(backofficeLoadingTimer)
+    clearTimeout(backofficeLoadingSafetyTimer)
     backofficeLoadingView = ""
     shell.hidden = true
     limpiarEstadosVisualesBackoffice()
 }
 
 async function ejecutarCargaVistaBackoffice(vista, loadFn, mensaje = "") {
+    const token = ++backofficeLoadingToken
     setBackofficeLoadingState(true, vista, mensaje)
     const startedAt = Date.now()
     try {
-        return await loadFn()
+        const resultado = Promise.resolve().then(loadFn)
+        return await Promise.race([
+            resultado,
+            new Promise(resolve => window.setTimeout(resolve, 3900))
+        ])
     } finally {
         const elapsed = Date.now() - startedAt
-        const delay = elapsed < 220 ? 220 - elapsed : 0
+        const delay = elapsed < 300 ? 300 - elapsed : 0
         window.setTimeout(() => {
-            if (backofficeLoadingView && backofficeLoadingView !== vista) return
+            if (token !== backofficeLoadingToken) return
             setBackofficeLoadingState(false, vista)
         }, delay)
     }
