@@ -7912,19 +7912,23 @@ function normalizarFechaLimaISO(fechaBase = new Date()) {
     }).format(fechaBase)
 }
 
-function obtenerRangoStaffDashboard() {
-    const hoy = normalizarFechaLimaISO(new Date())
-    const base = new Date(`${hoy}T12:00:00-05:00`)
-    const day = base.getDay()
-    const diffToMonday = day === 0 ? 6 : day - 1
-    const mondayThisWeek = new Date(base)
-    mondayThisWeek.setDate(base.getDate() - diffToMonday)
-    const mondayLastWeek = new Date(mondayThisWeek)
-    mondayLastWeek.setDate(mondayThisWeek.getDate() - 7)
+function resolverScopeStaff({ usarFiltrosDashboard = false } = {}) {
+    const tenantRuta = resolverAccesoDesdeRuta()
+    const tenantId = normalizarTenantId(tenantRuta?.tenantId || tenantActivoId || "")
+    const cursoId = Number(cursoActualId || 1) || 1
+    const rangoDefault = obtenerRangoMesActual()
+    const from = String((usarFiltrosDashboard ? dashDesde?.value : staffReporteDesde?.value) || rangoDefault.from).trim()
+    const to = String((usarFiltrosDashboard ? dashHasta?.value : staffReporteHasta?.value) || rangoDefault.to).trim()
+    const ubo = String((usarFiltrosDashboard ? dashUbo?.value : staffReporteUbo?.value) || "").trim()
+    const tipo = usarFiltrosDashboard ? "" : String(staffReporteTipo?.value || "").trim().toUpperCase()
+
     return {
-        hoy,
-        from: mondayLastWeek.toISOString().slice(0, 10),
-        to: hoy
+        tenantId,
+        cursoId,
+        from,
+        to,
+        ubo,
+        tipo
     }
 }
 
@@ -8422,13 +8426,15 @@ async function cargarReportesStaff(trigger = "auto") {
     if (reportesStaffCargando) return
     reportesStaffCargando = true
     try {
-        const tenantRuta = resolverAccesoDesdeRuta()
-        const tenantReporteId = normalizarTenantId(tenantRuta?.tenantId || tenantActivoId || "")
+        const scope = resolverScopeStaff()
+        const tenantReporteId = scope.tenantId
+        const cursoReporteId = scope.cursoId
 
         console.log("[asistIA-staff-report-debug] contexto tenant", {
             tenantActivoId,
-            tenantRuta: tenantRuta?.tenantId || "",
-            tenantReporteId
+            tenantReporteId,
+            cursoActualId,
+            cursoReporteId
         })
 
         if (!haySupabase() || !tenantReporteId) {
@@ -8443,21 +8449,22 @@ async function cargarReportesStaff(trigger = "auto") {
         let q = supabaseClient
             .from("staff_asistencias")
             .select("fecha,hora_ingreso,codigo_bombero,nombre,grado,ubo_origen,tipo_staff,jornada,tenant_id")
+            .eq("curso_id", cursoReporteId)
 
         if (tenantReporteId) {
             q = q.eq("tenant_id", tenantReporteId)
         }
 
-        if (staffReporteDesde?.value) q = q.gte("fecha", staffReporteDesde.value)
-        if (staffReporteHasta?.value) q = q.lte("fecha", staffReporteHasta.value)
-        if (staffReporteTipo?.value) q = q.eq("tipo_staff", staffReporteTipo.value)
-        if (staffReporteUbo?.value) q = q.ilike("ubo_origen", `%${String(staffReporteUbo.value || "").trim()}%`)
+        if (scope.from) q = q.gte("fecha", scope.from)
+        if (scope.to) q = q.lte("fecha", scope.to)
+        if (scope.tipo) q = q.eq("tipo_staff", scope.tipo)
+        if (scope.ubo) q = q.ilike("ubo_origen", `%${scope.ubo}%`)
 
         console.log("[asistIA-staff-report-debug] filtros", {
-            desde: staffReporteDesde?.value || "",
-            hasta: staffReporteHasta?.value || "",
-            tipo: staffReporteTipo?.value || "",
-            ubo: String(staffReporteUbo?.value || "").trim()
+            desde: scope.from,
+            hasta: scope.to,
+            tipo: scope.tipo,
+            ubo: scope.ubo
         })
 
         let data = []
@@ -9923,22 +9930,25 @@ async function cargarDashboardStaffOperativo() {
     const kUltDetalle = document.getElementById("staffOpsUltimaDetalle")
     if (!target || !rangeLabel) return
 
-    const { hoy, from, to } = obtenerRangoStaffDashboard()
-    rangeLabel.textContent = `${from} → ${to}`
+    const scope = resolverScopeStaff({ usarFiltrosDashboard: true })
+    const tenantScopeId = scope.tenantId
+    rangeLabel.textContent = `${scope.from} → ${scope.to}`
 
-    if (!haySupabase() || !tenantActivoId) {
+    if (!haySupabase() || !tenantScopeId) {
         target.innerHTML = buildEmptyStateHTML("Sin conexión disponible", "No se pudo cargar el dashboard staff.", "⚠️", true)
         return
     }
 
-    let presentesQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("fecha", hoy).eq("curso_id", cursoActualId || 1))
-    let adjuntosQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("fecha", hoy).eq("tipo_staff", "ADJUNTO").eq("curso_id", cursoActualId || 1))
-    let apoyosQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("fecha", hoy).eq("tipo_staff", "APOYO").eq("curso_id", cursoActualId || 1))
+    let presentesQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("curso_id", scope.cursoId).gte("fecha", scope.from).lte("fecha", scope.to))
+    let adjuntosQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("tipo_staff", "ADJUNTO").eq("curso_id", scope.cursoId).gte("fecha", scope.from).lte("fecha", scope.to))
+    let apoyosQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("tipo_staff", "APOYO").eq("curso_id", scope.cursoId).gte("fecha", scope.from).lte("fecha", scope.to))
     let ultimaQ = withTenantScope(
         supabaseClient
             .from("staff_asistencias")
             .select("fecha,hora_ingreso,codigo_bombero,nombre,tipo_staff,ubo_origen,tenant_id,curso_id")
-            .eq("curso_id", cursoActualId || 1)
+            .eq("curso_id", scope.cursoId)
+            .gte("fecha", scope.from)
+            .lte("fecha", scope.to)
             .order("fecha", { ascending: false })
             .order("hora_ingreso", { ascending: false })
             .limit(1)
@@ -9947,20 +9957,20 @@ async function cargarDashboardStaffOperativo() {
         supabaseClient
             .from("staff_asistencias")
             .select("fecha,hora_ingreso,codigo_bombero,nombre,tipo_staff,jornada,ubo_origen,tenant_id,curso_id")
-            .eq("curso_id", cursoActualId || 1)
-            .gte("fecha", from)
-            .lte("fecha", to)
+            .eq("curso_id", scope.cursoId)
+            .gte("fecha", scope.from)
+            .lte("fecha", scope.to)
             .order("fecha", { ascending: false })
             .order("hora_ingreso", { ascending: false })
             .limit(10)
     )
 
-    if (dashUbo?.value) {
-        presentesQ = presentesQ.eq("ubo_origen", dashUbo.value)
-        adjuntosQ = adjuntosQ.eq("ubo_origen", dashUbo.value)
-        apoyosQ = apoyosQ.eq("ubo_origen", dashUbo.value)
-        ultimaQ = ultimaQ.eq("ubo_origen", dashUbo.value)
-        recientesQ = recientesQ.eq("ubo_origen", dashUbo.value)
+    if (scope.ubo) {
+        presentesQ = presentesQ.eq("ubo_origen", scope.ubo)
+        adjuntosQ = adjuntosQ.eq("ubo_origen", scope.ubo)
+        apoyosQ = apoyosQ.eq("ubo_origen", scope.ubo)
+        ultimaQ = ultimaQ.eq("ubo_origen", scope.ubo)
+        recientesQ = recientesQ.eq("ubo_origen", scope.ubo)
     }
 
     const [
