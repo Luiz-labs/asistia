@@ -156,6 +156,73 @@ function buildEmptyTableRow(colspan, title, text, icon = "○") {
     `
 }
 
+const BACKOFFICE_VIEW_LOADING_COPY = {
+    dashboard: "Cargando dashboard...",
+    reportes: "Cargando informacion...",
+    config: "Cargando configuracion...",
+    usuarios: "Cargando usuarios...",
+    actividad: "Cargando actividad..."
+}
+
+let backofficeLoadingTimer = 0
+let backofficeLoadingView = ""
+
+function obtenerElementoVistaBackoffice(vista) {
+    const mapa = {
+        dashboard: "vistaDashboard",
+        reportes: "vistaReportes",
+        config: "vistaConfig",
+        usuarios: "vistaUsuarios",
+        actividad: "vistaActividad"
+    }
+    return document.getElementById(mapa[vista] || "")
+}
+
+function limpiarEstadosVisualesBackoffice() {
+    ;["dashboard", "reportes", "config", "usuarios", "actividad"].forEach(vista => {
+        const el = obtenerElementoVistaBackoffice(vista)
+        if (el) el.classList.remove("app-section-loading")
+    })
+}
+
+function setBackofficeLoadingState(active, vista = "", mensaje = "") {
+    const shell = document.getElementById("backofficeLoadState")
+    const text = document.getElementById("backofficeLoadText")
+    if (!shell || !text) return
+
+    if (active) {
+        clearTimeout(backofficeLoadingTimer)
+        backofficeLoadingView = vista
+        backofficeLoadingTimer = window.setTimeout(() => {
+            text.textContent = mensaje || BACKOFFICE_VIEW_LOADING_COPY[vista] || "Cargando informacion..."
+            shell.hidden = false
+            const section = obtenerElementoVistaBackoffice(vista)
+            if (section) section.classList.add("app-section-loading")
+        }, 120)
+        return
+    }
+
+    clearTimeout(backofficeLoadingTimer)
+    backofficeLoadingView = ""
+    shell.hidden = true
+    limpiarEstadosVisualesBackoffice()
+}
+
+async function ejecutarCargaVistaBackoffice(vista, loadFn, mensaje = "") {
+    setBackofficeLoadingState(true, vista, mensaje)
+    const startedAt = Date.now()
+    try {
+        return await loadFn()
+    } finally {
+        const elapsed = Date.now() - startedAt
+        const delay = elapsed < 220 ? 220 - elapsed : 0
+        window.setTimeout(() => {
+            if (backofficeLoadingView && backofficeLoadingView !== vista) return
+            setBackofficeLoadingState(false, vista)
+        }, delay)
+    }
+}
+
 function limpiarCurrentProfileVisual() {
     window.currentProfile = null
     resetCacheFlags()
@@ -5246,7 +5313,7 @@ function formatearHoraVisible(valor) {
     return String(valor || "").trim().slice(0, 8)
 }
 
-function exportarReportesExcel() {
+async function exportarReportesExcel() {
     if (!cacheReportes.length) {
         alert("No hay datos para exportar")
         return
@@ -5269,7 +5336,7 @@ function exportarReportesExcel() {
         Alerta: r.alerta || ""
     }))
 
-    descargarExcelDesdeJSON("reportes_asistencia.xlsx", rows)
+    await descargarExcelDesdeJSON("reportes_asistencia.xlsx", rows)
     void registrarActividadBackofficeSegura("reportes_excel_exportado", {
         modulo: "reportes",
         total: rows.length,
@@ -5278,7 +5345,7 @@ function exportarReportesExcel() {
     }, { tenantId: tenantActivoId })
 }
 
-function exportarReportesStaffExcel() {
+async function exportarReportesStaffExcel() {
     if (!cacheReportesStaff.length) {
         alert("No hay datos de staff para exportar")
         return
@@ -5295,10 +5362,10 @@ function exportarReportesStaffExcel() {
         Jornada: r.jornada || ""
     }))
 
-    descargarExcelDesdeJSON("reportes_staff_asistencia.xlsx", rows)
+    await descargarExcelDesdeJSON("reportes_staff_asistencia.xlsx", rows)
 }
 
-function exportarRiesgoUboExcel() {
+async function exportarRiesgoUboExcel() {
     if (!cacheRiesgoUbo.length) {
         alert("No hay datos de riesgo UBO para exportar")
         return
@@ -5315,7 +5382,7 @@ function exportarRiesgoUboExcel() {
         }
     })
 
-    descargarExcelDesdeJSON("dashboard_riesgo_ubo.xlsx", rows)
+    await descargarExcelDesdeJSON("dashboard_riesgo_ubo.xlsx", rows)
 }
 
 async function exportarDashboardPDF() {
@@ -5366,65 +5433,63 @@ async function exportarDashboardPDF() {
 
     const scale = Math.min(window.devicePixelRatio || 1, 2)
 
-    html2canvas(exportNode, {
-        scale,
-        backgroundColor: "#eff2f7",
-        useCORS: true,
-        logging: false,
-        width: exportNode.scrollWidth,
-        windowWidth: exportNode.scrollWidth
-    })
-        .then(canvas => {
-            const { jsPDF } = window.jspdf
-            const doc = new jsPDF("l", "mm", "a4")
-            const pageW = doc.internal.pageSize.getWidth()
-            const pageH = doc.internal.pageSize.getHeight()
-            const margin = 10
-            const titleH = 8
-            const contentY = margin + titleH
-            const usableW = pageW - margin * 2
-            const usableH = pageH - contentY - margin
-            const pxPerPage = Math.floor((usableH * canvas.width) / usableW)
-
-            doc.setFontSize(13)
-            doc.text("Dashboard ESBAS - KPIs", margin, margin + 2)
-
-            let pageIndex = 0
-            for (let sourceY = 0; sourceY < canvas.height; sourceY += pxPerPage) {
-                const sliceHeight = Math.min(pxPerPage, canvas.height - sourceY)
-                const pageCanvas = document.createElement("canvas")
-                pageCanvas.width = canvas.width
-                pageCanvas.height = sliceHeight
-                const pageCtx = pageCanvas.getContext("2d")
-                pageCtx.drawImage(
-                    canvas,
-                    0, sourceY, canvas.width, sliceHeight,
-                    0, 0, canvas.width, sliceHeight
-                )
-
-                const imgData = pageCanvas.toDataURL("image/png")
-                const renderH = (sliceHeight * usableW) / canvas.width
-                if (pageIndex > 0) doc.addPage("a4", "l")
-                doc.addImage(imgData, "PNG", margin, contentY, usableW, renderH, undefined, "FAST")
-                pageIndex++
-            }
-
-            doc.save("dashboard_kpis_esbas.pdf")
-            void registrarActividadBackofficeSegura("dashboard_pdf_exportado", {
-                modulo: "dashboard",
-                rangoDesde: String(dashDesde?.value || ""),
-                rangoHasta: String(dashHasta?.value || ""),
-                ubo: String(dashUbo?.value || ""),
-                seccion: String(dashSeccion?.value || "")
-            }, { tenantId: tenantActivoId })
+    try {
+        const canvas = await html2canvas(exportNode, {
+            scale,
+            backgroundColor: "#eff2f7",
+            useCORS: true,
+            logging: false,
+            width: exportNode.scrollWidth,
+            windowWidth: exportNode.scrollWidth
         })
-        .catch(err => {
-            console.error(err)
-            alert("No se pudo exportar la imagen del dashboard")
-        })
-        .finally(() => {
-            exportNode.remove()
-        })
+        const { jsPDF } = window.jspdf
+        const doc = new jsPDF("l", "mm", "a4")
+        const pageW = doc.internal.pageSize.getWidth()
+        const pageH = doc.internal.pageSize.getHeight()
+        const margin = 10
+        const titleH = 8
+        const contentY = margin + titleH
+        const usableW = pageW - margin * 2
+        const usableH = pageH - contentY - margin
+        const pxPerPage = Math.floor((usableH * canvas.width) / usableW)
+
+        doc.setFontSize(13)
+        doc.text("Dashboard ESBAS - KPIs", margin, margin + 2)
+
+        let pageIndex = 0
+        for (let sourceY = 0; sourceY < canvas.height; sourceY += pxPerPage) {
+            const sliceHeight = Math.min(pxPerPage, canvas.height - sourceY)
+            const pageCanvas = document.createElement("canvas")
+            pageCanvas.width = canvas.width
+            pageCanvas.height = sliceHeight
+            const pageCtx = pageCanvas.getContext("2d")
+            pageCtx.drawImage(
+                canvas,
+                0, sourceY, canvas.width, sliceHeight,
+                0, 0, canvas.width, sliceHeight
+            )
+
+            const imgData = pageCanvas.toDataURL("image/png")
+            const renderH = (sliceHeight * usableW) / canvas.width
+            if (pageIndex > 0) doc.addPage("a4", "l")
+            doc.addImage(imgData, "PNG", margin, contentY, usableW, renderH, undefined, "FAST")
+            pageIndex++
+        }
+
+        doc.save("dashboard_kpis_esbas.pdf")
+        void registrarActividadBackofficeSegura("dashboard_pdf_exportado", {
+            modulo: "dashboard",
+            rangoDesde: String(dashDesde?.value || ""),
+            rangoHasta: String(dashHasta?.value || ""),
+            ubo: String(dashUbo?.value || ""),
+            seccion: String(dashSeccion?.value || "")
+        }, { tenantId: tenantActivoId })
+    } catch (err) {
+        console.error(err)
+        alert("No se pudo exportar la imagen del dashboard")
+    } finally {
+        exportNode.remove()
+    }
 }
 
 async function cargarUsuariosAdminDesdeSupabase() {
@@ -7932,6 +7997,17 @@ function resolverScopeStaff({ usarFiltrosDashboard = false } = {}) {
     }
 }
 
+function resolverScopeDashboardAspirantes() {
+    return {
+        tenantId: normalizarTenantId(tenantActivoId || ""),
+        cursoId: Number(cursoActualId || 1) || 1,
+        from: String(dashDesde?.value || "").trim(),
+        to: String(dashHasta?.value || "").trim(),
+        ubo: String(dashUbo?.value || "").trim(),
+        seccion: normalizarCodigoSeccion(dashSeccion?.value || "")
+    }
+}
+
 function renderStaffAvatarCompact(row) {
     const foto = normalizarTextoSimple(row?.foto_url)
     const nombre = normalizarTextoSimple(row?.nombre) || obtenerNombreCompletoStaff(row) || "Staff"
@@ -9537,9 +9613,9 @@ function verCriterio(tipo) {
     if (tipo === "riesgo") {
         titulo = "Criterio Riesgo UBO"
         contenido = `
-      <p>Se cuenta cuántos aspirantes quedaron en <strong>Rojo</strong> y se agrupan por UBO.</p>
+      <p>Se cuentan los aspirantes con <strong>tardanza</strong>, <strong>fuera de horario/día</strong> u <strong>otros casos en rojo</strong> y se agrupan por UBO.</p>
       <p>El listado muestra las UBOs con más casos para priorizar seguimiento.</p>
-      <p style="margin-top:10px;color:#5f6f8f;">Usa el mismo criterio de semáforo y respeta el filtro de fechas.</p>
+      <p style="margin-top:10px;color:#5f6f8f;">Respeta tenant, curso, rango de fechas, UBO y sección seleccionados en el dashboard.</p>
     `
     }
 
@@ -10027,22 +10103,29 @@ async function cargarDashboardStaffOperativo() {
 }
 
 async function cargarDashboard() {
+    const scope = resolverScopeDashboardAspirantes()
+
+    if (!haySupabase() || !scope.tenantId) {
+        limpiarDashboard()
+        return
+    }
 
     let q = withTenantScope(supabaseClient.from("asistencias").select("*"))
+        .eq("curso_id", scope.cursoId)
 
-    if (dashDesde.value) {
-        q = q.gte("fecha", dashDesde.value)
+    if (scope.from) {
+        q = q.gte("fecha", scope.from)
     }
 
-    if (dashHasta.value) {
-        q = q.lte("fecha", dashHasta.value)
+    if (scope.to) {
+        q = q.lte("fecha", scope.to)
     }
 
-    if (dashUbo.value) {
-        q = q.eq("ubo", dashUbo.value)
+    if (scope.ubo) {
+        q = q.eq("ubo", scope.ubo)
     }
-    if (dashSeccion.value) {
-        q = q.eq("seccion", dashSeccion.value)
+    if (scope.seccion) {
+        q = q.eq("seccion", scope.seccion)
     }
 
     const { data } = await q
@@ -10054,9 +10137,13 @@ async function cargarDashboard() {
     try {
         let padronQ = withTenantScope(supabaseClient
             .from("aspirantes")
-            .select("dni", { count: "exact", head: true }))
-        if (dashUbo.value) {
-            padronQ = padronQ.eq("ubo", dashUbo.value)
+            .select("dni", { count: "exact", head: true })
+            .eq("curso_id", scope.cursoId))
+        if (scope.ubo) {
+            padronQ = padronQ.eq("ubo", scope.ubo)
+        }
+        if (scope.seccion) {
+            padronQ = padronQ.eq("seccion", scope.seccion)
         }
         const { count } = await padronQ
         padronTotal = Number(count || 0)
@@ -10067,20 +10154,20 @@ async function cargarDashboard() {
     let alertasQ = withTenantScope(supabaseClient
         .from("asistencia_alertas")
         .select("id", { count: "exact", head: true })
-        .eq("curso_id", cursoActualId || 1)
+        .eq("curso_id", scope.cursoId)
         .eq("tipo", "dni_en_otro_dispositivo"))
 
-    if (dashDesde.value) {
-        alertasQ = alertasQ.gte("fecha", dashDesde.value)
+    if (scope.from) {
+        alertasQ = alertasQ.gte("fecha", scope.from)
     }
-    if (dashHasta.value) {
-        alertasQ = alertasQ.lte("fecha", dashHasta.value)
+    if (scope.to) {
+        alertasQ = alertasQ.lte("fecha", scope.to)
     }
-    if (dashUbo.value) {
-        alertasQ = alertasQ.eq("ubo", dashUbo.value)
+    if (scope.ubo) {
+        alertasQ = alertasQ.eq("ubo", scope.ubo)
     }
-    if (dashSeccion.value) {
-        alertasQ = alertasQ.eq("seccion", dashSeccion.value)
+    if (scope.seccion) {
+        alertasQ = alertasQ.eq("seccion", scope.seccion)
     }
 
     const { count: alertasDispNoHabitual } = await alertasQ
@@ -10088,23 +10175,23 @@ async function cargarDashboard() {
     let alertasDetalleQ = withTenantScope(supabaseClient
         .from("asistencia_alertas")
         .select("fecha,hora,dni,nombre,ubo,seccion,detalle,device_id,tenant_id,curso_id")
-        .eq("curso_id", cursoActualId || 1)
+        .eq("curso_id", scope.cursoId)
         .eq("tipo", "dni_en_otro_dispositivo")
         .order("fecha", { ascending: false })
         .order("hora", { ascending: false })
         .limit(120))
 
-    if (dashDesde.value) {
-        alertasDetalleQ = alertasDetalleQ.gte("fecha", dashDesde.value)
+    if (scope.from) {
+        alertasDetalleQ = alertasDetalleQ.gte("fecha", scope.from)
     }
-    if (dashHasta.value) {
-        alertasDetalleQ = alertasDetalleQ.lte("fecha", dashHasta.value)
+    if (scope.to) {
+        alertasDetalleQ = alertasDetalleQ.lte("fecha", scope.to)
     }
-    if (dashUbo.value) {
-        alertasDetalleQ = alertasDetalleQ.eq("ubo", dashUbo.value)
+    if (scope.ubo) {
+        alertasDetalleQ = alertasDetalleQ.eq("ubo", scope.ubo)
     }
-    if (dashSeccion.value) {
-        alertasDetalleQ = alertasDetalleQ.eq("seccion", dashSeccion.value)
+    if (scope.seccion) {
+        alertasDetalleQ = alertasDetalleQ.eq("seccion", scope.seccion)
     }
 
     const { data: alertasDetalle } = await alertasDetalleQ
@@ -10131,6 +10218,7 @@ async function cargarDashboard() {
         amarillo: [],
         rojo: []
     }
+    window.detalleRiesgoUbo = {}
 
     let uboMap = {}
 
@@ -10174,17 +10262,36 @@ async function cargarDashboard() {
         if (esFueraHorarioODia) rojoFueraDia++
 
         if (esTardanza || esFueraHorarioODia || estado === "rojo") {
-            if (!uboMap[a.ubo]) {
-                uboMap[a.ubo] = { total: 0, tardanza: 0, fueraDia: 0, otros: 0 }
+            const uboKey = String(a.ubo || "Sin UBO").trim() || "Sin UBO"
+            if (!uboMap[uboKey]) {
+                uboMap[uboKey] = { total: 0, tardanza: 0, fueraDia: 0, otros: 0 }
             }
-            uboMap[a.ubo].total++
+            if (!window.detalleRiesgoUbo[uboKey]) {
+                window.detalleRiesgoUbo[uboKey] = []
+            }
+            uboMap[uboKey].total++
             if (esTardanza) {
-                uboMap[a.ubo].tardanza++
+                uboMap[uboKey].tardanza++
             } else if (esFueraHorarioODia) {
-                uboMap[a.ubo].fueraDia++
+                uboMap[uboKey].fueraDia++
             } else {
-                uboMap[a.ubo].otros++
+                uboMap[uboKey].otros++
             }
+            window.detalleRiesgoUbo[uboKey].push({
+                dni,
+                nombre: a.nombre,
+                ubo: uboKey,
+                total: a.total,
+                criterioCodigo: evaluacion.motivo || "",
+                criterio: describirMotivoSemaforo(evaluacion.motivo),
+                fecha: evaluacion.fecha || "-",
+                horaMarcada: evaluacion.horaMarcada || "-",
+                seccion: evaluacion.seccion || "-",
+                horaInicio: evaluacion.horaInicio || "-",
+                tipoJornada: formatearTipoJornadaAmigable(evaluacion.tipoJornada),
+                modalidad: formatearModalidadAmigable(evaluacion.modalidad) || "-",
+                estadoAsistencia: formatearEstadoAsistenciaDashboard(evaluacion.estadoAsistencia)
+            })
         }
     }
 
@@ -10192,8 +10299,8 @@ async function cargarDashboard() {
     kpiAsistencia.innerText = total
         ? Math.round((verde / total) * 100) + "%"
         : "0%"
-    const inasistencias = Math.max(0, padronTotal - total)
-    kpiInasistencia.innerText = inasistencias
+    const sinAsistencia = Math.max(0, padronTotal - total)
+    kpiInasistencia.innerText = sinAsistencia
     kpiCobertura.innerText = padronTotal ? Math.round((total / padronTotal) * 100) + "%" : "0%"
 
     verdeCount.innerText = verde
@@ -10219,15 +10326,15 @@ async function cargarDashboard() {
     if (!html) {
         html = buildEmptyStateHTML(
             "Sin riesgo acumulado",
-            "No se encontraron registros en rojo para el rango seleccionado.",
+            "No se encontraron tardanzas, fuera de horario/día ni otros casos en rojo para el rango seleccionado.",
             "📉",
             true
         )
     }
 
     topUbo.innerHTML = html
-    semaforoInfo.innerText = "Semáforo de asistencia: utiliza los estados registrados automáticamente (Puntual, Tardanza, Fuera de horario). Si un registro no cuenta con estado asignado, se aplica el criterio general por horario del curso."
-    riesgoInfo.innerText = "Riesgo por UBO: acumulado de aspirantes con tardanza o fuera de horario/día en el rango filtrado."
+    semaforoInfo.innerText = "Semáforo de asistencia: clasifica a cada aspirante por su primera marcación del último día dentro del rango filtrado. Usa estados automáticos registrados y, si faltan, aplica el criterio horario de la sección."
+    riesgoInfo.innerText = "Riesgo por UBO: acumulado de aspirantes con tardanza, fuera de horario/día u otros casos en rojo dentro del rango filtrado."
 
     try {
         await cargarDashboardStaffOperativo()
@@ -10293,15 +10400,13 @@ function verAlertasDispositivo() {
 }
 
 function verUbo(ubo) {
-
-    let data = window.detalleSemaforo["rojo"]
-        .filter(x => x.ubo == ubo)
+    let data = window.detalleRiesgoUbo?.[ubo] || []
 
     if (!data.length) {
         modalTitulo.innerText = "UBO " + ubo
         modalContenido.innerHTML = buildEmptyStateHTML(
             "Sin registros para esta UBO",
-            "No se encontraron registros en rojo para esta UBO en el rango seleccionado.",
+            "No se encontraron casos de riesgo para esta UBO en el rango seleccionado.",
             "📍"
         )
         modal.style.display = "flex"
@@ -10434,7 +10539,9 @@ function mostrarVista(vista) {
 
     if (vista === "dashboard") {
         document.getElementById("vistaDashboard").style.display = "block"
-        cargarDashboard()
+        void ejecutarCargaVistaBackoffice("dashboard", async () => {
+            await cargarDashboard()
+        })
         void registrarActividadBackofficeSegura("vista_dashboard_abierta", {
             modulo: "dashboard"
         }, { tenantId: tenantActivoId })
@@ -10442,8 +10549,12 @@ function mostrarVista(vista) {
 
     if (vista === "reportes") {
         vistaReportes.style.display = "block"
-        if (!tabla.innerHTML.trim()) cargarDatos()
-        if (!tablaStaffReportes.innerHTML.trim() || /Sin registros consultados|Sin registros de staff|No se pudo cargar/i.test(tablaStaffReportes.innerHTML)) cargarReportesStaff()
+        void ejecutarCargaVistaBackoffice("reportes", async () => {
+            if (!tabla.innerHTML.trim()) await cargarDatos()
+            if (!tablaStaffReportes.innerHTML.trim() || /Sin registros consultados|Sin registros de staff|No se pudo cargar/i.test(tablaStaffReportes.innerHTML)) {
+                await cargarReportesStaff()
+            }
+        })
         void registrarActividadBackofficeSegura("vista_reportes_abierta", {
             modulo: "reportes"
         }, { tenantId: tenantActivoId })
@@ -10451,10 +10562,14 @@ function mostrarVista(vista) {
 
     if (vista === "config") {
         document.getElementById("vistaConfig").style.display = "block"
-        cargarUbos()
-        cargarConfigCurso()
-        cargarAspirantesCargados(false)
-        cargarStaffInstruccion(false)
+        void ejecutarCargaVistaBackoffice("config", async () => {
+            await Promise.allSettled([
+                Promise.resolve(cargarUbos()),
+                Promise.resolve(cargarConfigCurso()),
+                Promise.resolve(cargarAspirantesCargados(false)),
+                Promise.resolve(cargarStaffInstruccion(false))
+            ])
+        })
         void registrarActividadBackofficeSegura("vista_config_abierta", {
             modulo: "configuracion"
         }, { tenantId: tenantActivoId })
@@ -10462,7 +10577,8 @@ function mostrarVista(vista) {
 
     if (vista === "usuarios") {
         document.getElementById("vistaUsuarios").style.display = "block"
-        cargarUsuariosAdminDesdeSupabase().then(() => {
+        void ejecutarCargaVistaBackoffice("usuarios", async () => {
+            await cargarUsuariosAdminDesdeSupabase()
             renderUsuariosAdmin()
         })
         void registrarActividadBackofficeSegura("vista_usuarios_abierta", {
@@ -10472,7 +10588,9 @@ function mostrarVista(vista) {
 
     if (vista === "actividad") {
         document.getElementById("vistaActividad").style.display = "block"
-        cargarActividadTenant()
+        void ejecutarCargaVistaBackoffice("actividad", async () => {
+            await cargarActividadTenant()
+        })
         void registrarActividadBackofficeSegura("vista_actividad_abierta", {
             modulo: "actividad"
         }, { tenantId: tenantActivoId })
@@ -11195,8 +11313,8 @@ function limpiarDashboard() {
     kpiDispCard.style.opacity = "0.75"
 
     topUbo.innerHTML = ""
-    semaforoInfo.innerText = "Semáforo: utiliza los estados automáticos registrados y aplica el criterio por horario para registros históricos sin estado."
-    riesgoInfo.innerText = "Riesgo UBO: tardanza o fuera de horario/día por UBO."
+    semaforoInfo.innerText = "Semáforo: clasifica a cada aspirante por su primera marcación del último día dentro del rango filtrado."
+    riesgoInfo.innerText = "Riesgo UBO: tardanza, fuera de horario/día u otros casos en rojo por UBO."
 
     // limpiar memoria
     window.detalleSemaforo = {
@@ -11204,6 +11322,7 @@ function limpiarDashboard() {
         amarillo: [],
         rojo: []
     }
+    window.detalleRiesgoUbo = {}
     window.detalleAlertasDispositivo = []
 
 }

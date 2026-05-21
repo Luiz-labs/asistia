@@ -222,6 +222,10 @@
           Tu cuenta tiene permisos administrativos.<br>
           Para una mejor experiencia, el panel completo se muestra en la vista preparada para administración.
         </div>
+        <div id="backofficeLoadState" class="backoffice-load-state" hidden aria-live="polite">
+          <span class="backoffice-load-spinner" aria-hidden="true"></span>
+          <span id="backofficeLoadText">Cargando información...</span>
+        </div>
 
         <div id="vistaDashboard" class="app-section" style="display:none;">
 
@@ -275,7 +279,7 @@
 
                   <div class="card kpi-card">
                     <h3 id="kpiTotal">0</h3>
-                    <p>Total Activos</p>
+                    <p>Con asistencia</p>
                   </div>
 
                   <div class="card kpi-card">
@@ -285,7 +289,7 @@
 
                   <div class="card kpi-card">
                     <h3 id="kpiInasistencia">0</h3>
-                    <p>Inasistencias</p>
+                    <p>Sin asistencia</p>
                   </div>
 
                   <div class="card kpi-card">
@@ -321,9 +325,9 @@
                 </div>
               </div>
 
-              <p id="semaforoInfo" class="section-note section-note-compact">
-                Semáforo: criterio de puntualidad por aspirante en el rango seleccionado.
-              </p>
+                <p id="semaforoInfo" class="section-note section-note-compact">
+                  Semáforo: criterio de puntualidad por aspirante en el rango seleccionado.
+                </p>
               <div class="dashboard-flex-row is-compact">
                 <div class="card kpi-card">
                   <h3 id="kpiRojoTardanza">0</h3>
@@ -340,7 +344,7 @@
                 <h3>⚠ Riesgo por UBO</h3>
                 <div id="topUbo"></div>
                 <p id="riesgoInfo" class="section-note">
-                  Riesgo UBO: cantidad de aspirantes en estado rojo por UBO.
+                  Riesgo UBO: tardanza, fuera de horario/día u otros casos en rojo por UBO.
                 </p>
                 <button class="btn-link" onclick="verCriterio('riesgo')">Ver criterio</button>
               </div>
