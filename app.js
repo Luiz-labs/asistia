@@ -156,78 +156,6 @@ function buildEmptyTableRow(colspan, title, text, icon = "○") {
     `
 }
 
-let backofficeLoadingTimer = 0
-let backofficeLoadingSafetyTimer = 0
-let backofficeLoadingView = ""
-let backofficeLoadingToken = 0
-
-function obtenerElementoVistaBackoffice(vista) {
-    const mapa = {
-        dashboard: "vistaDashboard",
-        reportes: "vistaReportes",
-        config: "vistaConfig",
-        usuarios: "vistaUsuarios",
-        actividad: "vistaActividad"
-    }
-    return document.getElementById(mapa[vista] || "")
-}
-
-function limpiarEstadosVisualesBackoffice() {
-    ;["dashboard", "reportes", "config", "usuarios", "actividad"].forEach(vista => {
-        const el = obtenerElementoVistaBackoffice(vista)
-        if (el) el.classList.remove("app-section-loading")
-    })
-}
-
-function setBackofficeLoadingState(active, vista = "", mensaje = "") {
-    const shell = document.getElementById("backofficeLoadState")
-    const text = document.getElementById("backofficeLoadText")
-    if (!shell || !text) return
-
-    if (active) {
-        clearTimeout(backofficeLoadingTimer)
-        clearTimeout(backofficeLoadingSafetyTimer)
-        backofficeLoadingView = vista
-        backofficeLoadingTimer = window.setTimeout(() => {
-            text.textContent = mensaje || "Cargando informacion..."
-            shell.hidden = false
-            const section = obtenerElementoVistaBackoffice(vista)
-            if (section) section.classList.add("app-section-loading")
-        }, 250)
-        backofficeLoadingSafetyTimer = window.setTimeout(() => {
-            if (!backofficeLoadingView || backofficeLoadingView !== vista) return
-            setBackofficeLoadingState(false, vista)
-        }, 4000)
-        return
-    }
-
-    clearTimeout(backofficeLoadingTimer)
-    clearTimeout(backofficeLoadingSafetyTimer)
-    backofficeLoadingView = ""
-    shell.hidden = true
-    limpiarEstadosVisualesBackoffice()
-}
-
-async function ejecutarCargaVistaBackoffice(vista, loadFn, mensaje = "") {
-    const token = ++backofficeLoadingToken
-    setBackofficeLoadingState(true, vista, mensaje)
-    const startedAt = Date.now()
-    try {
-        const resultado = Promise.resolve().then(loadFn)
-        return await Promise.race([
-            resultado,
-            new Promise(resolve => window.setTimeout(resolve, 3900))
-        ])
-    } finally {
-        const elapsed = Date.now() - startedAt
-        const delay = elapsed < 300 ? 300 - elapsed : 0
-        window.setTimeout(() => {
-            if (token !== backofficeLoadingToken) return
-            setBackofficeLoadingState(false, vista)
-        }, delay)
-    }
-}
-
 function limpiarCurrentProfileVisual() {
     window.currentProfile = null
     resetCacheFlags()
@@ -10544,9 +10472,7 @@ function mostrarVista(vista) {
 
     if (vista === "dashboard") {
         document.getElementById("vistaDashboard").style.display = "block"
-        void ejecutarCargaVistaBackoffice("dashboard", async () => {
-            await cargarDashboard()
-        })
+        cargarDashboard()
         void registrarActividadBackofficeSegura("vista_dashboard_abierta", {
             modulo: "dashboard"
         }, { tenantId: tenantActivoId })
@@ -10554,12 +10480,8 @@ function mostrarVista(vista) {
 
     if (vista === "reportes") {
         vistaReportes.style.display = "block"
-        void ejecutarCargaVistaBackoffice("reportes", async () => {
-            if (!tabla.innerHTML.trim()) await cargarDatos()
-            if (!tablaStaffReportes.innerHTML.trim() || /Sin registros consultados|Sin registros de staff|No se pudo cargar/i.test(tablaStaffReportes.innerHTML)) {
-                await cargarReportesStaff()
-            }
-        })
+        if (!tabla.innerHTML.trim()) cargarDatos()
+        if (!tablaStaffReportes.innerHTML.trim() || /Sin registros consultados|Sin registros de staff|No se pudo cargar/i.test(tablaStaffReportes.innerHTML)) cargarReportesStaff()
         void registrarActividadBackofficeSegura("vista_reportes_abierta", {
             modulo: "reportes"
         }, { tenantId: tenantActivoId })
@@ -10567,14 +10489,10 @@ function mostrarVista(vista) {
 
     if (vista === "config") {
         document.getElementById("vistaConfig").style.display = "block"
-        void ejecutarCargaVistaBackoffice("config", async () => {
-            await Promise.allSettled([
-                Promise.resolve(cargarUbos()),
-                Promise.resolve(cargarConfigCurso()),
-                Promise.resolve(cargarAspirantesCargados(false)),
-                Promise.resolve(cargarStaffInstruccion(false))
-            ])
-        })
+        cargarUbos()
+        cargarConfigCurso()
+        cargarAspirantesCargados(false)
+        cargarStaffInstruccion(false)
         void registrarActividadBackofficeSegura("vista_config_abierta", {
             modulo: "configuracion"
         }, { tenantId: tenantActivoId })
@@ -10582,8 +10500,7 @@ function mostrarVista(vista) {
 
     if (vista === "usuarios") {
         document.getElementById("vistaUsuarios").style.display = "block"
-        void ejecutarCargaVistaBackoffice("usuarios", async () => {
-            await cargarUsuariosAdminDesdeSupabase()
+        cargarUsuariosAdminDesdeSupabase().then(() => {
             renderUsuariosAdmin()
         })
         void registrarActividadBackofficeSegura("vista_usuarios_abierta", {
@@ -10593,9 +10510,7 @@ function mostrarVista(vista) {
 
     if (vista === "actividad") {
         document.getElementById("vistaActividad").style.display = "block"
-        void ejecutarCargaVistaBackoffice("actividad", async () => {
-            await cargarActividadTenant()
-        })
+        cargarActividadTenant()
         void registrarActividadBackofficeSegura("vista_actividad_abierta", {
             modulo: "actividad"
         }, { tenantId: tenantActivoId })
