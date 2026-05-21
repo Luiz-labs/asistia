@@ -418,8 +418,6 @@ let perfilAspiranteActual = { dni: "", seccion: "" }
 let inputDniFocusLockUntil = 0
 const SYSTEM_USERS = []
 
-// SECTION_TO_UBO_FIELD legacy definition removed
-
 function enlazarIdsGlobales() {
     document.querySelectorAll("[id]").forEach(el => {
         if (!(el.id in window)) {
@@ -2371,11 +2369,6 @@ function esUsuarioInstitucionalLuiz(user) {
     return rol === ROLES_ADMIN.ADMINISTRADOR && !!String(user.tenantId || "").trim()
 }
 
-function asegurarUsuariosGlobalesLegacy() {
-    // Legacy desactivado: los superusuarios deben existir en Supabase (usuarios_admin).
-    return
-}
-
 function obtenerTenantAsignadoUsuario(usuario) {
     const user = String(usuario || "").trim().toLowerCase()
     const match = (usuariosAdminLuiz || []).find(u => String(u.usuario || "").toLowerCase() === user)
@@ -2472,7 +2465,6 @@ async function cargarLuizLabsDesdeStorage() {
         fecha_creacion: inst.fecha_creacion || new Date().toISOString()
     })).filter(inst => inst.slug && inst.nombre)
 
-    asegurarUsuariosGlobalesLegacy()
     usuariosAdminLuiz = hidratarUsuariosLuizConPerfiles(usuariosAdminLuiz).map(u => {
         if (normalizarRolUsuario(u.rol) !== ROLES_ADMIN.ADMINISTRADOR) return u
         const perfil = normalizarPerfilId(u.perfilId || "")
@@ -7796,8 +7788,6 @@ async function cargarSedesCursoDesdeSupabase() {
     })).filter(x => x.seccion)
 }
 
-function guardarEstructuraCursoLocal() { }
-
 const CURSO_MSG_CLEAR_MS = 9000
 let cursoModuloMsgTimers = {}
 
@@ -8603,7 +8593,6 @@ function actualizarUIModoEdicionSeccion() {
     const banner = document.getElementById("courseSecEditBanner")
     const label = document.getElementById("courseSecEditLabel")
     const module = document.getElementById("courseModuleSecciones")
-    const legacyDisabled = false
     const inputs = [
         document.getElementById("secCursoNombre"),
         document.getElementById("secCursoModalidad"),
@@ -8774,8 +8763,6 @@ async function aplicarCursoEnUI(cfg) {
     } else {
         cursoSedesUbo = []
     }
-
-    guardarEstructuraCursoLocal()
 
     renderSeccionesCurso()
     actualizarOpcionesSeccionSede()
@@ -9638,9 +9625,6 @@ function logout() {
     // 3. Redirigir al logout estático independiente de la SPA
     window.location.href = "/logout.html?next=" + encodeURIComponent(destino)
 }
-
-/* Legacy public attendance flow removed.
-   The only public attendance flow now lives in /asistencia/index.html. */
 
 /* ADMIN */
 async function cargarDatos() {
@@ -10830,7 +10814,6 @@ async function guardarSeccionCurso() {
         const seccionesDb = await cargarSeccionesCursoDesdeSupabase()
         if (Array.isArray(seccionesDb)) cursoSecciones = seccionesDb
 
-        guardarEstructuraCursoLocal()
         renderSeccionesCurso()
         actualizarOpcionesSeccionSede()
         limpiarFormSeccionCurso()
@@ -10889,7 +10872,6 @@ async function eliminarSeccionCurso(idx) {
         console.warn("No se pudo eliminar sección en Supabase:", e)
     }
 
-    guardarEstructuraCursoLocal()
     renderSeccionesCurso()
     actualizarOpcionesSeccionSede()
     if (editSeccionCursoIndex >= 0) {
@@ -11074,7 +11056,6 @@ async function guardarSedeUbo() {
         const sedesDb = await cargarSedesCursoDesdeSupabase()
         if (Array.isArray(sedesDb)) cursoSedesUbo = sedesDb
 
-        guardarEstructuraCursoLocal()
         renderSedesUbo()
         limpiarFormSedeUbo()
     }
@@ -11140,7 +11121,6 @@ async function eliminarSedeUbo(idx) {
         console.warn("No se pudo eliminar sede UBO en Supabase:", e)
     }
 
-    guardarEstructuraCursoLocal()
     renderSedesUbo()
     if (editSedeUboIndex >= 0) {
         actualizarUIModoEdicionSede()
