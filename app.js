@@ -4402,20 +4402,26 @@ function construirUrlPublicaCurso(tipo, token) {
     const tokenLimpio = String(token || "").trim()
     if (!tenant || !tokenLimpio) return ""
     const base = obtenerHostPublicoCursoQr()
-    const path = tipo === "staff" ? "staff-asistencia" : "asistencia"
+    const path = tipo === "staff" ? "staff-asistencia" : (tipo === "justificaciones" ? "justificaciones" : "asistencia")
     return `${base}/${encodeURIComponent(tenant)}/${path}/?curso=${encodeURIComponent(tokenLimpio)}`
 }
 
 function obtenerNodoQrCurso(tipo) {
-    return document.getElementById(tipo === "staff" ? "qrStaff" : "qrAspirantes")
+    if (tipo === "staff") return document.getElementById("qrStaff")
+    if (tipo === "justificaciones") return document.getElementById("qrJustificaciones")
+    return document.getElementById("qrAspirantes")
 }
 
 function obtenerInputUrlQrCurso(tipo) {
-    return document.getElementById(tipo === "staff" ? "urlQrStaff" : "urlQrAspirantes")
+    if (tipo === "staff") return document.getElementById("urlQrStaff")
+    if (tipo === "justificaciones") return document.getElementById("urlQrJustificaciones")
+    return document.getElementById("urlQrAspirantes")
 }
 
 function obtenerUrlCursoQr(tipo) {
-    return tipo === "staff" ? cursoQrState.staffUrl : cursoQrState.aspirantesUrl
+    if (tipo === "staff") return cursoQrState.staffUrl
+    if (tipo === "justificaciones") return cursoQrState.justificacionesUrl
+    return cursoQrState.aspirantesUrl
 }
 
 function renderPlaceholderQrCurso(tipo, texto) {
@@ -4425,7 +4431,7 @@ function renderPlaceholderQrCurso(tipo, texto) {
 }
 
 function limpiarRenderQrCurso() {
-    ;["aspirantes", "staff"].forEach(tipo => {
+    ;["aspirantes", "staff", "justificaciones"].forEach(tipo => {
         const mount = obtenerNodoQrCurso(tipo)
         if (mount) mount.innerHTML = ""
         const input = obtenerInputUrlQrCurso(tipo)
@@ -4458,7 +4464,8 @@ function renderModuloQrCurso() {
     cursoQrState = {
         token: "",
         aspirantesUrl: "",
-        staffUrl: ""
+        staffUrl: "",
+        justificacionesUrl: ""
     }
 
     const token = obtenerTokenPersistenteCursoActual()
@@ -4467,6 +4474,7 @@ function renderModuloQrCurso() {
         mostrarMsgCursoModulo(mensajeId, "No se pudo identificar el tenant activo para construir las URLs públicas.", "warning")
         renderPlaceholderQrCurso("aspirantes", "Tenant no disponible.")
         renderPlaceholderQrCurso("staff", "Tenant no disponible.")
+        renderPlaceholderQrCurso("justificaciones", "Tenant no disponible.")
         return
     }
     if (!token) {
@@ -4477,24 +4485,30 @@ function renderModuloQrCurso() {
         )
         renderPlaceholderQrCurso("aspirantes", "Este curso aún no tiene qr_token configurado.")
         renderPlaceholderQrCurso("staff", "Este curso aún no tiene qr_token configurado.")
+        renderPlaceholderQrCurso("justificaciones", "Este curso aún no tiene qr_token configurado.")
         return
     }
 
     const aspirantesUrl = construirUrlPublicaCurso("aspirantes", token)
     const staffUrl = construirUrlPublicaCurso("staff", token)
+    const justificacionesUrl = construirUrlPublicaCurso("justificaciones", token)
     cursoQrState = {
         token,
         aspirantesUrl,
-        staffUrl
+        staffUrl,
+        justificacionesUrl
     }
 
     const inputAspirantes = obtenerInputUrlQrCurso("aspirantes")
     const inputStaff = obtenerInputUrlQrCurso("staff")
+    const inputJustificaciones = obtenerInputUrlQrCurso("justificaciones")
     if (inputAspirantes) inputAspirantes.value = aspirantesUrl
     if (inputStaff) inputStaff.value = staffUrl
+    if (inputJustificaciones) inputJustificaciones.value = justificacionesUrl
 
     renderQrCursoEnNodo("aspirantes", aspirantesUrl)
     renderQrCursoEnNodo("staff", staffUrl)
+    renderQrCursoEnNodo("justificaciones", justificacionesUrl)
     mostrarMsgCursoModulo(mensajeId, "QRs públicos listos para copiar, descargar o imprimir.", "ok")
 }
 

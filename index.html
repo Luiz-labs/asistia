@@ -1116,10 +1116,6 @@
                   <label for="cursoFin">Fecha término</label>
                   <input type="date" id="cursoFin">
                 </div>
-                <div>
-                  <label for="cursoRadio">Radio GPS (metros)</label>
-                  <input type="number" id="cursoRadio" min="10" max="500" step="5" placeholder="50">
-                </div>
               </div>
             </div>
 
@@ -1163,6 +1159,22 @@
                     <button type="button" class="secondary" onclick="copiarUrlCursoQr('staff')">Copiar URL</button>
                     <button type="button" onclick="descargarQrCurso('staff')">Descargar PNG</button>
                     <button type="button" class="secondary" onclick="imprimirQrCurso('staff')">Imprimir</button>
+                  </div>
+                </article>
+                <article class="course-qr-card">
+                  <div class="course-qr-card-head">
+                    <h5>QR Justificaciones</h5>
+                    <span class="course-qr-badge">Público</span>
+                  </div>
+                  <div id="qrJustificaciones" class="course-qr-canvas" aria-label="QR de Justificaciones"></div>
+                  <div class="course-qr-url-block">
+                    <label for="urlQrJustificaciones">URL pública</label>
+                    <textarea id="urlQrJustificaciones" class="course-qr-url" rows="3" readonly></textarea>
+                  </div>
+                  <div class="course-qr-actions">
+                    <button type="button" class="secondary" onclick="copiarUrlCursoQr('justificaciones')">Copiar URL</button>
+                    <button type="button" onclick="descargarQrCurso('justificaciones')">Descargar PNG</button>
+                    <button type="button" class="secondary" onclick="imprimirQrCurso('justificaciones')">Imprimir</button>
                   </div>
                 </article>
               </div>
@@ -1327,32 +1339,6 @@
             </div>
             </div>
 
-            <div class="course-module">
-              <div class="course-module-head">
-                <div>
-                  <h4>GPS</h4>
-                  <p class="course-module-hint">Configura ubicación, radio de validación y parámetros de marcación por GPS.</p>
-                </div>
-                <span class="course-section-badge">GPS</span>
-              </div>
-              <div class="hint gps-upload-hint">Carga masiva de coordenadas UBO (columnas: <strong>UBO, LATITUD,
-                  LONGITUD</strong>. Opcional: <strong>NOMBRE</strong>).</div>
-              <label class="gps-toggle-label">
-                <input type="checkbox" id="toggleGPS">
-                Activar validación GPS (Proximamente)
-              </label>
-              <div class="config-row file-upload-row config-row-topspaced">
-                <input type="file" id="archivoUbosSedes" accept=".xlsx,.xls,.csv">
-                <button onclick="cargarExcelUbosSedes()">Subir Coordenadas</button>
-                <button class="secondary" onclick="cargarUbos()">Refrescar UBOs</button>
-              </div>
-              <p id="msgCargaUbosSedes" class="hint"></p>
-            </div>
-          </div>
-        </div>
-          </div>
-        </details>
-
         <details class="module-accordion" id="accordionConfigOperativa">
           <summary class="module-accordion-summary">
             <div class="module-accordion-copy">
@@ -1401,11 +1387,43 @@
                   </div>
                 </div>
 
+                <!-- Políticas de GPS -->
+                <div class="course-module">
+                  <div class="course-module-head">
+                    <div>
+                      <h4>Políticas de GPS y Coordenadas</h4>
+                      <p class="course-module-hint">Configura ubicación, radio de validación y parámetros de marcación por GPS.</p>
+                    </div>
+                    <span class="course-section-badge">GPS</span>
+                  </div>
+                  
+                  <div class="config-grid" style="margin-bottom: 14px;">
+                    <div>
+                      <label for="cursoRadio">Radio GPS (metros)</label>
+                      <input type="number" id="cursoRadio" min="10" max="500" step="5" placeholder="50">
+                    </div>
+                    <div style="display: flex; align-items: flex-end; padding-bottom: 8px;">
+                      <label class="gps-toggle-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="toggleGPS" style="width: auto; height: auto;">
+                        Activar validación GPS
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="hint gps-upload-hint">Carga masiva de coordenadas UBO (columnas: <strong>UBO, LATITUD, LONGITUD</strong>. Opcional: <strong>NOMBRE</strong>).</div>
+                  <div class="config-row file-upload-row config-row-topspaced">
+                    <input type="file" id="archivoUbosSedes" accept=".xlsx,.xls,.csv">
+                    <button type="button" onclick="cargarExcelUbosSedes()">Subir Coordenadas</button>
+                    <button type="button" class="secondary" onclick="cargarUbos()">Refrescar UBOs</button>
+                  </div>
+                  <p id="msgCargaUbosSedes" class="hint"></p>
+                </div>
+
                 <!-- Futuros Parámetros Preparados (Deshabilitados visualmente) -->
                 <div class="course-module" style="opacity: 0.65; border-top: 1px solid rgba(0,0,0,0.06); padding-top: 16px;">
                   <div class="course-module-head">
                     <div>
-                      <h4>Políticas de Asistencia y GPS (Fases Futuras)</h4>
+                      <h4>Políticas de Asistencia (Fases Futuras)</h4>
                       <p class="course-module-hint">Estos parámetros se encuentran definidos y preparados en la arquitectura base.</p>
                     </div>
                     <span class="course-section-badge">Próximamente</span>
@@ -1418,14 +1436,6 @@
                     <div>
                       <label>Doble marcación activa</label>
                       <select disabled><option>No</option></select>
-                    </div>
-                    <div>
-                      <label>Geocerca activa</label>
-                      <select disabled><option>No</option></select>
-                    </div>
-                    <div>
-                      <label>Radio geocerca (m)</label>
-                      <input type="number" placeholder="50" disabled>
                     </div>
                   </div>
                 </div>
