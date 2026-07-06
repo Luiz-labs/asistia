@@ -3861,7 +3861,7 @@ function resolverRutaPublicaModerna() {
     const subruta = String(segments[1] || "").trim().toLowerCase()
 
     if (!slug || !esSlugTenantRuteable(slug)) return null
-    if (subruta !== "asistencia" && subruta !== "staff-asistencia") return null
+    if (subruta !== "asistencia" && subruta !== "staff-asistencia" && subruta !== "justificaciones") return null
 
     const params = new URLSearchParams(window.location.search || "")
     if (!params.get("tenant")) {
@@ -3870,7 +3870,7 @@ function resolverRutaPublicaModerna() {
 
     const destinoBase = subruta === "staff-asistencia"
         ? "/staff-asistencia/index.html"
-        : "/asistencia/index.html"
+        : (subruta === "justificaciones" ? "/justificaciones/index.html" : "/asistencia/index.html")
     const qs = params.toString()
     return qs ? `${destinoBase}?${qs}` : destinoBase
 }
