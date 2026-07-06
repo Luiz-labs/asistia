@@ -5252,6 +5252,7 @@ async function descargarExcelDesdeJSON(filename, rows) {
 function normalizarOrigenRegistroLabel(origen) {
     const raw = String(origen || "").trim().toLowerCase()
     if (!raw) return ""
+    if (raw === "justificacion") return "JUSTIFICACIÓN"
     if (raw === "importacion_historica") return "Importado"
     if (raw === "qr" || raw === "qr_aspirantes" || raw === "qr_publico" || raw === "qr_staff" || raw === "mobile_public" || raw === "mobile_public_legacy") return "QR / Actual"
     if (raw.includes("offline")) return "Offline / Contingencia"
@@ -5272,17 +5273,18 @@ async function exportarReportesExcel() {
         DNI: r.dni || "",
         Nombre: r.nombre || "",
         UBO: r.ubo || "",
-        Jornada: formatearTipoJornadaAmigable(r.jornada),
-        Seccion_Aspirante: formatearSeccionRegistro(r.seccion, r.jornada),
-        Modalidad: formatearModalidadAmigable(r.modalidad),
+        Jornada: r.jornada === "-" ? "-" : formatearTipoJornadaAmigable(r.jornada),
+        Seccion_Aspirante: r.jornada === "-" ? r.seccion : formatearSeccionRegistro(r.seccion, r.jornada),
+        Modalidad: r.modalidad === "-" ? "-" : (formatearModalidadAmigable(r.modalidad) || "-"),
         Fecha: r.fecha || "",
-        Hora: formatearHoraVisible(r.hora || ""),
+        Hora: r.hora || "-",
         Origen: r.origen || "",
-        Import_Batch_ID: r.import_batch_id || "",
-        Fuente_Importacion: r.fuente_importacion || r.archivo_origen || "",
-        Importado_En: r.importado_en || "",
-        Importado_Por: r.importado_por || "",
-        Alerta: r.alerta || ""
+        Import_Batch_ID: r.import_batch_id || "-",
+        Fuente_Importacion: r.fuente_importacion || r.archivo_origen || "-",
+        Importado_En: r.importado_en || "-",
+        Importado_Por: r.importado_por || "-",
+        Alerta: r.alerta || "-",
+        Condicion: r.condicion || "-"
     }))
 
     await descargarExcelDesdeJSON("reportes_asistencia.xlsx", rows)
@@ -9093,6 +9095,7 @@ window.onload = async () => {
     if (redirigirRutaPublicaLegadaCurso()) return
     if (redirigirRutaBackofficeLegada()) return
     enlazarIdsGlobales()
+    enlazarKpisJustificaciones()
     enlazarAccionesCuentaHeader()
     bindHistoricalImportEvents()
     renderHistoricalImportMapping()
@@ -9699,8 +9702,8 @@ async function cargarDatos() {
             .order("hora", { ascending: false })
         const scopedData = filtrarDataTenantActivo(data)
 
-        // Cargar justificaciones aprobadas para marcar la condición
-        let justifQ = withTenantScope(supabaseClient.from("justificaciones").select("dni,fecha_justificada"))
+        // Cargar justificaciones aprobadas para marcar la condición y generar filas virtuales
+        let justifQ = withTenantScope(supabaseClient.from("justificaciones").select("dni,fecha_justificada,nombre,apellido,ubo,seccion"))
             .eq("curso_id", cursoActualId || 1)
             .eq("estado_revision", "APROBADA")
         if (fechaDesde.value) {
@@ -9712,7 +9715,52 @@ async function cargarDatos() {
         const { data: justifData } = await justifQ
         window.justificacionesAprobadasMap = new Set((justifData || []).map(j => `${j.dni}|${j.fecha_justificada}`))
 
-        renderTabla((scopedData || []).filter(d => d.estado !== "retirado"))
+        // Generar filas virtuales para justificaciones aprobadas que no tengan asistencia física
+        const asistenciasSet = new Set((scopedData || []).filter(d => d.estado !== "retirado").map(a => `${(a.dni || "").trim()}|${a.fecha}`))
+        const virtualSet = new Set()
+        const virtualAsistencias = []
+
+        if (justifData && justifData.length) {
+            justifData.forEach(j => {
+                const key = `${(j.dni || "").trim()}|${j.fecha_justificada}`
+                if (!asistenciasSet.has(key) && !virtualSet.has(key)) {
+                    virtualSet.add(key)
+                    virtualAsistencias.push({
+                        dni: j.dni || "",
+                        nombre: `${j.nombre || ""} ${j.apellido || ""}`.trim(),
+                        ubo: j.ubo || "",
+                        seccion: j.seccion || "",
+                        tipo_jornada: null,
+                        modalidad: null,
+                        fecha: j.fecha_justificada || "",
+                        hora: null,
+                        origen_registro: "justificacion",
+                        device_id: "virtual_justif",
+                        estado: "activo",
+                        estado_asistencia: "JUSTIFICADO",
+                        import_batch_id: null,
+                        fuente_importacion: null,
+                        archivo_origen: null,
+                        importado_en: null,
+                        importado_por: null
+                    })
+                }
+            })
+        }
+
+        // Aplicar filtro de UBO a las filas virtuales si corresponde
+        let filteredVirtual = virtualAsistencias
+        if (filtroUbo.value) {
+            const uboFilter = String(filtroUbo.value).trim().toLowerCase()
+            filteredVirtual = virtualAsistencias.filter(v => String(v.ubo || "").toLowerCase().includes(uboFilter))
+        }
+
+        const allAsistencias = [
+            ...(scopedData || []).filter(d => d.estado !== "retirado"),
+            ...filteredVirtual
+        ]
+
+        renderTabla(allAsistencias)
         await cargarAlertasReporte()
     } finally {
         datosAsistenciaCargando = false
@@ -9766,23 +9814,24 @@ function renderTabla(data) {
         const hayAlerta = clavesAlerta.has(clave)
         const keyJustif = `${r.dni}|${r.fecha}`
         const esJustificado = window.justificacionesAprobadasMap?.has(keyJustif)
+        const esVirtual = r.device_id === "virtual_justif"
 
         cacheReportes.push({
             dni: r.dni || "",
             nombre: r.nombre || "",
             ubo: r.ubo || "",
-            jornada: normalizarTipoJornada(r.tipo_jornada),
+            jornada: esVirtual ? "-" : normalizarTipoJornada(r.tipo_jornada),
             seccion: r.seccion || "",
-            modalidad: resolverModalidadRegistro(r),
+            modalidad: esVirtual ? "-" : resolverModalidadRegistro(r),
             fecha: r.fecha || "",
-            hora: formatearHoraVisible(r.hora || ""),
-            origen: normalizarOrigenRegistroLabel(r.origen_registro),
+            hora: esVirtual ? "-" : formatearHoraVisible(r.hora || ""),
+            origen: esVirtual ? "JUSTIFICACIÓN" : normalizarOrigenRegistroLabel(r.origen_registro),
             import_batch_id: r.import_batch_id || "",
             fuente_importacion: r.fuente_importacion || "",
             archivo_origen: r.archivo_origen || "",
             importado_en: r.importado_en || "",
             importado_por: r.importado_por || "",
-            alerta: hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta",
+            alerta: esVirtual ? "-" : (hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta"),
             condicion: esJustificado ? "JUSTIFICADO" : "-"
         })
 
@@ -9791,16 +9840,17 @@ function renderTabla(data) {
         <td>${r.dni}</td>
         <td>${r.nombre}</td>
         <td>${r.ubo}</td>
-        <td>${formatearTipoJornadaAmigable(r.tipo_jornada)}</td>
+        <td>${esVirtual ? "-" : formatearTipoJornadaAmigable(r.tipo_jornada)}</td>
         <td>${formatearSeccionRegistro(r.seccion, r.tipo_jornada)}</td>
-        <td>${formatearModalidadAmigable(resolverModalidadRegistro(r)) || "-"}</td>
+        <td>${esVirtual ? "-" : (formatearModalidadAmigable(resolverModalidadRegistro(r)) || "-")}</td>
         <td>${r.fecha}</td>
-        <td>${formatearHoraVisible(r.hora)}</td>
-        <td>${escapeHtml(normalizarOrigenRegistroLabel(r.origen_registro) || "-")}</td>
+        <td>${esVirtual ? "-" : (formatearHoraVisible(r.hora) || "-")}</td>
+        <td>${escapeHtml(esVirtual ? "JUSTIFICACIÓN" : (normalizarOrigenRegistroLabel(r.origen_registro) || "-"))}</td>
         <td>
+          ${esVirtual ? "-" : `
           <span class="badge-alerta ${hayAlerta ? "warn" : "ok"}">
             ${hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta"}
-          </span>
+          </span>`}
         </td>
         <td>
           <span class="badge-alerta ${esJustificado ? "ok" : ""}">
@@ -11565,6 +11615,45 @@ window.addEventListener('keydown', (e) => {
 // ----------------------------------------------------
 // ADMINISTRACIÓN DE JUSTIFICACIONES (BACKOFFICE)
 // ----------------------------------------------------
+function verJustificacionesFiltradas(estado) {
+    const dDesde = document.getElementById("dashDesde")?.value || ""
+    const dHasta = document.getElementById("dashHasta")?.value || ""
+    
+    const jDesde = document.getElementById("justifFiltroDesde")
+    const jHasta = document.getElementById("justifFiltroHasta")
+    const jEstado = document.getElementById("justifFiltroEstado")
+    
+    if (jDesde) jDesde.value = dDesde
+    if (jHasta) jHasta.value = dHasta
+    if (jEstado) jEstado.value = estado
+    
+    mostrarVista("justificaciones")
+}
+
+function enlazarKpisJustificaciones() {
+    const kpiRecibidas = document.getElementById("kpiJustifRecibidas")?.closest(".kpi-card")
+    const kpiPendientes = document.getElementById("kpiJustifPendientes")?.closest(".kpi-card")
+    const kpiAprobadas = document.getElementById("kpiJustifAprobadas")?.closest(".kpi-card")
+    const kpiRechazadas = document.getElementById("kpiJustifRechazadas")?.closest(".kpi-card")
+
+    if (kpiRecibidas) {
+        kpiRecibidas.classList.add("kpi-card-clickable")
+        kpiRecibidas.onclick = () => verJustificacionesFiltradas("")
+    }
+    if (kpiPendientes) {
+        kpiPendientes.classList.add("kpi-card-clickable")
+        kpiPendientes.onclick = () => verJustificacionesFiltradas("RECIBIDA")
+    }
+    if (kpiAprobadas) {
+        kpiAprobadas.classList.add("kpi-card-clickable")
+        kpiAprobadas.onclick = () => verJustificacionesFiltradas("APROBADA")
+    }
+    if (kpiRechazadas) {
+        kpiRechazadas.classList.add("kpi-card-clickable")
+        kpiRechazadas.onclick = () => verJustificacionesFiltradas("RECHAZADA")
+    }
+}
+
 async function cargarJustificacionesBackoffice() {
     const tabla = document.getElementById("tablaJustificacionesContenido")
     if (!tabla) return
@@ -11587,8 +11676,16 @@ async function cargarJustificacionesBackoffice() {
     }
 
     try {
+        const filtroCursoId = cursoActualId || 1
+        console.log("[DIAGNOSTICO JUSTIFICACIONES] Iniciando consulta:", {
+            tenantActivoId,
+            cursoActualId,
+            filtroCursoId,
+            filtros: { fDesde, fHasta, fDni, fUbo, fEstado }
+        })
+
         let q = withTenantScope(supabaseClient.from("justificaciones").select("*"))
-            .eq("curso_id", cursoActualId || 1)
+            .eq("curso_id", filtroCursoId)
 
         if (fDesde) q = q.gte("fecha_justificada", fDesde)
         if (fHasta) q = q.lte("fecha_justificada", fHasta)
@@ -11597,6 +11694,12 @@ async function cargarJustificacionesBackoffice() {
         if (fEstado) q = q.eq("estado_revision", fEstado)
 
         const { data, error } = await q.order("created_at", { ascending: false })
+
+        console.log("[DIAGNOSTICO JUSTIFICACIONES] Resultado de consulta:", {
+            dataCount: data ? data.length : 0,
+            error: error ? { code: error.code, message: error.message, details: error.details } : null,
+            data
+        })
 
         if (error) {
             console.warn("Error consultando justificaciones:", error.message)

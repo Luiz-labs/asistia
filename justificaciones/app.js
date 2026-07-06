@@ -83,6 +83,14 @@ function enlazarIds() {
 
 function setMensaje(texto, tipo = "") {
     if (!mensaje) return
+    
+    const enExito = stepExito && stepExito.style.display === "flex"
+    if (enExito && tipo !== "error") {
+        mensaje.innerText = ""
+        mensaje.className = "message-box"
+        return
+    }
+
     mensaje.className = "message-box"
     mensaje.innerText = texto || ""
     if (!texto) return
@@ -230,8 +238,10 @@ async function actualizarContadorPendientes() {
             ? "1 justificación pendiente de sincronización"
             : `${pendientes} justificaciones pendientes de sincronización`)
         : ""
-    pendingCounter.hidden = pendientes === 0
-    pendingCounter.classList.toggle("has-pending", pendientes > 0)
+    
+    const enExito = stepExito && stepExito.style.display === "flex"
+    pendingCounter.hidden = (pendientes === 0 || enExito)
+    pendingCounter.classList.toggle("has-pending", pendientes > 0 && !enExito)
 }
 
 // Sincronizar cola de IndexedDB a Supabase
@@ -391,6 +401,13 @@ function mostrarPaso(paso) {
     stepFecha.style.display = paso === "fecha" ? "flex" : "none"
     stepSustento.style.display = paso === "sustento" ? "flex" : "none"
     stepExito.style.display = paso === "exito" ? "flex" : "none"
+
+    if (paso === "exito") {
+        setMensaje("")
+        if (pendingCounter) pendingCounter.hidden = true
+    } else {
+        void actualizarContadorPendientes()
+    }
 }
 
 // PASO 1 -> PASO 2: Validar DNI
@@ -714,6 +731,16 @@ async function procesarPaso3() {
                 await supabaseClient.storage.from("justificaciones-sustentos").remove([uploadPath])
             }
             throw insertError
+        }
+
+        // Eliminar de la cola offline si existiera por si acaso
+        await eliminarJustificacionOffline(idLocal)
+
+        // Lanzar sincronización en segundo plano para procesar cualquier otra justificación offline pendiente
+        if (navigator.onLine) {
+            void sincronizarColaOffline()
+        } else {
+            await actualizarContadorPendientes()
         }
 
         setMensaje("✅ Justificación enviada para revisión.", "ok")
