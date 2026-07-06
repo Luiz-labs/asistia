@@ -143,7 +143,6 @@ BEGIN
     WHERE tenant_id = p_tenant_id
       AND curso_id = p_curso_id
       AND dni = p_dni
-      AND estado <> 'retirado'
     LIMIT 1;
 
     IF v_seccion IS NULL THEN
@@ -229,7 +228,6 @@ CREATE POLICY justificaciones_insert_public_policy ON public.justificaciones
             WHERE a.tenant_id = justificaciones.tenant_id
               AND a.curso_id = justificaciones.curso_id
               AND a.dni = justificaciones.dni
-              AND a.estado <> 'retirado'
         )
         AND EXISTS (
             SELECT 1 FROM public.cursos c
