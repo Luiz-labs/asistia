@@ -3801,6 +3801,8 @@ function aplicarRestriccionesPanelPorContexto() {
     if (navConfig) navConfig.style.display = permisosResueltos && (!limitado && puedeConfig) ? "" : "none"
     if (navUsuarios) navUsuarios.style.display = permisosResueltos && (!limitado && puedeUsuarios) ? "" : "none"
     if (navActividad) navActividad.style.display = permisosResueltos && (!limitado && puedeActividad) ? "" : "none"
+    const navJustificaciones = document.getElementById("navJustificaciones")
+    if (navJustificaciones) navJustificaciones.style.display = permisosResueltos && puedeReportes ? "" : "none"
     if (adminMobileNotice) adminMobileNotice.style.display = limitado ? "block" : "none"
 
     if (btnInstitucion) {
@@ -8758,12 +8760,31 @@ async function aplicarCursoEnUI(cfg) {
         cursoFin.value = cfg.fecha_fin || ""
         cursoRadio.value = cfg.radio_m || 50
         toggleGPS.checked = !!cfg.gps_activo
+
+        // Cargar Configuración Operativa
+        const elPlazo = document.getElementById("operJustifPlazoDias")
+        const elOblig = document.getElementById("operJustifDocObligatorio")
+        const elSize = document.getElementById("operJustifMaxSizeMb")
+        const elTypes = document.getElementById("operJustifTiposPermitidos")
+        if (elPlazo) elPlazo.value = cfg.oper_justif_plazo_dias ?? 3
+        if (elOblig) elOblig.value = String(cfg.oper_justif_doc_obligatorio ?? true)
+        if (elSize) elSize.value = cfg.oper_justif_max_size_mb ?? 2.0
+        if (elTypes) elTypes.value = cfg.oper_justif_tipos_permitidos ?? "pdf,jpg,jpeg,png"
     } else {
         cursoNombre.value = ""
         cursoInicio.value = ""
         cursoFin.value = ""
         cursoRadio.value = "50"
         toggleGPS.checked = false
+
+        const elPlazo = document.getElementById("operJustifPlazoDias")
+        const elOblig = document.getElementById("operJustifDocObligatorio")
+        const elSize = document.getElementById("operJustifMaxSizeMb")
+        const elTypes = document.getElementById("operJustifTiposPermitidos")
+        if (elPlazo) elPlazo.value = "3"
+        if (elOblig) elOblig.value = "true"
+        if (elSize) elSize.value = "2.0"
+        if (elTypes) elTypes.value = "pdf,jpg,jpeg,png"
     }
 
     const seccionesDb = await cargarSeccionesCursoDesdeSupabase()
@@ -9663,6 +9684,20 @@ async function cargarDatos() {
             .order("fecha", { ascending: false })
             .order("hora", { ascending: false })
         const scopedData = filtrarDataTenantActivo(data)
+
+        // Cargar justificaciones aprobadas para marcar la condición
+        let justifQ = withTenantScope(supabaseClient.from("justificaciones").select("dni,fecha_justificada"))
+            .eq("curso_id", cursoActualId || 1)
+            .eq("estado_revision", "APROBADA")
+        if (fechaDesde.value) {
+            justifQ = justifQ.gte("fecha_justificada", fechaDesde.value)
+        }
+        if (fechaHasta.value) {
+            justifQ = justifQ.lte("fecha_justificada", fechaHasta.value)
+        }
+        const { data: justifData } = await justifQ
+        window.justificacionesAprobadasMap = new Set((justifData || []).map(j => `${j.dni}|${j.fecha_justificada}`))
+
         renderTabla((scopedData || []).filter(d => d.estado !== "retirado"))
         await cargarAlertasReporte()
     } finally {
@@ -9706,6 +9741,7 @@ function renderTabla(data) {
         <th>Hora</th>
         <th>Origen</th>
         <th>Alerta</th>
+        <th>Condición</th>
       </tr>
     </thead>
     <tbody>
@@ -9714,6 +9750,9 @@ function renderTabla(data) {
     activos.forEach(r => {
         const clave = `${r.device_id || ""}|${(r.dni || "").trim()}|${r.fecha || ""}|${r.hora || ""}`
         const hayAlerta = clavesAlerta.has(clave)
+        const keyJustif = `${r.dni}|${r.fecha}`
+        const esJustificado = window.justificacionesAprobadasMap?.has(keyJustif)
+
         cacheReportes.push({
             dni: r.dni || "",
             nombre: r.nombre || "",
@@ -9729,7 +9768,8 @@ function renderTabla(data) {
             archivo_origen: r.archivo_origen || "",
             importado_en: r.importado_en || "",
             importado_por: r.importado_por || "",
-            alerta: hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta"
+            alerta: hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta",
+            condicion: esJustificado ? "JUSTIFICADO" : "-"
         })
 
         html += `
@@ -9746,6 +9786,11 @@ function renderTabla(data) {
         <td>
           <span class="badge-alerta ${hayAlerta ? "warn" : "ok"}">
             ${hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta"}
+          </span>
+        </td>
+        <td>
+          <span class="badge-alerta ${esJustificado ? "ok" : ""}">
+            ${esJustificado ? "JUSTIFICADO" : "-"}
           </span>
         </td>
       </tr>
@@ -10241,6 +10286,39 @@ async function cargarDashboard() {
     rojoCount.innerText = rojo
     kpiRojoTardanza.innerText = rojoTardanza
     kpiRojoFueraDia.innerText = rojoFueraDia
+
+    // Cargar KPIs de Justificaciones (Fase 1: Separados)
+    try {
+        let justifKpiQ = withTenantScope(supabaseClient.from("justificaciones").select("estado_revision"))
+            .eq("curso_id", scope.cursoId)
+
+        if (scope.from) {
+            justifKpiQ = justifKpiQ.gte("fecha_justificada", scope.from)
+        }
+        if (scope.to) {
+            justifKpiQ = justifKpiQ.lte("fecha_justificada", scope.to)
+        }
+        if (scope.ubo) {
+            justifKpiQ = justifKpiQ.eq("ubo", scope.ubo)
+        }
+        if (scope.seccion) {
+            justifKpiQ = justifKpiQ.eq("seccion", scope.seccion)
+        }
+
+        const { data: justifKpis } = await justifKpiQ
+        const totalJustif = justifKpis ? justifKpis.length : 0
+        const pendientesJustif = justifKpis ? justifKpis.filter(j => j.estado_revision === "RECIBIDA").length : 0
+        const aprobadasJustif = justifKpis ? justifKpis.filter(j => j.estado_revision === "APROBADA").length : 0
+        const rechazadasJustif = justifKpis ? justifKpis.filter(j => j.estado_revision === "RECHAZADA").length : 0
+
+        document.getElementById("kpiJustifRecibidas").innerText = totalJustif
+        document.getElementById("kpiJustifPendientes").innerText = pendientesJustif
+        document.getElementById("kpiJustifAprobadas").innerText = aprobadasJustif
+        document.getElementById("kpiJustifRechazadas").innerText = rechazadasJustif
+    } catch (e) {
+        console.warn("No se pudieron cargar KPIs de justificaciones:", e)
+    }
+
     kpiDispNoHabitual.innerText = alertasDispNoHabitual || 0
     kpiDispCard.style.opacity = (alertasDispNoHabitual || 0) > 0 ? "1" : "0.75"
 
@@ -10466,9 +10544,20 @@ function mostrarVista(vista) {
     document.getElementById("vistaConfig").style.display = "none"
     document.getElementById("vistaUsuarios").style.display = "none"
     document.getElementById("vistaActividad").style.display = "none"
+    const vistaJustif = document.getElementById("vistaJustificaciones");
+    if (vistaJustif) vistaJustif.style.display = "none";
     document.querySelectorAll(".nav-item")
         .forEach(el => el.classList.remove("active"))
     marcarNavActiva(vista)
+
+    if (vista === "justificaciones") {
+        const vistaJustifObj = document.getElementById("vistaJustificaciones");
+        if (vistaJustifObj) vistaJustifObj.style.display = "block";
+        cargarJustificacionesBackoffice();
+        void registrarActividadBackofficeSegura("vista_justificaciones_abierta", {
+            modulo: "justificaciones"
+        }, { tenantId: tenantActivoId });
+    }
 
     if (vista === "dashboard") {
         document.getElementById("vistaDashboard").style.display = "block"
@@ -11458,3 +11547,202 @@ window.addEventListener('keydown', (e) => {
         }
     }
 });
+
+// ----------------------------------------------------
+// ADMINISTRACIÓN DE JUSTIFICACIONES (BACKOFFICE)
+// ----------------------------------------------------
+async function cargarJustificacionesBackoffice() {
+    const tabla = document.getElementById("tablaJustificacionesContenido")
+    if (!tabla) return
+    
+    tabla.innerHTML = '<tr><td colspan="12" style="text-align:center;">Cargando justificaciones...</td></tr>'
+    
+    if (!haySupabase() || !tenantActivoId) {
+        tabla.innerHTML = '<tr><td colspan="12" style="text-align:center;">Error: Conexión no disponible.</td></tr>'
+        return
+    }
+
+    try {
+        let q = withTenantScope(supabaseClient.from("justificaciones").select("*"))
+            .eq("curso_id", cursoActualId || 1)
+
+        const fDesde = document.getElementById("justifFiltroDesde")?.value
+        const fHasta = document.getElementById("justifFiltroHasta")?.value
+        const fDni = document.getElementById("justifFiltroDni")?.value
+        const fUbo = document.getElementById("justifFiltroUbo")?.value
+        const fEstado = document.getElementById("justifFiltroEstado")?.value
+
+        if (fDesde) q = q.gte("fecha_justificada", fDesde)
+        if (fHasta) q = q.lte("fecha_justificada", fHasta)
+        if (fDni) q = q.eq("dni", fDni.trim())
+        if (fUbo) q = q.eq("ubo", fUbo.trim())
+        if (fEstado) q = q.eq("estado_revision", fEstado)
+
+        const { data, error } = await q.order("created_at", { ascending: false })
+
+        if (error) throw error
+
+        if (!data || !data.length) {
+            tabla.innerHTML = '<tr><td colspan="12" style="text-align:center;">No se encontraron justificaciones con los filtros seleccionados.</td></tr>'
+            return
+        }
+
+        let html = ""
+        data.forEach(x => {
+            const fechaReg = new Date(x.created_at).toLocaleDateString("es-PE")
+            const horaReg = new Date(x.created_at).toLocaleTimeString("es-PE", { hour: '2-digit', minute: '2-digit' })
+            
+            const btnSustento = x.archivo_path
+                ? `<button class="primary-btn" style="min-height:30px; padding:4px 8px; border-radius:6px; font-size:0.75rem;" onclick="verSustentoJustificacion('${x.archivo_path}')">Ver sustento</button>`
+                : "-"
+                
+            let badgeClass = "ok"
+            if (x.estado_revision === "RECIBIDA") badgeClass = "warn"
+            if (x.estado_revision === "RECHAZADA") badgeClass = "warn"
+
+            let acciones = "-"
+            if (x.estado_revision === "RECIBIDA") {
+                acciones = `
+                    <div style="display:flex; gap:6px;">
+                        <button class="primary-btn" style="min-height:30px; padding:4px 8px; border-radius:6px; font-size:0.75rem; background:#1f7a3b;" onclick="procesarRevisionJustificacion('${x.id}', 'APROBADA')">Aprobar</button>
+                        <button class="primary-btn" style="min-height:30px; padding:4px 8px; border-radius:6px; font-size:0.75rem; background:#b12d2d;" onclick="procesarRevisionJustificacion('${x.id}', 'RECHAZADA')">Rechazar</button>
+                    </div>
+                `
+            }
+
+            html += `
+                <tr>
+                    <td>${fechaReg} ${horaReg}</td>
+                    <td style="font-weight:bold;">${x.fecha_justificada}</td>
+                    <td>${x.dni}</td>
+                    <td>${escapeHtml(x.nombre + " " + x.apellido)}</td>
+                    <td>${x.ubo}</td>
+                    <td>${x.seccion}</td>
+                    <td>${btnSustento}</td>
+                    <td>
+                        <span class="badge-alerta ${badgeClass}">
+                            ${x.estado_revision}
+                        </span>
+                    </td>
+                    <td>${escapeHtml(x.observacion_revision || "-")}</td>
+                    <td>${escapeHtml(x.usuario_revision || "-")}</td>
+                    <td>${x.fecha_revision ? new Date(x.fecha_revision).toLocaleDateString("es-PE") : "-"}</td>
+                    <td>${acciones}</td>
+                </tr>
+            `
+        })
+
+        tabla.innerHTML = html
+    } catch (e) {
+        console.error("Error al cargar justificaciones:", e)
+        tabla.innerHTML = '<tr><td colspan="12" style="text-align:center; color:red;">Error de carga de justificaciones.</td></tr>'
+    }
+}
+
+function limpiarFiltrosJustificaciones() {
+    const fDesde = document.getElementById("justifFiltroDesde")
+    const fHasta = document.getElementById("justifFiltroHasta")
+    const fDni = document.getElementById("justifFiltroDni")
+    const fUbo = document.getElementById("justifFiltroUbo")
+    const fEstado = document.getElementById("justifFiltroEstado")
+    
+    if (fDesde) fDesde.value = ""
+    if (fHasta) fHasta.value = ""
+    if (fDni) fDni.value = ""
+    if (fUbo) fUbo.value = ""
+    if (fEstado) fEstado.value = ""
+    
+    cargarJustificacionesBackoffice()
+}
+
+async function verSustentoJustificacion(path) {
+    if (!haySupabase() || !path) return
+    try {
+        const { data, error } = await supabaseClient.storage
+            .from("justificaciones-sustentos")
+            .createSignedUrl(path, 60) // Enlace temporal válido por 60 segundos
+            
+        if (error) throw error
+        if (data?.signedUrl) {
+            window.open(data.signedUrl, "_blank")
+        }
+    } catch (e) {
+        console.error("Error obteniendo sustento firmado:", e)
+        alert("No se pudo generar el enlace del sustento. Asegúrate de tener permisos.")
+    }
+}
+
+async function procesarRevisionJustificacion(id, nuevoEstado) {
+    const obs = prompt("Añadir observación de revisión (opcional):")
+    if (obs === null) return // Clic en Cancelar
+    
+    if (!haySupabase() || !id) return
+
+    const emailRevisor = window.currentProfile?.email || "administrador"
+    
+    try {
+        const { error } = await supabaseClient
+            .from("justificaciones")
+            .update({
+                estado_revision: nuevoEstado,
+                observacion_revision: obs.trim(),
+                usuario_revision: emailRevisor,
+                fecha_revision: new Date().toISOString()
+            })
+            .eq("id", id)
+
+        if (error) throw error
+
+        alert(`Justificación revisada: ${nuevoEstado}`)
+        cargarJustificacionesBackoffice()
+        cargarDashboard() // Refresca KPIs en dashboard
+    } catch (e) {
+        console.error("Error al revisar justificación:", e)
+        alert("Error al guardar la revisión.")
+    }
+}
+
+async function guardarConfiguracionOperativa() {
+    const elMsg = document.getElementById("msgConfigOperativa")
+    if (!elMsg) return
+    elMsg.className = "course-inline-msg"
+    elMsg.innerText = "Guardando..."
+    elMsg.style.color = "var(--brand)"
+
+    if (!haySupabase() || !tenantActivoId || !cursoActualId) {
+        elMsg.innerText = "Error: Conexión no disponible."
+        elMsg.style.color = "red"
+        return
+    }
+
+    const payload = {
+        tenant_id: tenantActivoId,
+        id: cursoActualId,
+        oper_justif_plazo_dias: Number(document.getElementById("operJustifPlazoDias").value || 3),
+        oper_justif_doc_obligatorio: document.getElementById("operJustifDocObligatorio").value === "true",
+        oper_justif_max_size_mb: Number(document.getElementById("operJustifMaxSizeMb").value || 2.0),
+        oper_justif_tipos_permitidos: String(document.getElementById("operJustifTiposPermitidos").value || "pdf,jpg,jpeg,png").trim()
+    }
+
+    const { error } = await supabaseClient
+        .from("curso_configuracion")
+        .upsert(payload)
+
+    if (error) {
+        console.error("Error al guardar configuración operativa:", error)
+        elMsg.innerText = "Error al guardar. Revisa la consola."
+        elMsg.style.color = "red"
+    } else {
+        elMsg.innerText = "Configuración operativa guardada correctamente."
+        elMsg.style.color = "green"
+        // Actualizar cache local
+        if (cursoConfigCache) {
+            cursoConfigCache.oper_justif_plazo_dias = payload.oper_justif_plazo_dias
+            cursoConfigCache.oper_justif_doc_obligatorio = payload.oper_justif_doc_obligatorio
+            cursoConfigCache.oper_justif_max_size_mb = payload.oper_justif_max_size_mb
+            cursoConfigCache.oper_justif_tipos_permitidos = payload.oper_justif_tipos_permitidos
+        }
+        setTimeout(() => { elMsg.innerText = "" }, 3000)
+    }
+}
+

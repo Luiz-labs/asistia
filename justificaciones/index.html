@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="asistIA">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>asistIA Justificaciones</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/justificaciones/style.css">
+</head>
+<body>
+  <main class="public-shell">
+    <section id="justificacionesApp" class="public-card">
+      <div class="brand-block">
+        <img class="brand-logo" src="/asistIA_logo.png" alt="asistIA">
+        <div>
+          <h1 class="brand-title">asist<span>IA</span></h1>
+          <p class="brand-subtitle">Registro de justificación</p>
+          <p id="tenantLabel" class="tenant-label"></p>
+        </div>
+      </div>
+
+      <!-- Paso 1: Ingreso de DNI -->
+      <section id="stepIngreso" class="step-block">
+        <p class="step-copy">Ingresa tu DNI para validar tu información</p>
+        <input id="mobileDniInicio" class="text-input" placeholder="DNI (8 dígitos)" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
+        <button id="btnIngresarInicio" class="primary-btn" type="button">Continuar</button>
+      </section>
+
+      <!-- Paso 2: Fecha a Justificar -->
+      <section id="stepFecha" class="step-block" style="display:none;">
+        <p class="step-copy">Verifica tus datos e ingresa la fecha que deseas justificar</p>
+        
+        <div id="studentDetailsCard" class="mobile-sections-container"></div>
+        
+        <div class="input-block">
+          <label for="fechaJustificar" class="field-label">Fecha a justificar</label>
+          <input id="fechaJustificar" class="text-input" placeholder="dd/mm/aaaa" maxlength="10" autocomplete="off" inputmode="numeric">
+          <p class="hint">Ejemplo: 10/07/2026 (Ingreso manual sin calendario)</p>
+        </div>
+
+        <div class="step-actions">
+          <button id="btnValidarFecha" class="primary-btn" type="button">Continuar</button>
+          <button id="btnVolverPaso1" class="secondary-btn" type="button">Volver</button>
+        </div>
+      </section>
+
+      <!-- Paso 3: Adjuntar Sustento -->
+      <section id="stepSustento" class="step-block" style="display:none;">
+        <p class="step-copy">Adjunta el sustento obligatorio para registrar tu justificación</p>
+        
+        <div class="sustento-summary-card">
+          <div class="summary-row"><strong>DNI:</strong> <span id="summaryDni"></span></div>
+          <div class="summary-row"><strong>Fecha a justificar:</strong> <span id="summaryFecha"></span></div>
+        </div>
+
+        <div class="input-block">
+          <label class="file-dropzone" id="dropzoneLabel">
+            <span class="dropzone-icon">📁</span>
+            <strong>Seleccionar o tomar foto del sustento</strong>
+            <span class="dropzone-hint">PDF, JPG, JPEG o PNG (Máx. 2 MB)</span>
+            <input type="file" id="fileSustento" accept="application/pdf,image/jpeg,image/png,image/jpg" capture="environment" class="file-hidden-input">
+          </label>
+          <div id="fileMetaInfo" class="file-meta-info" style="display:none;">
+            <p><strong>Archivo seleccionado:</strong> <span id="fileName"></span></p>
+            <p><strong>Tamaño:</strong> <span id="fileSize"></span></p>
+          </div>
+        </div>
+
+        <div class="step-actions">
+          <button id="btnRegistrarJustificacion" class="primary-btn" type="button">Registrar Justificación</button>
+          <button id="btnVolverPaso2" class="secondary-btn" type="button">Volver</button>
+        </div>
+      </section>
+
+      <!-- Paso 4: Registro Exitoso -->
+      <section id="stepExito" class="step-block" style="display:none;">
+        <div class="success-block">
+          <span class="success-badge">✔ Registro exitoso</span>
+          <h3>Justificación registrada correctamente.</h3>
+          <p class="success-copy">Tu sustento fue recibido para revisión.</p>
+        </div>
+        <button id="btnNuevaJustificacion" class="primary-btn" type="button">Nueva Justificación</button>
+      </section>
+
+      <p id="mensaje" class="message-box"></p>
+      <p id="pendingCounter" class="pending-counter" hidden></p>
+    </section>
+    <footer class="public-footer">asistIA v0.9.7-beta · Control de asistencia · Luiz-Labs © 2026</footer>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="/justificaciones/app.js"></script>
+</body>
+</html>

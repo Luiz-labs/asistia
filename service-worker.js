@@ -18,7 +18,10 @@ const PRECACHE_URLS = [
   "/asistencia/app.js",
   "/staff-asistencia/index.html",
   "/staff-asistencia/style.css",
-  "/staff-asistencia/app.js"
+  "/staff-asistencia/app.js",
+  "/justificaciones/index.html",
+  "/justificaciones/style.css",
+  "/justificaciones/app.js"
 ]
 
 self.addEventListener("install", event => {
@@ -40,6 +43,7 @@ self.addEventListener("activate", event => {
 function resolveNavigationFallback(pathname = "/") {
   if (pathname.includes("/staff-asistencia")) return "/staff-asistencia/index.html"
   if (pathname.includes("/asistencia")) return "/asistencia/index.html"
+  if (pathname.includes("/justificaciones")) return "/justificaciones/index.html"
   return "/index.html"
 }
 

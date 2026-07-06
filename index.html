@@ -209,6 +209,7 @@
           onclick="mostrarVista('reportes')">📄 Reportes
         </p>
         <p id="navDashboard" class="nav-item" data-view="dashboard" onclick="mostrarVista('dashboard')">📊 Dashboard</p>
+        <p id="navJustificaciones" class="nav-item" data-view="justificaciones" onclick="mostrarVista('justificaciones')">⚖️ Justificaciones</p>
         <p id="navConfig" class="nav-item" data-view="config" data-permission="settingsView"
           onclick="mostrarVista('config')">⚙️ Configuración</p>
         <p id="navUsuarios" class="nav-item" data-view="usuarios" data-permission="usersView"
@@ -299,6 +300,26 @@
                     <p>Alertas Dispositivo</p>
                   </div>
 
+                </div>
+
+                <!-- KPIs de Justificaciones (Fase 1: Separados) -->
+                <div class="dashboard-flex-row staff-ops-kpis" style="margin-top: 14px;">
+                  <div class="card kpi-card">
+                    <h3 id="kpiJustifRecibidas">0</h3>
+                    <p>Justificaciones Recibidas</p>
+                  </div>
+                  <div class="card kpi-card">
+                    <h3 id="kpiJustifPendientes">0</h3>
+                    <p>Justificaciones Pendientes</p>
+                  </div>
+                  <div class="card kpi-card">
+                    <h3 id="kpiJustifAprobadas">0</h3>
+                    <p>Justificaciones Aprobadas</p>
+                  </div>
+                  <div class="card kpi-card">
+                    <h3 id="kpiJustifRechazadas">0</h3>
+                    <p>Justificaciones Rechazadas</p>
+                  </div>
                 </div>
 
                 <div class="dashboard-flex-row">
@@ -1332,8 +1353,158 @@
           </div>
         </details>
 
+        <details class="module-accordion" id="accordionConfigOperativa">
+          <summary class="module-accordion-summary">
+            <div class="module-accordion-copy">
+              <h3>Configuración Operativa</h3>
+              <p>Administra las políticas de justificaciones, tolerancia y geocercas del curso.</p>
+            </div>
+            <div class="module-accordion-meta">
+              <span class="module-accordion-tag">Operaciones</span>
+              <span class="module-accordion-icon" aria-hidden="true"></span>
+            </div>
+          </summary>
+          <div class="module-accordion-body">
+            <div class="card config-card">
+              <div class="config-module-stack">
+                
+                <!-- Justificaciones Section -->
+                <div class="course-module">
+                  <div class="course-module-head">
+                    <div>
+                      <h4>Políticas de Justificación</h4>
+                      <p class="course-module-hint">Parámetros que controlan el registro de justificaciones en el QR público.</p>
+                    </div>
+                    <span class="course-section-badge">Justificaciones</span>
+                  </div>
+                  
+                  <div class="config-grid">
+                    <div>
+                      <label for="operJustifPlazoDias">Plazo máximo para registrar justificación (días)</label>
+                      <input type="number" id="operJustifPlazoDias" min="1" max="30" placeholder="3">
+                    </div>
+                    <div>
+                      <label for="operJustifDocObligatorio">Sustento (PDF/Imagen) obligatorio</label>
+                      <select id="operJustifDocObligatorio">
+                        <option value="true">Sí (Obligatorio)</option>
+                        <option value="false">No (Opcional)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label for="operJustifMaxSizeMb">Tamaño máximo de archivo (MB)</label>
+                      <input type="number" id="operJustifMaxSizeMb" min="0.5" max="10" step="0.5" placeholder="2.0">
+                    </div>
+                    <div>
+                      <label for="operJustifTiposPermitidos">Formatos permitidos (separados por coma)</label>
+                      <input id="operJustifTiposPermitidos" placeholder="pdf,jpg,jpeg,png">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Futuros Parámetros Preparados (Deshabilitados visualmente) -->
+                <div class="course-module" style="opacity: 0.65; border-top: 1px solid rgba(0,0,0,0.06); padding-top: 16px;">
+                  <div class="course-module-head">
+                    <div>
+                      <h4>Políticas de Asistencia y GPS (Fases Futuras)</h4>
+                      <p class="course-module-hint">Estos parámetros se encuentran definidos y preparados en la arquitectura base.</p>
+                    </div>
+                    <span class="course-section-badge">Próximamente</span>
+                  </div>
+                  <div class="config-grid">
+                    <div>
+                      <label>Tolerancia (minutos)</label>
+                      <input type="number" placeholder="15" disabled>
+                    </div>
+                    <div>
+                      <label>Doble marcación activa</label>
+                      <select disabled><option>No</option></select>
+                    </div>
+                    <div>
+                      <label>Geocerca activa</label>
+                      <select disabled><option>No</option></select>
+                    </div>
+                    <div>
+                      <label>Radio geocerca (m)</label>
+                      <input type="number" placeholder="50" disabled>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="config-actions course-footer-actions">
+                  <p id="msgConfigOperativa" class="course-inline-msg" role="status" aria-live="polite"></p>
+                  <div class="course-footer-actions-row">
+                    <button type="button" onclick="guardarConfiguracionOperativa()">Guardar Configuración Operativa</button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </details>
 
 
+
+        </div>
+
+        <div id="vistaJustificaciones" class="app-section" style="display:none;">
+          <div class="card config-card section-card-tight">
+            <div class="section-head">
+              <h2 class="section-heading">Gestión de Justificaciones</h2>
+              <p class="section-subtitle">Audita y gestiona las justificaciones presentadas por los aspirantes.</p>
+            </div>
+            
+            <div class="filtros justificaciones-filtros" style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; align-items: flex-end;">
+              <div class="input-date">
+                <label for="justifFiltroDesde" class="hint" style="display:block; margin-bottom:4px;">Desde</label>
+                <input type="date" id="justifFiltroDesde">
+              </div>
+              <div class="input-date">
+                <label for="justifFiltroHasta" class="hint" style="display:block; margin-bottom:4px;">Hasta</label>
+                <input type="date" id="justifFiltroHasta">
+              </div>
+              <div class="input-text-block">
+                <label for="justifFiltroDni" class="hint" style="display:block; margin-bottom:4px;">DNI</label>
+                <input id="justifFiltroDni" placeholder="Buscar DNI" autocomplete="off" style="width: 120px; height: 38px; border: 1px solid #ccc; border-radius: 8px; padding: 4px 8px;">
+              </div>
+              <div class="input-text-block">
+                <label for="justifFiltroUbo" class="hint" style="display:block; margin-bottom:4px;">UBO</label>
+                <input id="justifFiltroUbo" placeholder="UBO" autocomplete="off" style="width: 80px; height: 38px; border: 1px solid #ccc; border-radius: 8px; padding: 4px 8px;">
+              </div>
+              <div class="input-select-block" style="display: flex; flex-direction: column;">
+                <label for="justifFiltroEstado" class="hint" style="margin-bottom:4px;">Estado</label>
+                <select id="justifFiltroEstado" class="filter-select-sm" style="height: 38px;">
+                  <option value="">Todos</option>
+                  <option value="RECIBIDA">RECIBIDA</option>
+                  <option value="APROBADA">APROBADA</option>
+                  <option value="RECHAZADA">RECHAZADA</option>
+                </select>
+              </div>
+              <button onclick="cargarJustificacionesBackoffice()" style="height: 38px; padding: 0 16px; border-radius: 8px;">Aplicar</button>
+              <button class="secondary" onclick="limpiarFiltrosJustificaciones()" style="height: 38px; padding: 0 16px; border-radius: 8px;">Limpiar</button>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Registro</th>
+                    <th>Fecha a Justificar</th>
+                    <th>DNI</th>
+                    <th>Nombre</th>
+                    <th>UBO</th>
+                    <th>Sección</th>
+                    <th>Sustento</th>
+                    <th>Estado</th>
+                    <th>Observación</th>
+                    <th>Revisado por</th>
+                    <th>Fecha revisión</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tablaJustificacionesContenido"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <div id="vistaActividad" class="app-section" style="display:none;">
