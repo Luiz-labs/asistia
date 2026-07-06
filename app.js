@@ -11571,20 +11571,24 @@ async function cargarJustificacionesBackoffice() {
     
     tabla.innerHTML = '<tr><td colspan="12" style="text-align:center;">Cargando justificaciones...</td></tr>'
     
+    const fDesde = document.getElementById("justifFiltroDesde")?.value || ""
+    const fHasta = document.getElementById("justifFiltroHasta")?.value || ""
+    const fDni = document.getElementById("justifFiltroDni")?.value || ""
+    const fUbo = document.getElementById("justifFiltroUbo")?.value || ""
+    const fEstado = document.getElementById("justifFiltroEstado")?.value || ""
+    const tieneFiltros = !!(fDesde || fHasta || fDni || fUbo || fEstado)
+    const msgVacio = tieneFiltros 
+        ? "No se encontraron justificaciones con los filtros seleccionados." 
+        : "No hay justificaciones registradas."
+
     if (!haySupabase() || !tenantActivoId) {
-        tabla.innerHTML = '<tr><td colspan="12" style="text-align:center;">Error: Conexión no disponible.</td></tr>'
+        tabla.innerHTML = `<tr><td colspan="12" style="text-align:center;">${msgVacio}</td></tr>`
         return
     }
 
     try {
         let q = withTenantScope(supabaseClient.from("justificaciones").select("*"))
             .eq("curso_id", cursoActualId || 1)
-
-        const fDesde = document.getElementById("justifFiltroDesde")?.value
-        const fHasta = document.getElementById("justifFiltroHasta")?.value
-        const fDni = document.getElementById("justifFiltroDni")?.value
-        const fUbo = document.getElementById("justifFiltroUbo")?.value
-        const fEstado = document.getElementById("justifFiltroEstado")?.value
 
         if (fDesde) q = q.gte("fecha_justificada", fDesde)
         if (fHasta) q = q.lte("fecha_justificada", fHasta)
@@ -11594,10 +11598,14 @@ async function cargarJustificacionesBackoffice() {
 
         const { data, error } = await q.order("created_at", { ascending: false })
 
-        if (error) throw error
+        if (error) {
+            console.warn("Error consultando justificaciones:", error.message)
+            tabla.innerHTML = `<tr><td colspan="12" style="text-align:center;">${msgVacio}</td></tr>`
+            return
+        }
 
         if (!data || !data.length) {
-            tabla.innerHTML = '<tr><td colspan="12" style="text-align:center;">No se encontraron justificaciones con los filtros seleccionados.</td></tr>'
+            tabla.innerHTML = `<tr><td colspan="12" style="text-align:center;">${msgVacio}</td></tr>`
             return
         }
 
@@ -11648,8 +11656,8 @@ async function cargarJustificacionesBackoffice() {
 
         tabla.innerHTML = html
     } catch (e) {
-        console.error("Error al cargar justificaciones:", e)
-        tabla.innerHTML = '<tr><td colspan="12" style="text-align:center; color:red;">Error de carga de justificaciones.</td></tr>'
+        console.warn("Excepción al cargar justificaciones:", e)
+        tabla.innerHTML = `<tr><td colspan="12" style="text-align:center;">${msgVacio}</td></tr>`
     }
 }
 

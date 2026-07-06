@@ -8,6 +8,12 @@
 /*/asistencia/            /asistencia/index.html         200!
 /*/asistencia             /asistencia/index.html         200!
 
+# justificaciones pública multi-tenant
+/*/justificaciones/*      /justificaciones/index.html    200!
+/*/justificaciones/       /justificaciones/index.html    200!
+/*/justificaciones        /justificaciones/index.html    200!
+
+
 # backoffice institucional multi-tenant
 /*/backoffice/*           /index.html                    200!
 /*/backoffice/            /index.html                    200!

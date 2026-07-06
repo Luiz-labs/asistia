@@ -5276,3 +5276,8 @@ body {
 .dashboard-export-clean .hint {
   background: transparent !important;
 }
+
+.accordion-spaced {
+  margin-top: 28px !important;
+}
+

@@ -405,7 +405,7 @@ async function procesarPaso1() {
     }
 
     if (!cursoQRValido) {
-        setMensaje("Acceso no válido. Escanee el código QR oficial del curso.", "error")
+        setMensaje("QR inválido o curso no disponible.", "error")
         return
     }
 
@@ -823,7 +823,7 @@ async function init() {
     aplicarTenantEnUI()
 
     if (!tenantActivoId) {
-        setMensaje("⚠ No se pudo identificar la institución en la ruta.", "error")
+        setMensaje("QR inválido o curso no disponible.", "error")
         if (mobileDniInicio) mobileDniInicio.disabled = true
         if (btnIngresarInicio) btnIngresarInicio.disabled = true
         return
@@ -841,7 +841,7 @@ async function init() {
     const cursoValido = await resolverCursoPorToken(token)
 
     if (!cursoValido || !cursoQRValido) {
-        setMensaje("Acceso no válido. Escanee el código QR oficial del curso.", "error")
+        setMensaje("QR inválido o curso no disponible.", "error")
         if (mobileDniInicio) mobileDniInicio.disabled = true
         if (btnIngresarInicio) btnIngresarInicio.disabled = true
         return
