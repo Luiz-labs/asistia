@@ -318,25 +318,37 @@ async function sincronizarColaOffline() {
     try {
         for (const item of cola) {
             try {
-                // Paso 1: Subir el archivo Blob a Storage privado
-                const uploadPath = `${item.tenant_id}/${item.curso_id}/${item.dni}/${item.fecha_registro_dispositivo}_${item.id}_${item.archivo_nombre}`
+                // Paso 1: Subir el archivo Blob a Storage privado si corresponde
+                const tieneArchivo = item.archivo_nombre && item.archivo_nombre !== "no_file"
                 
-                const { error: uploadError } = await supabaseClient.storage
-                    .from("justificaciones-sustentos")
-                    .upload(uploadPath, item.archivo_blob, {
-                        contentType: item.archivo_tipo,
-                        cacheControl: "3600",
-                        upsert: false
-                    })
-
-                if (uploadError) {
-                    if (esErrorConexion(uploadError)) {
-                        debugLog("Error de conexión al subir archivo offline, reintentando después...");
-                        continue
-                    }
-                    debugLog("Error crítico de archivo offline, descartando registro:", uploadError.message)
+                if (tieneArchivo && (!item.archivo_blob || !(item.archivo_blob instanceof Blob))) {
+                    debugLog("Error crítico: archivo_blob ausente o corrupto para justificación offline. Descartando registro.")
                     await eliminarJustificacionOffline(item.id)
                     continue
+                }
+
+                const uploadPath = tieneArchivo 
+                    ? `${item.tenant_id}/${item.curso_id}/${item.dni}/${item.fecha_registro_dispositivo}_${item.id}_${item.archivo_nombre}`
+                    : ""
+                
+                if (tieneArchivo) {
+                    const { error: uploadError } = await supabaseClient.storage
+                        .from("justificaciones-sustentos")
+                        .upload(uploadPath, item.archivo_blob, {
+                            contentType: item.archivo_tipo,
+                            cacheControl: "3600",
+                            upsert: false
+                        })
+
+                    if (uploadError) {
+                        if (esErrorConexion(uploadError)) {
+                            debugLog("Error de conexión al subir archivo offline, reintentando después...");
+                            continue
+                        }
+                        debugLog("Error crítico de archivo offline, descartando registro:", uploadError.message)
+                        await eliminarJustificacionOffline(item.id)
+                        continue
+                    }
                 }
 
                 // Paso 2: Registrar en tabla justificaciones
@@ -374,7 +386,9 @@ async function sincronizarColaOffline() {
                     }
                     debugLog("Error crítico al insertar DB, descartando:", insertError.message)
                     // Eliminar el archivo del storage para evitar basura
-                    await supabaseClient.storage.from("justificaciones-sustentos").remove([uploadPath])
+                    if (uploadPath) {
+                        await supabaseClient.storage.from("justificaciones-sustentos").remove([uploadPath])
+                    }
                     await eliminarJustificacionOffline(item.id)
                     continue
                 }
@@ -405,7 +419,22 @@ async function sincronizarColaOffline() {
 // ----------------------------------------------------
 async function resolverCursoPorToken(token) {
     cursoQRValido = false
-    if (!token || !haySupabase() || !tenantActivoId) return false
+    if (!token || !tenantActivoId) return false
+
+    const cacheKey = `asistia_curso_qr_${tenantActivoId}_${token}`
+
+    if (!haySupabase() || !navigator.onLine) {
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached)
+                cursoActualId = Number(parsed.curso_id || 1) || 1
+                cursoQRValido = true
+                return true
+            } catch (e) {}
+        }
+        return false
+    }
 
     try {
         const { data, error } = await supabaseClient.rpc("rpc_validar_curso_qr", {
@@ -414,21 +443,47 @@ async function resolverCursoPorToken(token) {
         })
 
         if (error || !data?.success) {
+            const cached = localStorage.getItem(cacheKey)
+            if (cached) {
+                try {
+                    const parsed = JSON.parse(cached)
+                    cursoActualId = Number(parsed.curso_id || 1) || 1
+                    cursoQRValido = true
+                    return true
+                } catch (e) {}
+            }
             cursoQRValido = false
             return false
         }
 
         cursoActualId = Number(data.curso_id || 1) || 1
         cursoQRValido = true
+        
+        try {
+            localStorage.setItem(cacheKey, JSON.stringify({ curso_id: cursoActualId }))
+        } catch (e) {}
+        
         return true
     } catch (e) {
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached)
+                cursoActualId = Number(parsed.curso_id || 1) || 1
+                cursoQRValido = true
+                return true
+            } catch (err) {}
+        }
         cursoQRValido = false
         return false
     }
 }
 
 async function cargarConfiguracionOperativa() {
-    if (!haySupabase() || !tenantActivoId || !cursoActualId) return
+    if (!haySupabase() || !tenantActivoId || !cursoActualId) {
+        inicializarCatalogos()
+        return
+    }
 
     try {
         const { data, error } = await supabaseClient
@@ -444,10 +499,22 @@ async function cargarConfiguracionOperativa() {
                 maxSizeMb: Number(data.oper_justif_max_size_mb ?? 2.0),
                 tiposPermitidos: String(data.oper_justif_tipos_permitidos || "pdf,jpg,jpeg,png")
             }
+            localStorage.setItem(`asistia_justif_config_${tenantActivoId}`, JSON.stringify(configuracionOperativa))
             debugLog("Configuración operativa cargada de DB:", configuracionOperativa)
+        } else {
+            const cached = localStorage.getItem(`asistia_justif_config_${tenantActivoId}`)
+            if (cached) {
+                configuracionOperativa = JSON.parse(cached)
+            }
         }
     } catch (e) {
         console.warn("No se pudo cargar curso_configuracion, usando fallbacks locales:", e)
+        const cached = localStorage.getItem(`asistia_justif_config_${tenantActivoId}`)
+        if (cached) {
+            configuracionOperativa = JSON.parse(cached)
+        }
+    } finally {
+        inicializarCatalogos()
     }
 }
 
@@ -967,10 +1034,16 @@ async function init() {
     const cursoValido = await resolverCursoPorToken(token)
 
     if (!cursoValido || !cursoQRValido) {
-        setMensaje("QR inválido o curso no disponible.", "error")
-        if (mobileDniInicio) mobileDniInicio.disabled = true
-        if (btnIngresarInicio) btnIngresarInicio.disabled = true
-        return
+        if (tenantActivoId) {
+            cursoQRValido = true
+            cursoActualId = cursoActualId || 1
+            setMensaje("Modo contingencia activo. Registros se sincronizarán al volver a conectar.", "warning")
+        } else {
+            setMensaje("QR inválido o curso no disponible.", "error")
+            if (mobileDniInicio) mobileDniInicio.disabled = true
+            if (btnIngresarInicio) btnIngresarInicio.disabled = true
+            return
+        }
     }
 
     await cargarConfiguracionOperativa()
