@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS public.calendario_sedes_gps (
     fecha DATE NOT NULL,
     punto_gps_id UUID REFERENCES public.puntos_gps(id) ON DELETE SET NULL,
     hora_inicio TIME NULL,
-    tolerancia_minutos INT NOT NULL DEFAULT 30,
+    tolerancia_minutos INT NULL,
     aplica_a TEXT NOT NULL CHECK (aplica_a IN ('TODAS', 'SECCION')),
     seccion TEXT,
     hay_clase BOOLEAN NOT NULL DEFAULT true,

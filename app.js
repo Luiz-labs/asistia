@@ -12576,7 +12576,13 @@ function renderizarCalendarioGps() {
                     
                     const timeEl = document.createElement("span");
                     timeEl.className = "cal-time-badge";
-                    timeEl.innerText = p.hora_inicio ? p.hora_inicio.slice(0, 5) : "";
+                    
+                    const horaStr = p.hora_inicio ? p.hora_inicio.slice(0, 5) : "";
+                    const tolStr = (p.tolerancia_minutos === null || p.tolerancia_minutos === undefined || p.tolerancia_minutos === 0)
+                        ? "Sin tolerancia"
+                        : `Tol. ${p.tolerancia_minutos} min`;
+                    
+                    timeEl.innerText = `${horaStr} (${tolStr})`;
                     
                     progContainer.appendChild(badge);
                     progContainer.appendChild(timeEl);
@@ -12648,7 +12654,7 @@ function cargarDetalleProgramacionModal() {
         document.getElementById("calHayClase").value = String(item.hay_clase);
         document.getElementById("calPuntoGpsId").value = item.punto_gps_id || "";
         document.getElementById("calHoraInicio").value = item.hora_inicio ? item.hora_inicio.slice(0, 5) : "";
-        document.getElementById("calTolerancia").value = item.tolerancia_minutos ?? 30;
+        document.getElementById("calTolerancia").value = (item.tolerancia_minutos === null || item.tolerancia_minutos === undefined) ? "" : item.tolerancia_minutos;
         document.getElementById("calNota").value = item.nota || "";
         btnEliminar.style.display = "block";
         document.getElementById("formCalendarioGps").dataset.editId = item.id;
@@ -12717,7 +12723,8 @@ async function guardarProgramacionDia() {
     const hayClase = document.getElementById("calHayClase").value === "true";
     const puntoGpsId = document.getElementById("calPuntoGpsId").value;
     const horaInicio = document.getElementById("calHoraInicio").value;
-    const tolerancia = Number(document.getElementById("calTolerancia").value || 30);
+    const tolRaw = document.getElementById("calTolerancia").value.trim();
+    const tolerancia = tolRaw === "" ? null : Number(tolRaw);
     const aplicaA = document.getElementById("calAplicaA").value;
     const seccion = aplicaA === "SECCION" ? document.getElementById("calSeccion").value : null;
     const nota = document.getElementById("calNota").value.trim();
