@@ -146,13 +146,21 @@ const SUSTENTOS_DEFAULT = [
 function inicializarCatalogos() {
     if (!selectMotivo || !selectTipoSustento) return
 
-    const motivos = configuracionOperativa.motivos
-        ? configuracionOperativa.motivos.split(",").map(x => x.trim()).filter(Boolean)
-        : MOTIVOS_DEFAULT
+    let motivos = MOTIVOS_DEFAULT
+    if (configuracionOperativa && configuracionOperativa.motivos && configuracionOperativa.motivos.trim()) {
+        const splitMotivos = configuracionOperativa.motivos.split(",").map(x => x.trim()).filter(Boolean)
+        if (splitMotivos.length > 0) {
+            motivos = splitMotivos
+        }
+    }
 
-    const sustentos = configuracionOperativa.tiposSustento
-        ? configuracionOperativa.tiposSustento.split(",").map(x => x.trim()).filter(Boolean)
-        : SUSTENTOS_DEFAULT
+    let sustentos = SUSTENTOS_DEFAULT
+    if (configuracionOperativa && configuracionOperativa.tiposSustento && configuracionOperativa.tiposSustento.trim()) {
+        const splitSustentos = configuracionOperativa.tiposSustento.split(",").map(x => x.trim()).filter(Boolean)
+        if (splitSustentos.length > 0) {
+            sustentos = splitSustentos
+        }
+    }
 
     selectMotivo.innerHTML = '<option value="">-- Seleccione un motivo --</option>'
     motivos.forEach(m => {
@@ -162,6 +170,39 @@ function inicializarCatalogos() {
     selectTipoSustento.innerHTML = '<option value="">-- Seleccione el tipo de sustento --</option>'
     sustentos.forEach(s => {
         selectTipoSustento.innerHTML += `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`
+    })
+
+    console.log("[JUSTIFICACIONES] catálogos cargados", {
+        motivos: selectMotivo.options.length,
+        sustentos: selectTipoSustento.options.length
+    })
+}
+
+function asegurarCatalogosVisibles() {
+    if (!selectMotivo || !selectTipoSustento) return
+
+    const necesitaMotivos = !selectMotivo.options || selectMotivo.options.length <= 1
+    const necesitaSustentos = !selectTipoSustento.options || selectTipoSustento.options.length <= 1
+
+    if (necesitaMotivos) {
+        debugLog("Catálogo de motivos vacío o incompleto. Repoblando con defaults.")
+        selectMotivo.innerHTML = '<option value="">-- Seleccione un motivo --</option>'
+        MOTIVOS_DEFAULT.forEach(m => {
+            selectMotivo.innerHTML += `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`
+        })
+    }
+
+    if (necesitaSustentos) {
+        debugLog("Catálogo de sustentos vacío o incompleto. Repoblando con defaults.")
+        selectTipoSustento.innerHTML = '<option value="">-- Seleccione el tipo de sustento --</option>'
+        SUSTENTOS_DEFAULT.forEach(s => {
+            selectTipoSustento.innerHTML += `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`
+        })
+    }
+
+    console.log("[JUSTIFICACIONES] catálogos asegurados", {
+        motivos: selectMotivo.options.length,
+        sustentos: selectTipoSustento.options.length
     })
 }
 
@@ -526,6 +567,10 @@ function mostrarPaso(paso) {
     stepFecha.style.display = paso === "fecha" ? "flex" : "none"
     stepSustento.style.display = paso === "sustento" ? "flex" : "none"
     stepExito.style.display = paso === "exito" ? "flex" : "none"
+
+    if (paso === "sustento") {
+        asegurarCatalogosVisibles()
+    }
 
     if (paso === "exito") {
         setMensaje("")
@@ -1047,6 +1092,7 @@ async function init() {
     }
 
     await cargarConfiguracionOperativa()
+    asegurarCatalogosVisibles()
     mostrarPaso("ingreso")
 
     // Sincronizar cola si hay internet
