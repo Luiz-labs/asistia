@@ -5284,7 +5284,9 @@ async function exportarReportesExcel() {
         Importado_En: r.importado_en || "-",
         Importado_Por: r.importado_por || "-",
         Alerta: r.alerta || "-",
-        Condicion: r.condicion || "-"
+        Condicion: r.condicion || "-",
+        Motivo_Justificación: r.motivo || "-",
+        Tipo_Sustento: r.tipo_sustento || "-"
     }))
 
     await descargarExcelDesdeJSON("reportes_asistencia.xlsx", rows)
@@ -9703,7 +9705,7 @@ async function cargarDatos() {
         const scopedData = filtrarDataTenantActivo(data)
 
         // Cargar justificaciones aprobadas para marcar la condición y generar filas virtuales
-        let justifQ = withTenantScope(supabaseClient.from("justificaciones").select("dni,fecha_justificada,nombre,apellido,ubo,seccion"))
+        let justifQ = withTenantScope(supabaseClient.from("justificaciones").select("dni,fecha_justificada,nombre,apellido,ubo,seccion,motivo_inasistencia,motivo_inasistencia_otro,tipo_sustento,tipo_sustento_otro"))
             .eq("curso_id", cursoActualId || 1)
             .eq("estado_revision", "APROBADA")
         if (fechaDesde.value) {
@@ -9713,7 +9715,7 @@ async function cargarDatos() {
             justifQ = justifQ.lte("fecha_justificada", fechaHasta.value)
         }
         const { data: justifData } = await justifQ
-        window.justificacionesAprobadasMap = new Set((justifData || []).map(j => `${j.dni}|${j.fecha_justificada}`))
+        window.justificacionesAprobadasMap = new Map((justifData || []).map(j => [`${j.dni}|${j.fecha_justificada}`, j]))
 
         // Generar filas virtuales para justificaciones aprobadas que no tengan asistencia física
         const asistenciasSet = new Set((scopedData || []).filter(d => d.estado !== "retirado").map(a => `${(a.dni || "").trim()}|${a.fecha}`))
@@ -9813,8 +9815,16 @@ function renderTabla(data) {
         const clave = `${r.device_id || ""}|${(r.dni || "").trim()}|${r.fecha || ""}|${r.hora || ""}`
         const hayAlerta = clavesAlerta.has(clave)
         const keyJustif = `${r.dni}|${r.fecha}`
-        const esJustificado = window.justificacionesAprobadasMap?.has(keyJustif)
+        const justif = window.justificacionesAprobadasMap?.get(keyJustif)
+        const esJustificado = !!justif
         const esVirtual = r.device_id === "virtual_justif"
+
+        const motivoVal = esJustificado
+            ? (justif.motivo_inasistencia === "Otro" ? (justif.motivo_inasistencia_otro || "Otro") : (justif.motivo_inasistencia || "-"))
+            : "-"
+        const sustentoVal = esJustificado
+            ? (justif.tipo_sustento === "Otro" ? (justif.tipo_sustento_otro || "Otro") : (justif.tipo_sustento || "-"))
+            : "-"
 
         cacheReportes.push({
             dni: r.dni || "",
@@ -9832,7 +9842,9 @@ function renderTabla(data) {
             importado_en: r.importado_en || "",
             importado_por: r.importado_por || "",
             alerta: esVirtual ? "-" : (hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta"),
-            condicion: esJustificado ? "JUSTIFICADO" : "-"
+            condicion: esJustificado ? "JUSTIFICADO" : "-",
+            motivo: motivoVal,
+            tipo_sustento: sustentoVal
         })
 
         html += `
@@ -9978,40 +9990,14 @@ async function cargarAlertasReporte() {
 }
 
 async function aplicarFiltros() {
-
-    let q = withTenantScope(supabaseClient.from("asistencias").select("*"))
-
-    if (filtroUbo.value) {
-        q = q.ilike("ubo", "%" + filtroUbo.value + "%")
-    }
-
-    if (fechaDesde.value) {
-        q = q.gte("fecha", fechaDesde.value)
-    }
-
-    if (fechaHasta.value) {
-        q = q.lte("fecha", fechaHasta.value)
-    }
-
-    const { data, error } = await q
-
-    if (error) {
-        console.error(error)
-        alert("Error al filtrar")
-        return
-    }
-
-    const scopedData = filtrarDataTenantActivo(data)
-    renderTabla(scopedData.filter(d => d.estado !== "retirado"))
-    await cargarAlertasReporte()
+    await cargarDatos()
     void registrarActividadBackofficeSegura("reporte_asistencia_filtros_aplicados", {
         modulo: "reportes",
-        total: (scopedData || []).filter(d => d.estado !== "retirado").length,
+        total: cacheReportes.length,
         ubo: String(filtroUbo?.value || ""),
         rangoDesde: String(fechaDesde?.value || ""),
         rangoHasta: String(fechaHasta?.value || "")
     }, { tenantId: tenantActivoId })
-
 }
 
 async function limpiarFiltros() {
@@ -11658,7 +11644,7 @@ async function cargarJustificacionesBackoffice() {
     const tabla = document.getElementById("tablaJustificacionesContenido")
     if (!tabla) return
     
-    tabla.innerHTML = '<tr><td colspan="12" style="text-align:center;">Cargando justificaciones...</td></tr>'
+    tabla.innerHTML = '<tr><td colspan="13" style="text-align:center;">Cargando justificaciones...</td></tr>'
     
     const fDesde = document.getElementById("justifFiltroDesde")?.value || ""
     const fHasta = document.getElementById("justifFiltroHasta")?.value || ""
@@ -11671,7 +11657,7 @@ async function cargarJustificacionesBackoffice() {
         : "No hay justificaciones registradas."
 
     if (!haySupabase() || !tenantActivoId) {
-        tabla.innerHTML = `<tr><td colspan="12" style="text-align:center;">${msgVacio}</td></tr>`
+        tabla.innerHTML = `<tr><td colspan="13" style="text-align:center;">${msgVacio}</td></tr>`
         return
     }
 
@@ -11703,12 +11689,12 @@ async function cargarJustificacionesBackoffice() {
 
         if (error) {
             console.warn("Error consultando justificaciones:", error.message)
-            tabla.innerHTML = `<tr><td colspan="12" style="text-align:center;">${msgVacio}</td></tr>`
+            tabla.innerHTML = `<tr><td colspan="13" style="text-align:center;">${msgVacio}</td></tr>`
             return
         }
 
         if (!data || !data.length) {
-            tabla.innerHTML = `<tr><td colspan="12" style="text-align:center;">${msgVacio}</td></tr>`
+            tabla.innerHTML = `<tr><td colspan="13" style="text-align:center;">${msgVacio}</td></tr>`
             return
         }
 
@@ -11735,6 +11721,10 @@ async function cargarJustificacionesBackoffice() {
                 `
             }
 
+            const motivoVal = x.motivo_inasistencia === "Otro" ? (x.motivo_inasistencia_otro || "Otro") : (x.motivo_inasistencia || "-")
+            const sustentoVal = x.tipo_sustento === "Otro" ? (x.tipo_sustento_otro || "Otro") : (x.tipo_sustento || "-")
+            const detalleMotivo = x.motivo_inasistencia ? `${motivoVal} (${sustentoVal})` : "-"
+
             html += `
                 <tr>
                     <td>${fechaReg} ${horaReg}</td>
@@ -11743,6 +11733,7 @@ async function cargarJustificacionesBackoffice() {
                     <td>${escapeHtml(x.nombre + " " + x.apellido)}</td>
                     <td>${x.ubo}</td>
                     <td>${x.seccion}</td>
+                    <td>${escapeHtml(detalleMotivo)}</td>
                     <td>${btnSustento}</td>
                     <td>
                         <span class="badge-alerta ${badgeClass}">
@@ -11760,7 +11751,7 @@ async function cargarJustificacionesBackoffice() {
         tabla.innerHTML = html
     } catch (e) {
         console.warn("Excepción al cargar justificaciones:", e)
-        tabla.innerHTML = `<tr><td colspan="12" style="text-align:center;">${msgVacio}</td></tr>`
+        tabla.innerHTML = `<tr><td colspan="13" style="text-align:center;">${msgVacio}</td></tr>`
     }
 }
 

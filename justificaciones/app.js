@@ -46,6 +46,12 @@ let btnNuevaJustificacion
 let mensaje
 let pendingCounter
 let dropzoneLabel
+let selectMotivo
+let selectTipoSustento
+let inputMotivoOtro
+let inputSustentoOtro
+let wrapperMotivoOtro
+let wrapperSustentoOtro
 
 function debugLog(...args) {
     console.log("[asistIA-justif-debug]", ...args)
@@ -79,6 +85,12 @@ function enlazarIds() {
     mensaje = document.getElementById("mensaje")
     pendingCounter = document.getElementById("pendingCounter")
     dropzoneLabel = document.getElementById("dropzoneLabel")
+    selectMotivo = document.getElementById("selectMotivo")
+    selectTipoSustento = document.getElementById("selectTipoSustento")
+    inputMotivoOtro = document.getElementById("inputMotivoOtro")
+    inputSustentoOtro = document.getElementById("inputSustentoOtro")
+    wrapperMotivoOtro = document.getElementById("wrapperMotivoOtro")
+    wrapperSustentoOtro = document.getElementById("wrapperSustentoOtro")
 }
 
 function setMensaje(texto, tipo = "") {
@@ -109,6 +121,48 @@ function escapeHTML(value = "") {
         .replace(/>/g, "&gt;")
         .replace(/\"/g, "&quot;")
         .replace(/'/g, "&#39;")
+}
+
+const MOTIVOS_DEFAULT = [
+    "Descanso médico",
+    "Motivo académico",
+    "Comisión de servicio",
+    "Actividad bomberil",
+    "Trabajo",
+    "Viaje",
+    "Otro"
+]
+
+const SUSTENTOS_DEFAULT = [
+    "Certificado médico",
+    "Constancia",
+    "Oficio",
+    "Memorando",
+    "Documento institucional",
+    "Declaración jurada",
+    "Otro"
+]
+
+function inicializarCatalogos() {
+    if (!selectMotivo || !selectTipoSustento) return
+
+    const motivos = configuracionOperativa.motivos
+        ? configuracionOperativa.motivos.split(",").map(x => x.trim()).filter(Boolean)
+        : MOTIVOS_DEFAULT
+
+    const sustentos = configuracionOperativa.tiposSustento
+        ? configuracionOperativa.tiposSustento.split(",").map(x => x.trim()).filter(Boolean)
+        : SUSTENTOS_DEFAULT
+
+    selectMotivo.innerHTML = '<option value="">-- Seleccione un motivo --</option>'
+    motivos.forEach(m => {
+        selectMotivo.innerHTML += `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`
+    })
+
+    selectTipoSustento.innerHTML = '<option value="">-- Seleccione el tipo de sustento --</option>'
+    sustentos.forEach(s => {
+        selectTipoSustento.innerHTML += `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`
+    })
 }
 
 function getDeviceId() {
@@ -302,7 +356,11 @@ async function sincronizarColaOffline() {
                     hora_registro_dispositivo: item.hora_registro_dispositivo,
                     timezone: item.timezone,
                     device_id: item.device_id,
-                    estado_revision: "RECIBIDA"
+                    estado_revision: "RECIBIDA",
+                    motivo_inasistencia: item.motivo_inasistencia || null,
+                    motivo_inasistencia_otro: item.motivo_inasistencia_otro || null,
+                    tipo_sustento: item.tipo_sustento || null,
+                    tipo_sustento_otro: item.tipo_sustento_otro || null
                 }
 
                 const { error: insertError } = await supabaseClient
@@ -639,6 +697,24 @@ async function procesarPaso3() {
         return
     }
 
+    if (!selectMotivo?.value) {
+        setMensaje("⚠ Debe seleccionar el motivo de la inasistencia.", "error")
+        return
+    }
+    if (selectMotivo.value === "Otro" && !inputMotivoOtro?.value.trim()) {
+        setMensaje("⚠ Debe especificar el motivo de la inasistencia.", "error")
+        return
+    }
+
+    if (!selectTipoSustento?.value) {
+        setMensaje("⚠ Debe seleccionar el tipo de sustento presentado.", "error")
+        return
+    }
+    if (selectTipoSustento.value === "Otro" && !inputSustentoOtro?.value.trim()) {
+        setMensaje("⚠ Debe especificar el tipo de sustento presentado.", "error")
+        return
+    }
+
     btnRegistrarJustificacion.disabled = true
     setMensaje("Procesando registro...", "ok")
 
@@ -666,7 +742,11 @@ async function procesarPaso3() {
         hora_registro_dispositivo: dispositivoInfo.hora,
         timezone: "America/Lima",
         device_id: getDeviceId(),
-        estado_sync: "pendiente"
+        estado_sync: "pendiente",
+        motivo_inasistencia: selectMotivo.value,
+        motivo_inasistencia_otro: selectMotivo.value === "Otro" ? inputMotivoOtro.value.trim() : null,
+        tipo_sustento: selectTipoSustento.value,
+        tipo_sustento_otro: selectTipoSustento.value === "Otro" ? inputSustentoOtro.value.trim() : null
     }
 
     // Flujo Offline Contingency
@@ -718,7 +798,11 @@ async function procesarPaso3() {
             hora_registro_dispositivo: dispositivoInfo.hora,
             timezone: "America/Lima",
             device_id: getDeviceId(),
-            estado_revision: "RECIBIDA"
+            estado_revision: "RECIBIDA",
+            motivo_inasistencia: selectMotivo.value,
+            motivo_inasistencia_otro: selectMotivo.value === "Otro" ? inputMotivoOtro.value.trim() : null,
+            tipo_sustento: selectTipoSustento.value,
+            tipo_sustento_otro: selectTipoSustento.value === "Otro" ? inputSustentoOtro.value.trim() : null
         }
 
         const { error: insertError } = await supabaseClient
@@ -808,6 +892,12 @@ function limpiarPasoSustento() {
     if (fileSustento) fileSustento.value = ""
     if (fileMetaInfo) fileMetaInfo.style.display = "none"
     if (dropzoneLabel) dropzoneLabel.classList.remove("has-file")
+    if (selectMotivo) selectMotivo.value = ""
+    if (selectTipoSustento) selectTipoSustento.value = ""
+    if (inputMotivoOtro) inputMotivoOtro.value = ""
+    if (inputSustentoOtro) inputSustentoOtro.value = ""
+    if (wrapperMotivoOtro) wrapperMotivoOtro.style.display = "none"
+    if (wrapperSustentoOtro) wrapperSustentoOtro.style.display = "none"
 }
 
 function resetTodoElFlujo() {
@@ -840,11 +930,20 @@ function bindEventos() {
     btnVolverPaso2?.addEventListener("click", () => mostrarPaso("fecha"))
 
     btnNuevaJustificacion?.addEventListener("click", resetTodoElFlujo)
+
+    selectMotivo?.addEventListener("change", (e) => {
+        if (wrapperMotivoOtro) wrapperMotivoOtro.style.display = e.target.value === "Otro" ? "block" : "none"
+    })
+
+    selectTipoSustento?.addEventListener("change", (e) => {
+        if (wrapperSustentoOtro) wrapperSustentoOtro.style.display = e.target.value === "Otro" ? "block" : "none"
+    })
 }
 
 async function init() {
     enlazarIds()
     bindEventos()
+    inicializarCatalogos()
 
     tenantActivoId = detectarTenantDesdeRuta()
     aplicarTenantEnUI()
