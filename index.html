@@ -1420,6 +1420,108 @@
                   <p id="msgCargaUbosSedes" class="hint"></p>
                 </div>
 
+                <!-- GPS / Geocerca Section -->
+                <div class="course-module">
+                  <div class="course-module-head">
+                    <div>
+                      <h4>GPS / Geocerca</h4>
+                      <p class="course-module-hint">Configura el modo de validación geográfica, puntos autorizados y carga masiva.</p>
+                    </div>
+                    <span class="course-section-badge">Geocerca</span>
+                  </div>
+
+                  <!-- 1. Modo GPS Selector -->
+                  <div class="config-grid" style="margin-bottom: 20px;">
+                    <div>
+                      <label for="cursoGpsModo">Modo GPS</label>
+                      <select id="cursoGpsModo" style="width: 100%; height: 42px;">
+                        <option value="desactivado">Desactivado</option>
+                        <option value="solo_registrar">Solo registrar ubicación</option>
+                        <option value="advertencia">Advertencia</option>
+                        <option value="bloquear_fuera">Bloquear fuera del radio</option>
+                        <option value="bloquear_fuera_sin_gps">Bloquear fuera del radio y sin GPS</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- 2. Formulario manual de puntos GPS -->
+                  <h5 class="course-subsection-title" style="margin-top: 15px; font-weight: 600; color: #1e293b;">Configuración manual de puntos GPS</h5>
+                  <div class="config-grid" id="formPuntoGps" style="margin-bottom: 15px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                    <input type="hidden" id="gpsIdPunto">
+                    <div>
+                      <label for="gpsTipoPunto" style="font-size: 0.85rem; font-weight: 500;">Tipo de punto</label>
+                      <select id="gpsTipoPunto" style="width: 100%; height: 42px; border: 1px solid #ccc; border-radius: 8px; padding: 4px 8px; font-family: inherit; font-size: 0.9rem;" onchange="ajustarTipoPuntoGpsUI()">
+                        <option value="UBO">UBO</option>
+                        <option value="SEDE">SEDE</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label for="gpsCodigoPunto" id="lblGpsCodigo" style="font-size: 0.85rem; font-weight: 500;">Código UBO</label>
+                      <input type="text" id="gpsCodigoPunto" placeholder="Ej. 129" style="width: 100%; height: 42px; border: 1px solid #ccc; border-radius: 8px; padding: 4px 8px; font-family: inherit; font-size: 0.9rem; box-sizing: border-box;">
+                    </div>
+                    <div>
+                      <label for="gpsNombrePunto" style="font-size: 0.85rem; font-weight: 500;">Nombre del punto</label>
+                      <input type="text" id="gpsNombrePunto" placeholder="Ej. ESBAS 24" style="width: 100%; height: 42px; border: 1px solid #ccc; border-radius: 8px; padding: 4px 8px; font-family: inherit; font-size: 0.9rem; box-sizing: border-box;">
+                    </div>
+                    <div>
+                      <label for="gpsLatitud" style="font-size: 0.85rem; font-weight: 500;">Latitud</label>
+                      <input type="number" id="gpsLatitud" step="any" placeholder="Ej. -12.123456" style="width: 100%; height: 42px; border: 1px solid #ccc; border-radius: 8px; padding: 4px 8px; font-family: inherit; font-size: 0.9rem; box-sizing: border-box;">
+                    </div>
+                    <div>
+                      <label for="gpsLongitud" style="font-size: 0.85rem; font-weight: 500;">Longitud</label>
+                      <input type="number" id="gpsLongitud" step="any" placeholder="Ej. -77.123456" style="width: 100%; height: 42px; border: 1px solid #ccc; border-radius: 8px; padding: 4px 8px; font-family: inherit; font-size: 0.9rem; box-sizing: border-box;">
+                    </div>
+                    <div>
+                      <label for="gpsRadio" style="font-size: 0.85rem; font-weight: 500;">Radio (metros)</label>
+                      <input type="number" id="gpsRadio" min="10" max="1000" placeholder="100" value="100" style="width: 100%; height: 42px; border: 1px solid #ccc; border-radius: 8px; padding: 4px 8px; font-family: inherit; font-size: 0.9rem; box-sizing: border-box;">
+                    </div>
+                  </div>
+                  
+                  <div class="config-row" style="margin-bottom: 25px; gap: 8px; display: flex; flex-wrap: wrap;">
+                    <button type="button" class="secondary" style="min-height: 42px; padding: 0 16px; border-radius: 8px;" onclick="obtenerUbicacionActualGPS()">Obtener ubicación actual</button>
+                    <button type="button" style="min-height: 42px; padding: 0 16px; border-radius: 8px; background: #2563eb; color: white;" onclick="guardarPuntoGps()">Guardar punto GPS</button>
+                    <button type="button" class="secondary" style="min-height: 42px; padding: 0 16px; border-radius: 8px;" onclick="limpiarFormularioPuntoGps()">Limpiar formulario</button>
+                  </div>
+
+                  <!-- 3. Carga masiva por Excel -->
+                  <h5 class="course-subsection-title" style="margin-top: 15px; font-weight: 600; color: #1e293b;">Carga masiva de puntos GPS</h5>
+                  <p class="hint course-module-hint">Carga masiva de puntos GPS mediante archivo Excel/CSV (Columnas requeridas: <strong>TIPO, CODIGO, NOMBRE, LATITUD, LONGITUD</strong>. Opcionales: <strong>RADIO_METROS, ACTIVO</strong>).</p>
+                  
+                  <div id="gpsDropzone" class="historical-dropzone" tabindex="0" role="button" aria-label="Zona para soltar archivos GPS" style="margin-bottom: 15px; border: 2px dashed #ccc; padding: 20px; text-align: center; border-radius: 8px; cursor: pointer;">
+                    <div class="historical-dropzone-icon" aria-hidden="true" style="font-size: 24px; margin-bottom: 8px;">⇪</div>
+                    <div class="historical-dropzone-copy">
+                      <strong>Arrastra y suelta tu archivo de puntos GPS aquí</strong>
+                      <span>Acepta `.xlsx`, `.xls` y `.csv`</span>
+                    </div>
+                  </div>
+                  <div class="config-row file-upload-row">
+                    <input type="file" id="archivoPuntosGps" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarPuntosGpsDesdeArchivoInput(this)">
+                    <button type="button" onclick="document.getElementById('archivoPuntosGps').click()">Seleccionar archivo</button>
+                    <button type="button" class="secondary" onclick="refrescarPuntosGps()">Refrescar listado</button>
+                  </div>
+                  <p id="msgCargaGps" class="hint" style="margin-top: 8px;"></p>
+
+                  <!-- 4. Listado (Tabla) -->
+                  <h5 class="course-subsection-title" style="margin-top: 25px; margin-bottom: 10px; font-weight: 600; color: #1e293b;">Listado de puntos GPS autorizados</h5>
+                  <div class="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Tipo</th>
+                          <th>Código</th>
+                          <th>Nombre</th>
+                          <th>Latitud</th>
+                          <th>Longitud</th>
+                          <th>Radio</th>
+                          <th>Activo</th>
+                          <th>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tablaPuntosGps"></tbody>
+                    </table>
+                  </div>
+                </div>
+
                 <!-- Futuros Parámetros Preparados (Deshabilitados visualmente) -->
                 <div class="course-module" style="opacity: 0.65; border-top: 1px solid rgba(0,0,0,0.06); padding-top: 16px;">
                   <div class="course-module-head">

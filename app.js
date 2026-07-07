@@ -8788,6 +8788,7 @@ async function aplicarCursoEnUI(cfg) {
         if (elOblig) elOblig.value = String(cfg.oper_justif_doc_obligatorio ?? true)
         if (elSize) elSize.value = cfg.oper_justif_max_size_mb ?? 2.0
         if (elTypes) elTypes.value = cfg.oper_justif_tipos_permitidos ?? "pdf,jpg,jpeg,png"
+        if (window.cursoGpsModo) window.cursoGpsModo.value = cfg.oper_gps_modo || "desactivado"
     } else {
         cursoNombre.value = ""
         cursoInicio.value = ""
@@ -8803,6 +8804,7 @@ async function aplicarCursoEnUI(cfg) {
         if (elOblig) elOblig.value = "true"
         if (elSize) elSize.value = "2.0"
         if (elTypes) elTypes.value = "pdf,jpg,jpeg,png"
+        if (window.cursoGpsModo) window.cursoGpsModo.value = "desactivado"
     }
 
     const seccionesDb = await cargarSeccionesCursoDesdeSupabase()
@@ -8826,6 +8828,11 @@ async function aplicarCursoEnUI(cfg) {
     actualizarUIModoEdicionSeccion()
     actualizarUIModoEdicionSede()
     renderModuloQrCurso()
+    
+    // Cargar y listar los puntos GPS
+    if (window.refrescarPuntosGps) {
+        await window.refrescarPuntosGps()
+    }
 }
 
 async function cargarConfigCurso(force = false) {
@@ -9100,6 +9107,9 @@ window.onload = async () => {
     enlazarKpisJustificaciones()
     enlazarAccionesCuentaHeader()
     bindHistoricalImportEvents()
+    if (window.inicializarDropzoneGps) {
+        window.inicializarDropzoneGps()
+    }
     renderHistoricalImportMapping()
     resetHistoricalImportStats()
     resetHistoricalReconciliation()
@@ -10792,7 +10802,8 @@ async function guardarCurso() {
         fecha_inicio: cursoInicio.value || null,
         fecha_fin: cursoFin.value || null,
         radio_m: Number(cursoRadio.value || 50),
-        gps_activo: !!toggleGPS.checked
+        gps_activo: !!toggleGPS.checked,
+        oper_gps_modo: cursoGpsModo.value || "desactivado"
     })
 
     const { error, data } = await supabaseClient
@@ -10808,7 +10819,8 @@ async function guardarCurso() {
                 fecha_inicio: cursoInicio.value || null,
                 fecha_fin: cursoFin.value || null,
                 radio_m: Number(cursoRadio.value || 50),
-                gps_activo: !!toggleGPS.checked
+                gps_activo: !!toggleGPS.checked,
+                oper_gps_modo: cursoGpsModo.value || "desactivado"
             })
             const { error: errorSinNombre, data: dataSinNombre } = await supabaseClient
                 .from("curso_configuracion")
@@ -11837,7 +11849,8 @@ async function guardarConfiguracionOperativa() {
         oper_justif_plazo_dias: Number(document.getElementById("operJustifPlazoDias").value || 3),
         oper_justif_doc_obligatorio: document.getElementById("operJustifDocObligatorio").value === "true",
         oper_justif_max_size_mb: Number(document.getElementById("operJustifMaxSizeMb").value || 2.0),
-        oper_justif_tipos_permitidos: String(document.getElementById("operJustifTiposPermitidos").value || "pdf,jpg,jpeg,png").trim()
+        oper_justif_tipos_permitidos: String(document.getElementById("operJustifTiposPermitidos").value || "pdf,jpg,jpeg,png").trim(),
+        oper_gps_modo: document.getElementById("cursoGpsModo")?.value || "desactivado"
     }
 
     const { error } = await supabaseClient
@@ -11857,8 +11870,445 @@ async function guardarConfiguracionOperativa() {
             cursoConfigCache.oper_justif_doc_obligatorio = payload.oper_justif_doc_obligatorio
             cursoConfigCache.oper_justif_max_size_mb = payload.oper_justif_max_size_mb
             cursoConfigCache.oper_justif_tipos_permitidos = payload.oper_justif_tipos_permitidos
+            cursoConfigCache.oper_gps_modo = payload.oper_gps_modo
         }
         setTimeout(() => { elMsg.innerText = "" }, 3000)
     }
 }
+
+// ==========================================
+// FUNCIONES DEL MÓDULO GPS / GEOCERCA
+// ==========================================
+
+function ajustarTipoPuntoGpsUI() {
+    const elTipo = document.getElementById("gpsTipoPunto")
+    const elLbl = document.getElementById("lblGpsCodigo")
+    const elInput = document.getElementById("gpsCodigoPunto")
+    if (!elTipo || !elLbl || !elInput) return
+    
+    if (elTipo.value === "UBO") {
+        elLbl.textContent = "Código UBO"
+        elInput.placeholder = "Ej. 129"
+    } else {
+        elLbl.textContent = "Código SEDE"
+        elInput.placeholder = "Ej. Sede Norte"
+    }
+}
+
+function obtenerUbicacionActualGPS() {
+    if (!navigator.geolocation) {
+        alert("La geolocalización no está soportada por este navegador.")
+        return
+    }
+    const btn = event?.currentTarget || document.activeElement;
+    const oldText = btn ? btn.textContent : "";
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Obteniendo ubicación...";
+    }
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const elLat = document.getElementById("gpsLatitud")
+            const elLng = document.getElementById("gpsLongitud")
+            if (elLat) elLat.value = position.coords.latitude
+            if (elLng) elLng.value = position.coords.longitude
+            if (btn) {
+                btn.disabled = false
+                btn.textContent = oldText
+            }
+        },
+        (error) => {
+            alert(`Error al obtener ubicación: ${error.message || "Permiso denegado o sin señal."}`)
+            if (btn) {
+                btn.disabled = false
+                btn.textContent = oldText
+            }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    )
+}
+
+function limpiarFormularioPuntoGps() {
+    const elId = document.getElementById("gpsIdPunto")
+    const elTipo = document.getElementById("gpsTipoPunto")
+    const elCodigo = document.getElementById("gpsCodigoPunto")
+    const elNombre = document.getElementById("gpsNombrePunto")
+    const elLat = document.getElementById("gpsLatitud")
+    const elLng = document.getElementById("gpsLongitud")
+    const elRadio = document.getElementById("gpsRadio")
+    
+    if (elId) elId.value = ""
+    if (elTipo) elTipo.value = "UBO"
+    if (elCodigo) elCodigo.value = ""
+    if (elNombre) elNombre.value = ""
+    if (elLat) elLat.value = ""
+    if (elLng) elLng.value = ""
+    if (elRadio) elRadio.value = "100"
+    ajustarTipoPuntoGpsUI()
+}
+
+async function guardarPuntoGps() {
+    if (!haySupabase()) {
+        alert("Sin conexión al servidor.")
+        return
+    }
+    
+    const elId = document.getElementById("gpsIdPunto")
+    const elTipo = document.getElementById("gpsTipoPunto")
+    const elCodigo = document.getElementById("gpsCodigoPunto")
+    const elNombre = document.getElementById("gpsNombrePunto")
+    const elLat = document.getElementById("gpsLatitud")
+    const elLng = document.getElementById("gpsLongitud")
+    const elRadio = document.getElementById("gpsRadio")
+    
+    const idPunto = elId?.value || null
+    const tipoVal = elTipo?.value || "UBO"
+    const codigoVal = String(elCodigo?.value || "").trim()
+    const nombreVal = String(elNombre?.value || "").trim()
+    const latVal = Number(elLat?.value)
+    const lngVal = Number(elLng?.value)
+    const radioVal = Number(elRadio?.value || 100)
+    const activoVal = true
+    
+    if (!codigoVal) {
+        alert("Falta el código.")
+        return
+    }
+    if (tipoVal === "UBO" && !/^\d+$/.test(codigoVal)) {
+        alert("El código de UBO debe ser numérico.")
+        return
+    }
+    if (!nombreVal) {
+        alert("Falta el nombre del punto.")
+        return
+    }
+    if (!Number.isFinite(latVal) || latVal < -90 || latVal > 90) {
+        alert("Latitud no válida (-90 a 90).")
+        return
+    }
+    if (!Number.isFinite(lngVal) || lngVal < -180 || lngVal > 180) {
+        alert("Longitud no válida (-180 a 180).")
+        return
+    }
+    if (!Number.isFinite(radioVal) || radioVal <= 0) {
+        alert("El radio debe ser un número positivo.")
+        return
+    }
+    
+    const payload = {
+        tenant_id: tenantActivoId,
+        curso_id: cursoActualId || 1,
+        tipo_punto: tipoVal,
+        codigo_punto: codigoVal,
+        nombre_punto: nombreVal,
+        latitud: latVal,
+        longitud: lngVal,
+        radio_metros: radioVal,
+        activo: activoVal
+    }
+    
+    if (idPunto) {
+        payload.id = idPunto
+    }
+    
+    const { error } = await supabaseClient
+        .from("puntos_gps")
+        .upsert(payload, { onConflict: idPunto ? "id" : "tenant_id,curso_id,tipo_punto,codigo_punto" })
+        
+    if (error) {
+        alert(`Error al guardar punto GPS: ${error.message}`)
+        return
+    }
+    
+    alert("Punto GPS guardado correctamente.")
+    limpiarFormularioPuntoGps()
+    await refrescarPuntosGps()
+}
+
+let puntosGpsCacheLocal = []
+async function refrescarPuntosGps() {
+    if (!haySupabase() || !tenantActivoId) return
+    
+    const { data, error } = await supabaseClient
+        .from("puntos_gps")
+        .select("*")
+        .eq("tenant_id", tenantActivoId)
+        .eq("curso_id", cursoActualId || 1)
+        .order("tipo_punto", { ascending: true })
+        .order("codigo_punto", { ascending: true })
+        
+    if (error) {
+        console.error("Error al cargar puntos GPS:", error)
+        return
+    }
+    
+    puntosGpsCacheLocal = data || []
+    renderPuntosGps(puntosGpsCacheLocal)
+}
+
+window.refrescarPuntosGps = refrescarPuntosGps
+
+function renderPuntosGps(puntos) {
+    const tbody = document.getElementById("tablaPuntosGps")
+    if (!tbody) return
+    
+    if (!puntos.length) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #64748b; padding: 12px;">No hay puntos GPS autorizados registrados para este curso.</td></tr>`
+        return
+    }
+    
+    tbody.innerHTML = puntos.map(p => {
+        const idStr = p.id
+        const activoLabel = p.activo 
+            ? `<span style="color: #16a34a; font-weight: 600;">Sí</span>` 
+            : `<span style="color: #dc2626; font-weight: 600;">No</span>`
+        const btnToggleLabel = p.activo ? "Desactivar" : "Activar"
+        
+        return `
+            <tr>
+              <td style="font-weight: 600; color: #1e293b;">${p.tipo_punto}</td>
+              <td>${p.codigo_punto}</td>
+              <td>${p.nombre_punto}</td>
+              <td>${Number(p.latitud).toFixed(6)}</td>
+              <td>${Number(p.longitud).toFixed(6)}</td>
+              <td>${p.radio_metros}m</td>
+              <td>${activoLabel}</td>
+              <td>
+                <div style="display: flex; gap: 6px;">
+                  <button type="button" class="secondary" style="padding: 2px 8px; font-size: 0.8rem; min-height: 28px;" onclick="editarPuntoGps('${idStr}')">Editar</button>
+                  <button type="button" class="secondary" style="padding: 2px 8px; font-size: 0.8rem; min-height: 28px;" onclick="desactivarPuntoGps('${idStr}', ${p.activo})">${btnToggleLabel}</button>
+                </div>
+              </td>
+            </tr>
+        `
+    }).join("")
+}
+
+function editarPuntoGps(id) {
+    const p = puntosGpsCacheLocal.find(x => x.id === id)
+    if (!p) return
+    
+    const elId = document.getElementById("gpsIdPunto")
+    const elTipo = document.getElementById("gpsTipoPunto")
+    const elCodigo = document.getElementById("gpsCodigoPunto")
+    const elNombre = document.getElementById("gpsNombrePunto")
+    const elLat = document.getElementById("gpsLatitud")
+    const elLng = document.getElementById("gpsLongitud")
+    const elRadio = document.getElementById("gpsRadio")
+    
+    if (elId) elId.value = p.id
+    if (elTipo) elTipo.value = p.tipo_punto
+    if (elCodigo) elCodigo.value = p.codigo_punto
+    if (elNombre) elNombre.value = p.nombre_punto
+    if (elLat) elLat.value = p.latitud
+    if (elLng) elLng.value = p.longitud
+    if (elRadio) elRadio.value = p.radio_metros
+    
+    ajustarTipoPuntoGpsUI()
+    
+    // Enfocar el primer input
+    if (elCodigo) elCodigo.focus()
+}
+
+async function desactivarPuntoGps(id, actualActivo) {
+    if (!haySupabase()) return
+    
+    const nuevoEstado = !actualActivo
+    const { error } = await supabaseClient
+        .from("puntos_gps")
+        .update({ activo: nuevoEstado })
+        .eq("id", id)
+        
+    if (error) {
+        alert(`Error al cambiar estado del punto GPS: ${error.message}`)
+        return
+    }
+    
+    await refrescarPuntosGps()
+}
+
+// Exponer funciones al scope global (window) por los onclick del HTML dinámico
+window.ajustarTipoPuntoGpsUI = ajustarTipoPuntoGpsUI
+window.obtenerUbicacionActualGPS = obtenerUbicacionActualGPS
+window.limpiarFormularioPuntoGps = limpiarFormularioPuntoGps
+window.guardarPuntoGps = guardarPuntoGps
+window.editarPuntoGps = editarPuntoGps
+window.desactivarPuntoGps = desactivarPuntoGps
+
+async function importarPuntosGpsDesdeArchivoInput(input) {
+    const file = input.files?.[0]
+    if (file) {
+        await procesarCargaMasivaGps(file)
+    }
+    input.value = ""
+}
+
+window.importarPuntosGpsDesdeArchivoInput = importarPuntosGpsDesdeArchivoInput
+
+async function procesarCargaMasivaGps(file) {
+    await asegurarLibreriasExcel()
+    const elMsg = document.getElementById("msgCargaGps")
+    if (!window.XLSX) {
+        if (elMsg) elMsg.innerText = "No está disponible la librería XLSX."
+        return
+    }
+    
+    if (elMsg) elMsg.innerHTML = `<span style="color: #2563eb;">Procesando archivo...</span>`
+    
+    try {
+        const buffer = await file.arrayBuffer()
+        const wb = XLSX.read(buffer, { type: "array" })
+        const ws = wb.Sheets[wb.SheetNames[0]]
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: "" })
+        
+        if (!rows.length) {
+            if (elMsg) elMsg.innerText = "El archivo no tiene filas."
+            return
+        }
+
+        const normalize = (s) => String(s || "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .trim()
+            .toLowerCase()
+
+        const keyMap = {}
+        Object.keys(rows[0]).forEach(k => {
+            keyMap[normalize(k)] = k
+        })
+
+        const kTipo = keyMap.tipo
+        const kCodigo = keyMap.codigo || keyMap.cod
+        const kNombre = keyMap.nombre || keyMap.nombre_punto
+        const kLat = keyMap.latitud || keyMap.ltitud || keyMap.lat
+        const kLng = keyMap.longitud || keyMap.longtitud || keyMap.lng || keyMap.long
+        const kRadio = keyMap.radio_metros || keyMap.radio
+        const kActivo = keyMap.activo
+
+        if (!kTipo || !kCodigo || !kNombre || !kLat || !kLng) {
+            if (elMsg) elMsg.innerText = "Columnas requeridas en la cabecera: TIPO, CODIGO, NOMBRE, LATITUD y LONGITUD."
+            return
+        }
+
+        const parsed = []
+        const errores = []
+        
+        rows.forEach((r, idx) => {
+            const tipoVal = String(r[kTipo] || "").trim().toUpperCase()
+            const codigoVal = String(r[kCodigo] || "").trim()
+            const nombreVal = String(r[kNombre] || "").trim()
+            const latVal = Number(String(r[kLat] || "").replace(",", "."))
+            const lngVal = Number(String(r[kLng] || "").replace(",", "."))
+            let radioVal = 100
+            if (kRadio && r[kRadio] !== "") {
+                radioVal = Number(String(r[kRadio]))
+            }
+            let activoVal = true
+            if (kActivo && r[kActivo] !== "") {
+                const rawActivo = String(r[kActivo]).trim().toLowerCase()
+                activoVal = rawActivo === "true" || rawActivo === "1" || rawActivo === "si" || rawActivo === "yes" || rawActivo === "activo"
+            }
+
+            const filaNum = idx + 2
+            
+            if (tipoVal !== "UBO" && tipoVal !== "SEDE") {
+                errores.push(`Fila ${filaNum}: El tipo de punto debe ser UBO o SEDE.`)
+                return
+            }
+            if (!codigoVal) {
+                errores.push(`Fila ${filaNum}: Código no puede estar vacío.`)
+                return
+            }
+            if (tipoVal === "UBO" && !/^\d+$/.test(codigoVal)) {
+                errores.push(`Fila ${filaNum}: Si el tipo es UBO, el código debe ser numérico.`)
+                return
+            }
+            if (!nombreVal) {
+                errores.push(`Fila ${filaNum}: El nombre del punto no puede estar vacío.`)
+                return
+            }
+            if (!Number.isFinite(latVal) || latVal < -90 || latVal > 90) {
+                errores.push(`Fila ${filaNum}: Latitud no es un número válido entre -90 y 90.`)
+                return
+            }
+            if (!Number.isFinite(lngVal) || lngVal < -180 || lngVal > 180) {
+                errores.push(`Fila ${filaNum}: Longitud no es un número válido entre -180 y 180.`)
+                return
+            }
+            if (!Number.isFinite(radioVal) || radioVal <= 0) {
+                errores.push(`Fila ${filaNum}: El radio debe ser un número positivo.`)
+                return
+            }
+
+            parsed.push({
+                tenant_id: tenantActivoId,
+                curso_id: cursoActualId || 1,
+                tipo_punto: tipoVal,
+                codigo_punto: codigoVal,
+                nombre_punto: nombreVal,
+                latitud: latVal,
+                longitud: lngVal,
+                radio_metros: radioVal,
+                activo: activoVal
+            })
+        })
+
+        if (errores.length > 0) {
+            if (elMsg) {
+                elMsg.innerHTML = `<span style="color: #dc2626; font-weight: 600;">Fallas de validación (no se subió ningún registro):</span><br>` + 
+                                  errores.slice(0, 5).join("<br>") + 
+                                  (errores.length > 5 ? `<br>... y ${errores.length - 5} errores más.` : "")
+            }
+            return
+        }
+
+        if (!parsed.length) {
+            if (elMsg) elMsg.innerText = "No se encontraron filas válidas para importar."
+            return
+        }
+
+        const { error } = await supabaseClient
+            .from("puntos_gps")
+            .upsert(parsed, { onConflict: "tenant_id,curso_id,tipo_punto,codigo_punto" })
+
+        if (error) {
+            if (elMsg) elMsg.innerText = `No se pudo cargar en Supabase: ${error.message}`
+            return
+        }
+
+        if (elMsg) {
+            elMsg.innerHTML = `<span style="color: #16a34a; font-weight: 600;">Carga exitosa: ${parsed.length} punto(s) GPS importados correctamente.</span>`
+        }
+        await refrescarPuntosGps()
+        
+    } catch (e) {
+        if (elMsg) elMsg.innerText = `Error inesperado al leer archivo: ${e.message || e}`
+    }
+}
+
+function inicializarDropzoneGps() {
+    const dropzone = document.getElementById("gpsDropzone")
+    if (dropzone) {
+        dropzone.addEventListener("dragover", e => {
+            e.preventDefault()
+            dropzone.style.borderColor = "#2563eb"
+            dropzone.style.background = "#f1f5f9"
+        })
+        dropzone.addEventListener("dragleave", () => {
+            dropzone.style.borderColor = "#ccc"
+            dropzone.style.background = "transparent"
+        })
+        dropzone.addEventListener("drop", async e => {
+            e.preventDefault()
+            dropzone.style.borderColor = "#ccc"
+            dropzone.style.background = "transparent"
+            const file = e.dataTransfer?.files?.[0]
+            if (file) {
+                await procesarCargaMasivaGps(file)
+            }
+        })
+    }
+}
+
+window.inicializarDropzoneGps = inicializarDropzoneGps
 
