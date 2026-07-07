@@ -11895,9 +11895,103 @@ function ajustarTipoPuntoGpsUI() {
     }
 }
 
+function actualizarCoordenadasUX() {
+    const elLat = document.getElementById("gpsLatitud")
+    const elLng = document.getElementById("gpsLongitud")
+    const elCoord = document.getElementById("gpsCoordenadas")
+    if (!elLat || !elLng || !elCoord) return
+    
+    const latRaw = elLat.value.trim()
+    const lngRaw = elLng.value.trim()
+    
+    if (latRaw && lngRaw) {
+        const latNum = Number(latRaw)
+        const lngNum = Number(lngRaw)
+        if (Number.isFinite(latNum) && Number.isFinite(lngNum)) {
+            elCoord.value = `${latNum.toFixed(6)},${lngNum.toFixed(6)}`
+            return
+        }
+    }
+    elCoord.value = ""
+}
+
+function mostrarGpsFeedback(mensaje, tipo = "info") {
+    const elMsg = document.getElementById("msgGpsStatus")
+    if (!elMsg) return
+    elMsg.innerText = mensaje
+    if (tipo === "error") {
+        elMsg.style.color = "#dc2626"
+    } else if (tipo === "success") {
+        elMsg.style.color = "#16a34a"
+    } else {
+        elMsg.style.color = "#2563eb"
+    }
+    setTimeout(() => {
+        if (elMsg.innerText === mensaje) {
+            elMsg.innerText = ""
+        }
+    }, 4000)
+}
+
+function copiarCoordenadasAlPortapapeles() {
+    const elLat = document.getElementById("gpsLatitud")
+    const elLng = document.getElementById("gpsLongitud")
+    if (!elLat || !elLng) return
+    
+    const latVal = elLat.value.trim()
+    const lngVal = elLng.value.trim()
+    
+    if (!latVal || !lngVal) {
+        mostrarGpsFeedback("Debe ingresar latitud y longitud.", "error")
+        return
+    }
+    
+    const latNum = Number(latVal)
+    const lngNum = Number(lngVal)
+    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+        mostrarGpsFeedback("Coordenadas no válidas.", "error")
+        return
+    }
+    
+    const textToCopy = `${latNum.toFixed(6)},${lngNum.toFixed(6)}`
+    navigator.clipboard.writeText(textToCopy).then(
+        () => {
+            mostrarGpsFeedback("Coordenadas copiadas.", "success")
+        },
+        (err) => {
+            mostrarGpsFeedback("Error al copiar al portapapeles.", "error")
+            console.error(err)
+        }
+    )
+}
+
+function verUbicacionGoogleMaps() {
+    const elLat = document.getElementById("gpsLatitud")
+    const elLng = document.getElementById("gpsLongitud")
+    if (!elLat || !elLng) return
+    
+    const latVal = elLat.value.trim()
+    const lngVal = elLng.value.trim()
+    
+    if (!latVal || !lngVal) {
+        mostrarGpsFeedback("Debe ingresar latitud y longitud.", "error")
+        return
+    }
+    
+    const latNum = Number(latVal)
+    const lngNum = Number(lngVal)
+    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+        mostrarGpsFeedback("Coordenadas no válidas.", "error")
+        return
+    }
+    
+    const url = `https://maps.google.com/?q=${latNum.toFixed(6)},${lngNum.toFixed(6)}`
+    window.open(url, "_blank")
+}
+
 function obtenerUbicacionActualGPS() {
     if (!navigator.geolocation) {
-        alert("La geolocalización no está soportada por este navegador.")
+        mostrarGpsFeedback("La geolocalización no está soportada por este navegador.", "error")
         return
     }
     const btn = event?.currentTarget || document.activeElement;
@@ -11906,19 +12000,36 @@ function obtenerUbicacionActualGPS() {
         btn.disabled = true;
         btn.textContent = "Obteniendo ubicación...";
     }
+    
+    mostrarGpsFeedback("Obteniendo ubicación actual...", "info")
+    
     navigator.geolocation.getCurrentPosition(
         (position) => {
             const elLat = document.getElementById("gpsLatitud")
             const elLng = document.getElementById("gpsLongitud")
-            if (elLat) elLat.value = position.coords.latitude
-            if (elLng) elLng.value = position.coords.longitude
+            if (elLat) elLat.value = Number(position.coords.latitude).toFixed(6)
+            if (elLng) elLng.value = Number(position.coords.longitude).toFixed(6)
+            
+            actualizarCoordenadasUX()
+            mostrarGpsFeedback("✓ Ubicación obtenida correctamente.", "success")
+            
             if (btn) {
                 btn.disabled = false
                 btn.textContent = oldText
             }
         },
         (error) => {
-            alert(`Error al obtener ubicación: ${error.message || "Permiso denegado o sin señal."}`)
+            let errorMsg = "No fue posible obtener la ubicación."
+            if (error.code === error.PERMISSION_DENIED) {
+                errorMsg = "Permiso denegado."
+            } else if (error.code === error.POSITION_UNAVAILABLE) {
+                errorMsg = "Ubicación no disponible."
+            } else if (error.code === error.TIMEOUT) {
+                errorMsg = "Tiempo agotado."
+            }
+            
+            mostrarGpsFeedback(errorMsg, "error")
+            
             if (btn) {
                 btn.disabled = false
                 btn.textContent = oldText
@@ -11945,11 +12056,12 @@ function limpiarFormularioPuntoGps() {
     if (elLng) elLng.value = ""
     if (elRadio) elRadio.value = "100"
     ajustarTipoPuntoGpsUI()
+    actualizarCoordenadasUX()
 }
 
 async function guardarPuntoGps() {
     if (!haySupabase()) {
-        alert("Sin conexión al servidor.")
+        mostrarGpsFeedback("Sin conexión al servidor.", "error")
         return
     }
     
@@ -11971,27 +12083,31 @@ async function guardarPuntoGps() {
     const activoVal = true
     
     if (!codigoVal) {
-        alert("Falta el código.")
+        mostrarGpsFeedback("Falta el código.", "error")
         return
     }
     if (tipoVal === "UBO" && !/^\d+$/.test(codigoVal)) {
-        alert("El código de UBO debe ser numérico.")
+        mostrarGpsFeedback("El código de UBO debe ser numérico.", "error")
         return
     }
     if (!nombreVal) {
-        alert("Falta el nombre del punto.")
+        mostrarGpsFeedback("Falta el nombre del punto.", "error")
+        return
+    }
+    if (elLat?.value.trim() === "" || elLng?.value.trim() === "") {
+        mostrarGpsFeedback("Debe ingresar latitud y longitud.", "error")
         return
     }
     if (!Number.isFinite(latVal) || latVal < -90 || latVal > 90) {
-        alert("Latitud no válida (-90 a 90).")
+        mostrarGpsFeedback("La latitud debe estar entre -90 y 90.", "error")
         return
     }
     if (!Number.isFinite(lngVal) || lngVal < -180 || lngVal > 180) {
-        alert("Longitud no válida (-180 a 180).")
+        mostrarGpsFeedback("La longitud debe estar entre -180 y 180.", "error")
         return
     }
     if (!Number.isFinite(radioVal) || radioVal <= 0) {
-        alert("El radio debe ser un número positivo.")
+        mostrarGpsFeedback("El radio debe ser un número positivo mayor que 0.", "error")
         return
     }
     
@@ -12001,8 +12117,8 @@ async function guardarPuntoGps() {
         tipo_punto: tipoVal,
         codigo_punto: codigoVal,
         nombre_punto: nombreVal,
-        latitud: latVal,
-        longitud: lngVal,
+        latitud: Number(latVal.toFixed(6)),
+        longitud: Number(lngVal.toFixed(6)),
         radio_metros: radioVal,
         activo: activoVal
     }
@@ -12016,11 +12132,11 @@ async function guardarPuntoGps() {
         .upsert(payload, { onConflict: idPunto ? "id" : "tenant_id,curso_id,tipo_punto,codigo_punto" })
         
     if (error) {
-        alert(`Error al guardar punto GPS: ${error.message}`)
+        mostrarGpsFeedback(`Error al guardar punto GPS: ${error.message}`, "error")
         return
     }
     
-    alert("Punto GPS guardado correctamente.")
+    mostrarGpsFeedback("Punto GPS guardado correctamente.", "success")
     limpiarFormularioPuntoGps()
     await refrescarPuntosGps()
 }
@@ -12100,11 +12216,12 @@ function editarPuntoGps(id) {
     if (elTipo) elTipo.value = p.tipo_punto
     if (elCodigo) elCodigo.value = p.codigo_punto
     if (elNombre) elNombre.value = p.nombre_punto
-    if (elLat) elLat.value = p.latitud
-    if (elLng) elLng.value = p.longitud
+    if (elLat) elLat.value = Number(p.latitud).toFixed(6)
+    if (elLng) elLng.value = Number(p.longitud).toFixed(6)
     if (elRadio) elRadio.value = p.radio_metros
     
     ajustarTipoPuntoGpsUI()
+    actualizarCoordenadasUX()
     
     // Enfocar el primer input
     if (elCodigo) elCodigo.focus()
@@ -12120,7 +12237,7 @@ async function desactivarPuntoGps(id, actualActivo) {
         .eq("id", id)
         
     if (error) {
-        alert(`Error al cambiar estado del punto GPS: ${error.message}`)
+        mostrarGpsFeedback(`Error al cambiar estado del punto GPS: ${error.message}`, "error")
         return
     }
     
@@ -12134,6 +12251,8 @@ window.limpiarFormularioPuntoGps = limpiarFormularioPuntoGps
 window.guardarPuntoGps = guardarPuntoGps
 window.editarPuntoGps = editarPuntoGps
 window.desactivarPuntoGps = desactivarPuntoGps
+window.copiarCoordenadasAlPortapapeles = copiarCoordenadasAlPortapapeles
+window.verUbicacionGoogleMaps = verUbicacionGoogleMaps
 
 async function importarPuntosGpsDesdeArchivoInput(input) {
     const file = input.files?.[0]
@@ -12246,8 +12365,8 @@ async function procesarCargaMasivaGps(file) {
                 tipo_punto: tipoVal,
                 codigo_punto: codigoVal,
                 nombre_punto: nombreVal,
-                latitud: latVal,
-                longitud: lngVal,
+                latitud: Number(latVal.toFixed(6)),
+                longitud: Number(lngVal.toFixed(6)),
                 radio_metros: radioVal,
                 activo: activoVal
             })
@@ -12308,7 +12427,15 @@ function inicializarDropzoneGps() {
             }
         })
     }
+    
+    const elLat = document.getElementById("gpsLatitud")
+    const elLng = document.getElementById("gpsLongitud")
+    if (elLat && elLng) {
+        elLat.addEventListener("input", actualizarCoordenadasUX)
+        elLng.addEventListener("input", actualizarCoordenadasUX)
+    }
 }
 
 window.inicializarDropzoneGps = inicializarDropzoneGps
-
+window.actualizarCoordenadasUX = actualizarCoordenadasUX
+window.mostrarGpsFeedback = mostrarGpsFeedback
