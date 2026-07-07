@@ -11731,6 +11731,20 @@ async function cargarJustificacionesBackoffice() {
                         <button class="primary-btn" style="min-height:30px; padding:4px 8px; border-radius:6px; font-size:0.75rem; background:#b12d2d;" onclick="procesarRevisionJustificacion('${x.id}', 'RECHAZADA')">Rechazar</button>
                     </div>
                 `
+            } else if (x.estado_revision === "APROBADA") {
+                acciones = `
+                    <div style="display:flex; gap:6px;">
+                        <button class="primary-btn" style="min-height:30px; padding:4px 8px; border-radius:6px; font-size:0.75rem; background:#b12d2d;" onclick="procesarRevisionJustificacion('${x.id}', 'RECHAZADA')">Rechazar</button>
+                        <button class="secondary" style="min-height:30px; padding:4px 8px; border-radius:6px; font-size:0.75rem;" onclick="procesarRevisionJustificacion('${x.id}', 'RECIBIDA')">Revertir a recibida</button>
+                    </div>
+                `
+            } else if (x.estado_revision === "RECHAZADA") {
+                acciones = `
+                    <div style="display:flex; gap:6px;">
+                        <button class="primary-btn" style="min-height:30px; padding:4px 8px; border-radius:6px; font-size:0.75rem; background:#1f7a3b;" onclick="procesarRevisionJustificacion('${x.id}', 'APROBADA')">Aprobar</button>
+                        <button class="secondary" style="min-height:30px; padding:4px 8px; border-radius:6px; font-size:0.75rem;" onclick="procesarRevisionJustificacion('${x.id}', 'RECIBIDA')">Revertir a recibida</button>
+                    </div>
+                `
             }
 
             const motivoVal = x.motivo_inasistencia === "Otro" ? (x.motivo_inasistencia_otro || "Otro") : (x.motivo_inasistencia || "-")
@@ -11801,8 +11815,13 @@ async function verSustentoJustificacion(path) {
 }
 
 async function procesarRevisionJustificacion(id, nuevoEstado) {
-    const obs = prompt("Añadir observación de revisión (opcional):")
+    const accionLabel = nuevoEstado === 'APROBADA' ? 'aprobar' : (nuevoEstado === 'RECHAZADA' ? 'rechazar' : 'revertir');
+    const obs = prompt(`Escriba el motivo de la observación para ${accionLabel} la justificación (Obligatorio):`)
     if (obs === null) return // Clic en Cancelar
+    if (!obs.trim()) {
+        alert("⚠ Es obligatorio ingresar una observación o motivo para procesar el cambio de estado.")
+        return
+    }
     
     if (!haySupabase() || !id) return
 
