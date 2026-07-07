@@ -8868,6 +8868,7 @@ async function cargarConfigCurso(force = false) {
             gps_activo: false
         } : null)
     await aplicarCursoEnUI(cursoConfigCache)
+    await cargarCalendarioGps()
     configCursoCargada = true
 }
 
@@ -12458,3 +12459,349 @@ function inicializarDropzoneGps() {
 window.inicializarDropzoneGps = inicializarDropzoneGps
 window.actualizarCoordenadasUX = actualizarCoordenadasUX
 window.mostrarGpsFeedback = mostrarGpsFeedback
+
+// ==========================================
+// CALENDARIO DE CLASES Y SEDES GPS (GPS Fase 1A.2)
+// ==========================================
+let calGpsFechaControl = new Date();
+let calGpsProgramacion = [];
+
+async function cambiarMesCalendarioGps(delta) {
+    calGpsFechaControl.setMonth(calGpsFechaControl.getMonth() + delta);
+    await cargarCalendarioGps();
+}
+
+async function cargarCalendarioGps() {
+    const mesTituloEl = document.getElementById("calGpsMesTitulo");
+    const gridBodyEl = document.getElementById("calGpsGridBody");
+    if (!gridBodyEl) return;
+
+    const year = calGpsFechaControl.getFullYear();
+    const month = calGpsFechaControl.getMonth();
+
+    // Actualizar título (capitalizando mes)
+    const nombreMes = calGpsFechaControl.toLocaleDateString("es-PE", { month: "long", year: "numeric" });
+    if (mesTituloEl) mesTituloEl.innerText = nombreMes;
+
+    gridBodyEl.innerHTML = '<div style="grid-column: span 7; text-align: center; padding: 20px; font-weight: 500; color: #64748b;">Cargando programación...</div>';
+
+    if (!haySupabase() || !tenantActivoId || !cursoActualId) {
+        gridBodyEl.innerHTML = '<div style="grid-column: span 7; text-align: center; padding: 20px; color: red;">Error: Conexión no disponible.</div>';
+        return;
+    }
+
+    try {
+        const d1 = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+        const ultimoDia = new Date(year, month + 1, 0).getDate();
+        const d2 = `${year}-${String(month + 1).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`;
+
+        // Cargar registros activos del mes con join a puntos_gps
+        const { data, error } = await supabaseClient
+            .from("calendario_sedes_gps")
+            .select("*, puntos_gps:punto_gps_id(nombre_punto, codigo_punto)")
+            .eq("tenant_id", tenantActivoId)
+            .eq("curso_id", cursoActualId)
+            .eq("activo", true)
+            .gte("fecha", d1)
+            .lte("fecha", d2);
+
+        if (error) throw error;
+        calGpsProgramacion = data || [];
+        renderizarCalendarioGps();
+    } catch (e) {
+        console.error("Error al cargar calendario de sedes:", e);
+        gridBodyEl.innerHTML = '<div style="grid-column: span 7; text-align: center; padding: 20px; color: red;">No se pudo cargar la programación del calendario.</div>';
+    }
+}
+
+function renderizarCalendarioGps() {
+    const gridBodyEl = document.getElementById("calGpsGridBody");
+    if (!gridBodyEl) return;
+
+    gridBodyEl.innerHTML = "";
+
+    const year = calGpsFechaControl.getFullYear();
+    const month = calGpsFechaControl.getMonth();
+
+    // Calcular offset (Lunes = 0, Domingo = 6)
+    let startOffset = (new Date(year, month, 1).getDay() + 6) % 7;
+    const totalDays = new Date(year, month + 1, 0).getDate();
+
+    const hoy = new Date();
+    const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+
+    // 1. Celdas del mes anterior (muted)
+    for (let i = 0; i < startOffset; i++) {
+        const mutedCell = document.createElement("div");
+        mutedCell.className = "cal-day-cell muted";
+        gridBodyEl.appendChild(mutedCell);
+    }
+
+    // 2. Celdas del mes actual
+    for (let day = 1; day <= totalDays; day++) {
+        const dayStr = String(day).padStart(2, "0");
+        const monthStr = String(month + 1).padStart(2, "0");
+        const dateStr = `${year}-${monthStr}-${dayStr}`;
+
+        const cell = document.createElement("div");
+        cell.className = "cal-day-cell";
+        if (dateStr === hoyStr) {
+            cell.classList.add("hoy");
+        }
+
+        cell.setAttribute("onclick", `abrirFormularioDiaCalendario('${dateStr}')`);
+
+        // Número del día
+        const dayNumEl = document.createElement("div");
+        dayNumEl.className = "cal-day-number";
+        dayNumEl.innerText = day;
+        cell.appendChild(dayNumEl);
+
+        // Contenedor de programación
+        const progContainer = document.createElement("div");
+        progContainer.className = "cal-programming-container";
+
+        // Filtrar programaciones para este día
+        const progs = calGpsProgramacion.filter(x => x.fecha === dateStr);
+        if (progs.length > 0) {
+            progs.forEach(p => {
+                const badge = document.createElement("div");
+                badge.className = "cal-badge";
+                if (p.hay_clase) {
+                    badge.classList.add("clase");
+                    const nombreSede = p.puntos_gps?.nombre_punto || p.puntos_gps?.codigo_punto || "Clase";
+                    const seccionSuffix = p.aplica_a === "SECCION" ? ` [${p.seccion}]` : "";
+                    badge.innerText = `${nombreSede}${seccionSuffix}`;
+                    badge.title = `${nombreSede}${seccionSuffix} - ${p.hora_inicio ? p.hora_inicio.slice(0, 5) : ""}`;
+                    
+                    const timeEl = document.createElement("span");
+                    timeEl.className = "cal-time-badge";
+                    timeEl.innerText = p.hora_inicio ? p.hora_inicio.slice(0, 5) : "";
+                    
+                    progContainer.appendChild(badge);
+                    progContainer.appendChild(timeEl);
+                } else {
+                    badge.classList.add("noclas");
+                    badge.innerText = p.nota || "Sin clase";
+                    badge.title = p.nota || "Sin clase";
+                    progContainer.appendChild(badge);
+                }
+            });
+        }
+
+        cell.appendChild(progContainer);
+        gridBodyEl.appendChild(cell);
+    }
+}
+
+function abrirFormularioDiaCalendario(fechaStr) {
+    const modal = document.getElementById("modalCalendarioGps");
+    if (!modal) return;
+
+    document.getElementById("calFechaRaw").value = fechaStr;
+
+    const parts = fechaStr.split("-");
+    document.getElementById("calFechaSeleccionada").innerText = `${parts[2]}/${parts[1]}/${parts[0]}`;
+
+    // Popular secciones
+    const secSelect = document.getElementById("calSeccion");
+    secSelect.innerHTML = '<option value="">Selecciona sección...</option>';
+    const uniqueSecs = Array.from(new Set((cursoSecciones || []).map(x => String(x.seccion || "").trim()).filter(Boolean))).sort();
+    uniqueSecs.forEach(sec => {
+        const opt = document.createElement("option");
+        opt.value = sec;
+        opt.innerText = `Sección ${sec}`;
+        secSelect.appendChild(opt);
+    });
+
+    // Popular puntos GPS activos
+    const gpsSelect = document.getElementById("calPuntoGpsId");
+    gpsSelect.innerHTML = '<option value="">Selecciona un punto GPS...</option>';
+    (puntosGpsCacheLocal || []).forEach(pt => {
+        if (!pt.activo) return;
+        const opt = document.createElement("option");
+        opt.value = pt.id;
+        opt.innerText = `${pt.tipo_punto} - ${pt.nombre_punto} (${pt.codigo_punto})`;
+        gpsSelect.appendChild(opt);
+    });
+
+    // Resetear Aplica A
+    document.getElementById("calAplicaA").value = "TODAS";
+
+    cargarDetalleProgramacionModal();
+    modal.style.display = "flex";
+}
+
+function cargarDetalleProgramacionModal() {
+    const fecha = document.getElementById("calFechaRaw").value;
+    const aplicaA = document.getElementById("calAplicaA").value;
+    const seccion = aplicaA === "SECCION" ? document.getElementById("calSeccion").value : null;
+
+    const item = calGpsProgramacion.find(x => 
+        x.fecha === fecha && 
+        x.aplica_a === aplicaA && 
+        (aplicaA === "TODAS" || String(x.seccion || "").trim().toUpperCase() === String(seccion || "").trim().toUpperCase())
+    );
+
+    const btnEliminar = document.getElementById("btnCalEliminar");
+    if (item) {
+        document.getElementById("calHayClase").value = String(item.hay_clase);
+        document.getElementById("calPuntoGpsId").value = item.punto_gps_id || "";
+        document.getElementById("calHoraInicio").value = item.hora_inicio ? item.hora_inicio.slice(0, 5) : "";
+        document.getElementById("calTolerancia").value = item.tolerancia_minutos ?? 30;
+        document.getElementById("calNota").value = item.nota || "";
+        btnEliminar.style.display = "block";
+        document.getElementById("formCalendarioGps").dataset.editId = item.id;
+    } else {
+        document.getElementById("calHayClase").value = "true";
+        document.getElementById("calPuntoGpsId").value = "";
+        document.getElementById("calHoraInicio").value = "";
+        document.getElementById("calTolerancia").value = "30";
+        document.getElementById("calNota").value = "";
+        btnEliminar.style.display = "none";
+        delete document.getElementById("formCalendarioGps").dataset.editId;
+    }
+    actualizarCamposHayClase();
+}
+
+function cerrarModalCalendarioGps() {
+    const modal = document.getElementById("modalCalendarioGps");
+    if (modal) modal.style.display = "none";
+}
+
+function cerrarModalCalendarioGpsPorBackdrop(event) {
+    if (event.target.id === "modalCalendarioGps") {
+        cerrarModalCalendarioGps();
+    }
+}
+
+function actualizarCamposHayClase() {
+    const hayClase = document.getElementById("calHayClase").value === "true";
+    const calSedeGrupo = document.getElementById("calSedeGrupoCampos");
+    const calHoraGrupo = document.getElementById("calHoraGrupoCampos");
+
+    if (hayClase) {
+        calSedeGrupo.style.display = "block";
+        calHoraGrupo.style.display = "flex";
+    } else {
+        calSedeGrupo.style.display = "none";
+        calHoraGrupo.style.display = "none";
+    }
+}
+
+function actualizarCamposAplicaA() {
+    const aplicaA = document.getElementById("calAplicaA").value;
+    const wrapper = document.getElementById("calSeccionWrapper");
+
+    if (aplicaA === "SECCION") {
+        wrapper.style.display = "block";
+    } else {
+        wrapper.style.display = "none";
+        document.getElementById("calSeccion").value = "";
+    }
+
+    cargarDetalleProgramacionModal();
+}
+
+// Hook al cambio de sección en el formulario modal
+document.addEventListener("DOMContentLoaded", () => {
+    const el = document.getElementById("calSeccion");
+    if (el) {
+        el.addEventListener("change", cargarDetalleProgramacionModal);
+    }
+});
+
+async function guardarProgramacionDia() {
+    const editId = document.getElementById("formCalendarioGps").dataset.editId;
+    const fecha = document.getElementById("calFechaRaw").value;
+    const hayClase = document.getElementById("calHayClase").value === "true";
+    const puntoGpsId = document.getElementById("calPuntoGpsId").value;
+    const horaInicio = document.getElementById("calHoraInicio").value;
+    const tolerancia = Number(document.getElementById("calTolerancia").value || 30);
+    const aplicaA = document.getElementById("calAplicaA").value;
+    const seccion = aplicaA === "SECCION" ? document.getElementById("calSeccion").value : null;
+    const nota = document.getElementById("calNota").value.trim();
+
+    // Validaciones
+    if (hayClase) {
+        if (!puntoGpsId) {
+            alert("⚠ Debes seleccionar un Punto GPS válido.");
+            return;
+        }
+        if (!horaInicio) {
+            alert("⚠ Debes ingresar la Hora de inicio.");
+            return;
+        }
+    }
+    if (aplicaA === "SECCION" && !seccion) {
+        alert("⚠ Debes seleccionar la Sección aplicable.");
+        return;
+    }
+
+    // Build payload
+    const payload = withTenantPayload({
+        curso_id: cursoActualId,
+        fecha: fecha,
+        hay_clase: hayClase,
+        punto_gps_id: hayClase ? puntoGpsId : null,
+        hora_inicio: hayClase ? (horaInicio.length === 5 ? `${horaInicio}:00` : horaInicio) : null,
+        tolerancia_minutos: tolerancia,
+        aplica_a: aplicaA,
+        seccion: aplicaA === "SECCION" ? seccion : null,
+        nota: nota || null,
+        activo: true
+    });
+
+    if (editId) {
+        payload.id = editId;
+    }
+
+    try {
+        const { error } = await supabaseClient
+            .from("calendario_sedes_gps")
+            .upsert(payload);
+
+        if (error) throw error;
+
+        alert("✔ Programación guardada correctamente.");
+        cerrarModalCalendarioGps();
+        await cargarCalendarioGps();
+    } catch (e) {
+        console.error("Error al guardar programación:", e);
+        alert("Error al guardar: " + (e.message || e));
+    }
+}
+
+async function eliminarProgramacionDia() {
+    const editId = document.getElementById("formCalendarioGps").dataset.editId;
+    if (!editId) return;
+
+    if (!confirm("¿Seguro que deseas eliminar la programación de este día?")) return;
+
+    try {
+        // Eliminación lógica: activo = false
+        const { error } = await supabaseClient
+            .from("calendario_sedes_gps")
+            .update({ activo: false })
+            .eq("id", editId);
+
+        if (error) throw error;
+
+        alert("✔ Programación eliminada correctamente.");
+        cerrarModalCalendarioGps();
+        await cargarCalendarioGps();
+    } catch (e) {
+        console.error("Error al eliminar programación:", e);
+        alert("Error al eliminar: " + (e.message || e));
+    }
+}
+
+window.cambiarMesCalendarioGps = cambiarMesCalendarioGps;
+window.cargarCalendarioGps = cargarCalendarioGps;
+window.abrirFormularioDiaCalendario = abrirFormularioDiaCalendario;
+window.cerrarModalCalendarioGps = cerrarModalCalendarioGps;
+window.cerrarModalCalendarioGpsPorBackdrop = cerrarModalCalendarioGpsPorBackdrop;
+window.actualizarCamposHayClase = actualizarCamposHayClase;
+window.actualizarCamposAplicaA = actualizarCamposAplicaA;
+window.guardarProgramacionDia = guardarProgramacionDia;
+window.eliminarProgramacionDia = eliminarProgramacionDia;

@@ -22,6 +22,83 @@
     rel="stylesheet">
   <link rel="stylesheet" href="/style.css?v=1.0.0-build10020">
 
+  <style>
+    /* Estilos del Calendario GPS (GPS Fase 1A.2) */
+    .cal-day-cell {
+      background: #ffffff;
+      min-height: 85px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s ease-in-out;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      box-sizing: border-box;
+    }
+    .cal-day-cell:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.06);
+    }
+    .cal-day-cell.muted {
+      background: #f8fafc;
+      opacity: 0.45;
+      cursor: not-allowed;
+      pointer-events: none;
+      box-shadow: none;
+    }
+    .cal-day-cell.hoy {
+      border-color: #2563eb;
+      background: #eff6ff;
+      outline: 1px solid #2563eb;
+    }
+    .cal-day-number {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    .cal-programming-container {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      width: 100%;
+      overflow: hidden;
+    }
+    .cal-badge {
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      display: block;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      text-align: center;
+    }
+    .cal-badge.clase {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+    }
+    .cal-badge.noclas {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+    }
+    .cal-time-badge {
+      font-size: 0.65rem;
+      color: #64748b;
+      font-weight: 500;
+      display: block;
+      text-align: right;
+      margin-top: 2px;
+    }
+  </style>
 </head>
 
 <body>
@@ -1527,6 +1604,31 @@
                       <tbody id="tablaPuntosGps"></tbody>
                     </table>
                   </div>
+
+                  <!-- Calendario de clases y sedes GPS -->
+                  <h5 class="course-subsection-title" style="margin-top: 30px; margin-bottom: 5px; font-weight: 600; color: #1e293b;">Calendario de Clases y Sedes GPS</h5>
+                  <p class="hint course-module-hint">Asigna qué punto GPS/Geocerca será válido para cada fecha de clase.</p>
+                  
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; margin-top: 15px; gap: 10px;">
+                    <button type="button" class="secondary" style="min-height: 38px; padding: 0 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 500;" onclick="cambiarMesCalendarioGps(-1)">◀ Anterior</button>
+                    <h4 id="calGpsMesTitulo" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: #1e293b; text-transform: capitalize;">Cargando mes...</h4>
+                    <button type="button" class="secondary" style="min-height: 38px; padding: 0 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 500;" onclick="cambiarMesCalendarioGps(1)">Siguiente ▶</button>
+                  </div>
+
+                  <div class="calendar-grid-container" style="margin-bottom: 25px;">
+                    <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; margin-bottom: 6px;">
+                      <div style="font-weight: 600; font-size: 0.8rem; color: #475569; background: #e2e8f0; padding: 8px 0; border-radius: 6px;">Lun</div>
+                      <div style="font-weight: 600; font-size: 0.8rem; color: #475569; background: #e2e8f0; padding: 8px 0; border-radius: 6px;">Mar</div>
+                      <div style="font-weight: 600; font-size: 0.8rem; color: #475569; background: #e2e8f0; padding: 8px 0; border-radius: 6px;">Mié</div>
+                      <div style="font-weight: 600; font-size: 0.8rem; color: #475569; background: #e2e8f0; padding: 8px 0; border-radius: 6px;">Jue</div>
+                      <div style="font-weight: 600; font-size: 0.8rem; color: #475569; background: #e2e8f0; padding: 8px 0; border-radius: 6px;">Vie</div>
+                      <div style="font-weight: 600; font-size: 0.8rem; color: #475569; background: #e2e8f0; padding: 8px 0; border-radius: 6px;">Sáb</div>
+                      <div style="font-weight: 600; font-size: 0.8rem; color: #475569; background: #e2e8f0; padding: 8px 0; border-radius: 6px;">Dom</div>
+                    </div>
+                    <div id="calGpsGridBody" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;">
+                      <!-- Días cargados dinámicamente -->
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Futuros Parámetros Preparados (Deshabilitados visualmente) -->
@@ -2177,6 +2279,101 @@
 
     </div>
 
+  </div>
+
+  <!-- Modal para Configuración de Calendario de Clases y Sedes GPS -->
+  <div id="modalCalendarioGps" onclick="cerrarModalCalendarioGpsPorBackdrop(event)" style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+  ">
+    <div style="
+      background: white;
+      width: 480px;
+      max-width: 95%;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.25), 0 10px 20px rgba(0,0,0,0.15);
+      font-family: inherit;
+      box-sizing: border-box;
+    ">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #1e293b;">Programación de Clase</h3>
+        <button type="button" class="modal-close" onclick="cerrarModalCalendarioGps()" aria-label="Cerrar modal" title="Cerrar" style="border: none; background: none; font-size: 24px; cursor: pointer; color: #64748b;">×</button>
+      </div>
+
+      <p style="margin-top: 0; margin-bottom: 20px; font-size: 0.9rem; color: #64748b;">
+        Fecha seleccionada: <strong id="calFechaSeleccionada">--/--/----</strong>
+      </p>
+
+      <form id="formCalendarioGps" onsubmit="event.preventDefault();">
+        <input type="hidden" id="calFechaRaw">
+
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 6px;">¿Hay clase este día?</label>
+          <select id="calHayClase" onchange="actualizarCamposHayClase()" style="width: 100%; height: 42px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 12px; font-size: 0.9rem; background-color: white; font-family: inherit; box-sizing: border-box;">
+            <option value="true">Sí</option>
+            <option value="false">No (Feriado, suspensión, etc.)</option>
+          </select>
+        </div>
+
+        <div id="calSedeGrupoCampos" style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 6px;">Punto GPS válido</label>
+          <select id="calPuntoGpsId" style="width: 100%; height: 42px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 12px; font-size: 0.9rem; background-color: white; font-family: inherit; box-sizing: border-box;">
+            <option value="">Selecciona un punto GPS...</option>
+          </select>
+        </div>
+
+        <div id="calHoraGrupoCampos" style="margin-bottom: 16px; display: flex; gap: 12px;">
+          <div style="flex: 1;">
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 6px;">Hora de inicio</label>
+            <input type="time" id="calHoraInicio" style="width: 100%; height: 42px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 12px; font-size: 0.9rem; background-color: white; font-family: inherit; box-sizing: border-box;">
+          </div>
+          <div style="flex: 1;">
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 6px;">Tolerancia (minutos)</label>
+            <input type="number" id="calTolerancia" min="0" max="480" value="30" style="width: 100%; height: 42px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 12px; font-size: 0.9rem; background-color: white; font-family: inherit; box-sizing: border-box;">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 150px;">
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 6px;">Aplicar a</label>
+            <select id="calAplicaA" onchange="actualizarCamposAplicaA()" style="width: 100%; height: 42px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 12px; font-size: 0.9rem; background-color: white; font-family: inherit; box-sizing: border-box;">
+              <option value="TODAS">Todas las secciones</option>
+              <option value="SECCION">Sección específica</option>
+            </select>
+          </div>
+          <div id="calSeccionWrapper" style="flex: 1; min-width: 150px; display: none;">
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 6px;">Sección</label>
+            <select id="calSeccion" style="width: 100%; height: 42px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 12px; font-size: 0.9rem; background-color: white; font-family: inherit; box-sizing: border-box;">
+              <option value="">Selecciona sección...</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 6px;">Nota (opcional)</label>
+          <textarea id="calNota" rows="2" placeholder="Ej: Feriado nacional, examen parcial..." style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px; font-size: 0.9rem; font-family: inherit; box-sizing: border-box; resize: vertical;"></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; align-items: center;">
+          <div>
+            <button type="button" id="btnCalEliminar" class="secondary" style="min-height: 42px; border-radius: 8px; background: #ef4444; color: white; border: none; padding: 0 16px; font-weight: 600; cursor: pointer; display: none;" onclick="eliminarProgramacionDia()">Eliminar</button>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button type="button" class="secondary" style="min-height: 42px; border-radius: 8px; padding: 0 16px; font-weight: 600;" onclick="cerrarModalCalendarioGps()">Cancelar</button>
+            <button type="button" style="min-height: 42px; border-radius: 8px; background: #2563eb; color: white; border: none; padding: 0 20px; font-weight: 600; cursor: pointer;" onclick="guardarProgramacionDia()">Guardar</button>
+          </div>
+        </div>
+      </form>
+    </div>
   </div>
 
 </body>
