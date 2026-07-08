@@ -1478,28 +1478,51 @@ async function guardarAsistencia() {
 
     // 1. Obtener modo GPS del caché local o del cursoConfigCache
     const cachedGps = localStorage.getItem(`asistia_gps_config_${tenantActivoId}_${cursoActualId || 1}`);
-    const gpsModo = cursoConfigCache?.oper_gps_modo || (cachedGps ? JSON.parse(cachedGps).oper_gps_modo : "desactivado");
+    const gpsModoParsed = cachedGps ? JSON.parse(cachedGps) : null;
+    const tieneConfigCargada = !!(cursoConfigCache || gpsModoParsed);
+    const gpsModo = cursoConfigCache?.oper_gps_modo || gpsModoParsed?.oper_gps_modo || "desactivado";
+
+    let gpsData = null;
+
+    if (!tieneConfigCargada) {
+        gpsData = {
+            estado: "GPS_NO_DISPONIBLE",
+            modo: "desactivado",
+            mensaje: "No se pudo validar GPS porque no se pudo cargar la configuración del curso."
+        };
+    } else if (gpsModo === "desactivado") {
+        gpsData = {
+            estado: "GPS_DESACTIVADO",
+            modo: "desactivado",
+            mensaje: "El control GPS está desactivado para este curso."
+        };
+    } else {
+        gpsData = {
+            estado: "GPS_NO_DISPONIBLE",
+            modo: gpsModo,
+            mensaje: "No se pudo obtener la ubicación o no hay programación diaria activa."
+        };
+    }
 
     const isOnline = navigator.onLine && haySupabase();
 
     // Flujo Offline contingente
     if (!isOnline) {
-        let gpsData = null;
-        if (gpsModo !== "desactivado") {
+        if (tieneConfigCargada && gpsModo !== "desactivado") {
             try {
                 const coords = await obtenerUbicacionNavegador();
                 gpsData = {
                     latitud: coords.latitude,
                     longitud: coords.longitude,
                     accuracy: coords.accuracy,
-                    estado: "ok",
+                    estado: "GPS_DENTRO_RANGO",
                     modo: gpsModo,
                     mensaje: "offline_contingency"
                 };
             } catch (err) {
                 console.warn("Fallo captura GPS offline:", err);
                 gpsData = {
-                    estado: "error",
+                    estado: "GPS_NO_DISPONIBLE",
                     modo: gpsModo,
                     mensaje: "No se pudo obtener ubicación offline: " + (err.message || err)
                 };
@@ -1539,65 +1562,81 @@ async function guardarAsistencia() {
             return;
         }
 
-        let gpsData = null;
         let warningMessage = "";
         let postRegisterAlert = "";
 
-        if (gpsModo !== "desactivado" && prog && prog.success === true && prog.hay_clase === true) {
-            const punto = prog.punto_gps;
-            
-            if (punto && punto.latitud != null && punto.longitud != null) {
-                try {
-                    // Solicitar geolocalización
-                    const coords = await obtenerUbicacionNavegador();
-                    const distancia = calcularDistanciaGpsMetros(
-                        coords.latitude,
-                        coords.longitude,
-                        Number(punto.latitud),
-                        Number(punto.longitud)
-                    );
-                    const dentroRango = distancia <= Number(punto.radio_metros || 50);
+        if (tieneConfigCargada && gpsModo !== "desactivado") {
+            if (prog && prog.success === true && prog.hay_clase === true) {
+                const punto = prog.punto_gps;
+                
+                if (punto && punto.latitud != null && punto.longitud != null) {
+                    try {
+                        // Solicitar geolocalización
+                        const coords = await obtenerUbicacionNavegador();
+                        const distancia = calcularDistanciaGpsMetros(
+                            coords.latitude,
+                            coords.longitude,
+                            Number(punto.latitud),
+                            Number(punto.longitud)
+                        );
+                        const dentroRango = distancia <= Number(punto.radio_metros || 50);
 
-                    gpsData = {
-                        latitud: coords.latitude,
-                        longitud: coords.longitude,
-                        accuracy: coords.accuracy,
-                        distancia_metros: Math.round(distancia * 100) / 100,
-                        estado: "ok",
-                        punto_tipo: punto.tipo_punto,
-                        punto_codigo: punto.codigo_punto,
-                        punto_nombre: punto.nombre_punto,
-                        modo: gpsModo
-                    };
+                        gpsData = {
+                            latitud: coords.latitude,
+                            longitud: coords.longitude,
+                            accuracy: coords.accuracy,
+                            distancia_metros: Math.round(distancia * 100) / 100,
+                            estado: dentroRango ? "GPS_DENTRO_RANGO" : "GPS_FUERA_RANGO",
+                            punto_tipo: punto.tipo_punto,
+                            punto_codigo: punto.codigo_punto,
+                            punto_nombre: punto.nombre_punto,
+                            modo: gpsModo
+                        };
 
-                    if (!dentroRango) {
-                        gpsData.mensaje = `Fuera de rango por ${Math.round(distancia - punto.radio_metros)} metros.`;
-                        
-                        if (gpsModo === "advertencia") {
-                            warningMessage = "Tu asistencia fue registrada, pero tu ubicación está fuera del área autorizada. Este evento será informado automáticamente a la Jefatura de ESBAS.";
-                            gpsData.mensaje = "[ADVERTENCIA] " + gpsData.mensaje;
-                        } else if (gpsModo === "bloquear_fuera" || gpsModo === "bloquear_fuera_sin_gps") {
+                        if (!dentroRango) {
+                            gpsData.mensaje = `Fuera de rango por ${Math.round(distancia - punto.radio_metros)} metros.`;
+                            
+                            if (gpsModo === "advertencia") {
+                                warningMessage = "Tu asistencia fue registrada, pero tu ubicación está fuera del área autorizada. Este evento será informado automáticamente a la Jefatura de ESBAS.";
+                                gpsData.mensaje = "[ADVERTENCIA] " + gpsData.mensaje;
+                            } else if (gpsModo === "bloquear_fuera" || gpsModo === "bloquear_fuera_sin_gps") {
+                                setMensaje("No es posible registrar la asistencia. Tu ubicación se encuentra fuera del área autorizada o no se pudo validar. Acércate a la sede correspondiente y vuelve a intentarlo.", "error");
+                                return;
+                            }
+                        } else {
+                            gpsData.mensaje = "Dentro de rango.";
+                        }
+                    } catch (geoError) {
+                        console.warn("Error capturando ubicación del navegador:", geoError);
+                        gpsData = {
+                            estado: "GPS_NO_DISPONIBLE",
+                            modo: gpsModo,
+                            mensaje: "Error capturando GPS: " + (geoError.message || geoError),
+                            punto_tipo: punto.tipo_punto,
+                            punto_codigo: punto.codigo_punto,
+                            punto_nombre: punto.nombre_punto
+                        };
+
+                        if (gpsModo === "bloquear_fuera_sin_gps") {
                             setMensaje("No es posible registrar la asistencia. Tu ubicación se encuentra fuera del área autorizada o no se pudo validar. Acércate a la sede correspondiente y vuelve a intentarlo.", "error");
                             return;
+                        } else if (gpsModo === "solo_registrar" || gpsModo === "advertencia" || gpsModo === "bloquear_fuera") {
+                            postRegisterAlert = "No fue posible obtener tu ubicación. La asistencia fue registrada. Este evento será informado automáticamente a la Jefatura de ESBAS para la validación correspondiente.";
                         }
-                    } else {
-                        gpsData.mensaje = "Dentro de rango.";
                     }
-                } catch (geoError) {
-                    console.warn("Error capturando ubicación del navegador:", geoError);
+                } else {
                     gpsData = {
-                        estado: "error",
+                        estado: "GPS_NO_DISPONIBLE",
                         modo: gpsModo,
-                        mensaje: "Error capturando GPS: " + (geoError.message || geoError)
+                        mensaje: "No hay punto GPS configurado para la clase de hoy en el calendario."
                     };
-
-                    if (gpsModo === "bloquear_fuera_sin_gps") {
-                        setMensaje("No es posible registrar la asistencia. Tu ubicación se encuentra fuera del área autorizada o no se pudo validar. Acércate a la sede correspondiente y vuelve a intentarlo.", "error");
-                        return;
-                    } else if (gpsModo === "solo_registrar" || gpsModo === "advertencia" || gpsModo === "bloquear_fuera") {
-                        postRegisterAlert = "No fue posible obtener tu ubicación. La asistencia fue registrada. Este evento será informado automáticamente a la Jefatura de ESBAS para la validación correspondiente.";
-                    }
                 }
+            } else {
+                gpsData = {
+                    estado: "GPS_NO_DISPONIBLE",
+                    modo: gpsModo,
+                    mensaje: "No hay clase programada para registrar geocercas hoy."
+                };
             }
         }
 
@@ -1690,18 +1729,20 @@ async function guardarAsistencia() {
         let distanciaTxt = "";
         let gpsDentroRango = true;
 
-        if (gpsData && gpsData.estado === "ok") {
-            const punto = prog?.punto_gps;
-            gpsDentroRango = gpsData.distancia_metros != null && 
-                (punto?.radio_metros != null ? gpsData.distancia_metros <= Number(punto.radio_metros) : true);
-            gpsTxt = gpsDentroRango ? "dentro de geocerca" : "fuera de geocerca";
+        if (gpsData) {
+            if (gpsData.estado === "GPS_DENTRO_RANGO") {
+                gpsTxt = "dentro de geocerca";
+            } else if (gpsData.estado === "GPS_FUERA_RANGO") {
+                gpsTxt = "fuera de geocerca";
+                gpsDentroRango = false;
+            }
             if (gpsData.distancia_metros != null) {
                 distanciaTxt = `<br>Distancia: ${gpsData.distancia_metros} metros`;
             }
         }
 
         const msgFinal = `✅ Asistencia registrada.<br>Horario: ${horarioTxt}<br>GPS: ${gpsTxt}${distanciaTxt}`;
-        const esOk = (estadoHora === "PUNTUAL") && (gpsData ? (gpsData.estado === "ok" && gpsDentroRango) : true);
+        const esOk = (estadoHora === "PUNTUAL") && (gpsData ? (gpsData.estado !== "GPS_FUERA_RANGO" && gpsData.estado !== "GPS_NO_DISPONIBLE") : true);
 
         setMensaje(msgFinal, esOk ? "ok" : "warning");
 
