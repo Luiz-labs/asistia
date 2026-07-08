@@ -425,7 +425,7 @@ function programarRetornoPostRegistro() {
     }, 3200)
 }
 
-function crearRegistroOffline({ dniRegistro, nombresValor, apellidosValor, seccionRegistro, modalidadRegistro, deviceId }) {
+function crearRegistroOffline({ dniRegistro, nombresValor, apellidosValor, seccionRegistro, modalidadRegistro, deviceId, gpsData = null }) {
     const contexto = contextoAsistenciaActual || construirContextoLocalAsistencia(new Date(), seccionRegistro)
     const fechaHora = resolverContextoAsistencia(new Date(), seccionRegistro)
     const nombreCompleto = `${String(nombresValor || "").trim()} ${String(apellidosValor || "").trim()}`
@@ -441,8 +441,8 @@ function crearRegistroOffline({ dniRegistro, nombresValor, apellidosValor, secci
         fecha_local: fechaHora.fecha,
         hora_local: fechaHora.hora,
         timestamp_local: fechaHora.timestamp,
-        latitud: null,
-        longitud: null,
+        latitud: gpsData?.latitud || null,
+        longitud: gpsData?.longitud || null,
         seccion: contexto.seccion || null,
         tipo_jornada: contexto.tipo_jornada || fechaHora.tipo_jornada,
         modalidad: normalizarModalidad(modalidadRegistro) || contexto.modalidad || null,
@@ -452,7 +452,17 @@ function crearRegistroOffline({ dniRegistro, nombresValor, apellidosValor, secci
         device_id: deviceId || getDeviceId(),
         origen_registro: "offline",
         estado_sync: "pendiente",
-        created_local_at: new Date().toISOString()
+        created_local_at: new Date().toISOString(),
+        gps_latitud: gpsData?.latitud || null,
+        gps_longitud: gpsData?.longitud || null,
+        gps_accuracy: gpsData?.accuracy || null,
+        gps_distancia_metros: gpsData?.distancia_metros || null,
+        gps_estado: gpsData?.estado || null,
+        gps_punto_tipo: gpsData?.punto_tipo || null,
+        gps_punto_codigo: gpsData?.punto_codigo || null,
+        gps_punto_nombre: gpsData?.punto_nombre || null,
+        gps_modo: gpsData?.modo || null,
+        gps_mensaje: gpsData?.mensaje || null
     }
 }
 
@@ -475,17 +485,40 @@ async function sincronizarPendientes({ notificar = false } = {}) {
     try {
         for (const item of cola) {
             try {
-                const { data, error } = await supabaseClient.rpc("rpc_registrar_asistencia", {
-                    p_dni: limpiarDni(item?.dni),
-                    p_tenant_id: String(item?.tenant_id || "").trim(),
-                    p_seccion: String(item?.seccion || "GENERAL").trim() || "GENERAL",
-                    p_latitud: item?.latitud == null ? 0 : Number(item.latitud),
-                    p_longitud: item?.longitud == null ? 0 : Number(item.longitud),
-                    p_device_id: String(item?.device_id || getDeviceId()).trim(),
-                    p_timestamp_local: item?.timestamp_local || item?.created_local_at || new Date().toISOString(),
-                    p_curso_id: Number(item?.curso_id || 1) || 1,
-                    p_origen_registro: String(item?.origen_registro || "offline").trim() || "offline"
-                })
+                let response;
+                if (item.qr_token) {
+                    response = await supabaseClient.rpc("rpc_registrar_asistencia_v2", {
+                        p_qr_token: String(item.qr_token).trim(),
+                        p_dni: limpiarDni(item.dni),
+                        p_timestamp: item.timestamp_local || item.created_local_at || new Date().toISOString(),
+                        p_device_id: String(item.device_id || getDeviceId()).trim(),
+                        p_latitud: item.latitud == null ? null : Number(item.latitud),
+                        p_longitud: item.longitud == null ? null : Number(item.longitud),
+                        p_origen_registro: "offline",
+                        p_gps_latitud: item.gps_latitud == null ? null : Number(item.gps_latitud),
+                        p_gps_longitud: item.gps_longitud == null ? null : Number(item.gps_longitud),
+                        p_gps_accuracy: item.gps_accuracy == null ? null : Number(item.gps_accuracy),
+                        p_gps_distancia_metros: item.gps_distancia_metros == null ? null : Number(item.gps_distancia_metros),
+                        p_gps_estado: item.gps_estado || null,
+                        p_gps_punto_tipo: item.gps_punto_tipo || null,
+                        p_gps_punto_codigo: item.gps_punto_codigo || null,
+                        p_gps_punto_nombre: item.gps_punto_nombre || null,
+                        p_gps_modo: item.gps_modo || null,
+                        p_gps_mensaje: item.gps_mensaje || null
+                    });
+                } else {
+                    response = await supabaseClient.rpc("rpc_registrar_asistencia", {
+                        p_dni: limpiarDni(item?.dni),
+                        p_tenant_id: String(item?.tenant_id || "").trim(),
+                        p_seccion: String(item?.seccion || "GENERAL").trim() || "GENERAL",
+                        p_latitud: item?.latitud == null ? 0 : Number(item.latitud),
+                        p_longitud: item?.longitud == null ? 0 : Number(item.longitud),
+                        p_device_id: String(item?.device_id || getDeviceId()).trim(),
+                        p_timestamp_local: item?.timestamp_local || item?.created_local_at || new Date().toISOString(),
+                        p_curso_id: Number(item?.curso_id || 1) || 1,
+                        p_origen_registro: String(item?.origen_registro || "offline").trim() || "offline"
+                    });
+                }
 
                 const errorText = error ? String(error.message || error) : ""
                 const isDuplicate = data?.code === "asistencia_duplicada" ||
@@ -541,7 +574,7 @@ async function sincronizarPendientes({ notificar = false } = {}) {
     }
 }
 
-async function guardarAsistenciaOffline({ dniRegistro, nombresValor, apellidosValor, seccionRegistro, modalidadRegistro, motivo }) {
+async function guardarAsistenciaOffline({ dniRegistro, nombresValor, apellidosValor, seccionRegistro, modalidadRegistro, motivo, gpsData = null }) {
     if (!puedeGuardarOfflinePorContingencia()) {
         setMensaje(motivo || "⚠ No se pudo registrar la asistencia en este momento.", "error")
         return false
@@ -553,7 +586,8 @@ async function guardarAsistenciaOffline({ dniRegistro, nombresValor, apellidosVa
         apellidosValor,
         seccionRegistro,
         modalidadRegistro,
-        deviceId: getDeviceId()
+        deviceId: getDeviceId(),
+        gpsData
     }))
 
     if (!resultado.ok) {
@@ -898,6 +932,17 @@ async function cargarConfigCurso() {
         dias: Array.isArray(item.dias) ? item.dias : [],
         hora_inicio: item.hora_inicio || ""
     }))
+
+    if (cursoConfigCache && tenantActivoId) {
+        try {
+            localStorage.setItem(
+                `asistia_gps_config_${tenantActivoId}_${cursoActualId || 1}`,
+                JSON.stringify({ oper_gps_modo: cursoConfigCache.oper_gps_modo || "desactivado" })
+            );
+        } catch (e) {
+            console.warn("No se pudo cachear gps config en localStorage:", e);
+        }
+    }
 }
 
 function seleccionarBotonSeccion(valor) {
@@ -1281,7 +1326,7 @@ function construirWarningsRegistro(data, contextoAsistencia) {
     return deduplicarMensajes(warnings.filter(Boolean))
 }
 
-async function intentarRegistrarAsistenciaV2({ dniRegistro, deviceId }) {
+async function intentarRegistrarAsistenciaV2({ dniRegistro, deviceId, gpsData = null }) {
     const tokenCurso = obtenerCursoTokenDesdeURL()
 
     if (!tokenCurso) {
@@ -1295,7 +1340,8 @@ async function intentarRegistrarAsistenciaV2({ dniRegistro, deviceId }) {
         tokenCursoExiste: !!tokenCurso,
         deviceId,
         cursoActualId,
-        tenantActivoId
+        tenantActivoId,
+        gpsData
     })
 
     const { data, error } = await supabaseClient.rpc("rpc_registrar_asistencia_v2", {
@@ -1303,9 +1349,19 @@ async function intentarRegistrarAsistenciaV2({ dniRegistro, deviceId }) {
         p_dni: dniRegistro,
         p_timestamp: timestamp,
         p_device_id: deviceId,
-        p_latitud: null,
-        p_longitud: null,
-        p_origen_registro: "mobile_public"
+        p_latitud: gpsData?.latitud || null,
+        p_longitud: gpsData?.longitud || null,
+        p_origen_registro: "mobile_public",
+        p_gps_latitud: gpsData?.latitud || null,
+        p_gps_longitud: gpsData?.longitud || null,
+        p_gps_accuracy: gpsData?.accuracy || null,
+        p_gps_distancia_metros: gpsData?.distancia_metros || null,
+        p_gps_estado: gpsData?.estado || null,
+        p_gps_punto_tipo: gpsData?.punto_tipo || null,
+        p_gps_punto_codigo: gpsData?.punto_codigo || null,
+        p_gps_punto_nombre: gpsData?.punto_nombre || null,
+        p_gps_modo: gpsData?.modo || null,
+        p_gps_mensaje: gpsData?.mensaje || null
     })
 
     debugContextLog("guardarAsistencia: respuesta v2", {
@@ -1351,6 +1407,35 @@ async function intentarRegistrarAsistenciaLegacy({ dniRegistro, seccionRegistro,
     return data
 }
 
+function calcularDistanciaGpsMetros(lat1, lon1, lat2, lon2) {
+    const R = 6371e3;
+    const phi1 = lat1 * Math.PI / 180;
+    const phi2 = lat2 * Math.PI / 180;
+    const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+    const deltaLambda = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+              Math.cos(phi1) * Math.cos(phi2) *
+              Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+}
+
+function obtenerUbicacionNavegador() {
+    return new Promise((resolve, reject) => {
+        if (!navigator || !navigator.geolocation) {
+            reject(new Error("Geolocalización no soportada por el navegador."));
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            (pos) => resolve(pos.coords),
+            (err) => reject(err),
+            { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+        );
+    });
+}
+
 async function guardarAsistencia() {
     const dniRegistro = limpiarDni(dniMovil || mobileDniInicio?.value)
     const nombresValor = String(nombres.value || "").trim()
@@ -1391,49 +1476,143 @@ async function guardarAsistencia() {
         return
     }
 
-    if (!haySupabase()) {
+    // 1. Obtener modo GPS del caché local o del cursoConfigCache
+    const cachedGps = localStorage.getItem(`asistia_gps_config_${tenantActivoId}_${cursoActualId || 1}`);
+    const gpsModo = cursoConfigCache?.oper_gps_modo || (cachedGps ? JSON.parse(cachedGps).oper_gps_modo : "desactivado");
+
+    const isOnline = navigator.onLine && haySupabase();
+
+    // Flujo Offline contingente
+    if (!isOnline) {
+        let gpsData = null;
+        if (gpsModo !== "desactivado") {
+            try {
+                const coords = await obtenerUbicacionNavegador();
+                gpsData = {
+                    latitud: coords.latitude,
+                    longitud: coords.longitude,
+                    accuracy: coords.accuracy,
+                    estado: "ok",
+                    modo: gpsModo,
+                    mensaje: "offline_contingency"
+                };
+            } catch (err) {
+                console.warn("Fallo captura GPS offline:", err);
+                gpsData = {
+                    estado: "error",
+                    modo: gpsModo,
+                    mensaje: "No se pudo obtener ubicación offline: " + (err.message || err)
+                };
+            }
+        }
         await guardarAsistenciaOffline({
             dniRegistro,
             nombresValor,
             apellidosValor,
             seccionRegistro,
             modalidadRegistro: contextoAsistencia.modalidad,
-            motivo: "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente."
-        })
-        return
+            motivo: "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente.",
+            gpsData
+        });
+        return;
     }
 
-    if (!navigator.onLine) {
-        await guardarAsistenciaOffline({
-            dniRegistro,
-            nombresValor,
-            apellidosValor,
-            seccionRegistro,
-            modalidadRegistro: contextoAsistencia.modalidad,
-            motivo: "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente."
-        })
-        return
-    }
-
+    // Flujo Online con validación real
     try {
-        let data = null
-        let usoLegacy = false
+        const fechaLoc = obtenerFechaHoraLima(new Date()).fecha;
+        
+        // Consultar programación diaria de geocercas
+        const { data: prog, error: errorProg } = await supabaseClient.rpc("rpc_obtener_programacion_dia", {
+            p_tenant_id: tenantActivoId,
+            p_curso_id: cursoActualId || 1,
+            p_dni: dniRegistro,
+            p_fecha: fechaLoc
+        });
+
+        if (errorProg) {
+            console.error("Error consultando rpc_obtener_programacion_dia:", errorProg);
+        }
+
+        // Si hay respuesta y hay_clase = false, bloquear
+        if (prog && prog.success === true && prog.hay_clase === false) {
+            setMensaje("Hoy no hay clase programada para registrar asistencia.", "error");
+            return;
+        }
+
+        let gpsData = null;
+        let warningMessage = "";
+        let postRegisterAlert = "";
+
+        if (gpsModo !== "desactivado" && prog && prog.success === true && prog.hay_clase === true) {
+            const punto = prog.punto_gps;
+            
+            if (punto && punto.latitud != null && punto.longitud != null) {
+                try {
+                    // Solicitar geolocalización
+                    const coords = await obtenerUbicacionNavegador();
+                    const distancia = calcularDistanciaGpsMetros(
+                        coords.latitude,
+                        coords.longitude,
+                        Number(punto.latitud),
+                        Number(punto.longitud)
+                    );
+                    const dentroRango = distancia <= Number(punto.radio_metros || 50);
+
+                    gpsData = {
+                        latitud: coords.latitude,
+                        longitud: coords.longitude,
+                        accuracy: coords.accuracy,
+                        distancia_metros: Math.round(distancia * 100) / 100,
+                        estado: "ok",
+                        punto_tipo: punto.tipo_punto,
+                        punto_codigo: punto.codigo_punto,
+                        punto_nombre: punto.nombre_punto,
+                        modo: gpsModo
+                    };
+
+                    if (!dentroRango) {
+                        gpsData.mensaje = `Fuera de rango por ${Math.round(distancia - punto.radio_metros)} metros.`;
+                        
+                        if (gpsModo === "advertencia") {
+                            warningMessage = "Tu asistencia fue registrada, pero tu ubicación está fuera del área autorizada. Este evento será informado automáticamente a la Jefatura de ESBAS.";
+                            gpsData.mensaje = "[ADVERTENCIA] " + gpsData.mensaje;
+                        } else if (gpsModo === "bloquear_fuera" || gpsModo === "bloquear_fuera_sin_gps") {
+                            setMensaje("No es posible registrar la asistencia. Tu ubicación se encuentra fuera del área autorizada o no se pudo validar. Acércate a la sede correspondiente y vuelve a intentarlo.", "error");
+                            return;
+                        }
+                    } else {
+                        gpsData.mensaje = "Dentro de rango.";
+                    }
+                } catch (geoError) {
+                    console.warn("Error capturando ubicación del navegador:", geoError);
+                    gpsData = {
+                        estado: "error",
+                        modo: gpsModo,
+                        mensaje: "Error capturando GPS: " + (geoError.message || geoError)
+                    };
+
+                    if (gpsModo === "bloquear_fuera_sin_gps") {
+                        setMensaje("No es posible registrar la asistencia. Tu ubicación se encuentra fuera del área autorizada o no se pudo validar. Acércate a la sede correspondiente y vuelve a intentarlo.", "error");
+                        return;
+                    } else if (gpsModo === "solo_registrar" || gpsModo === "advertencia" || gpsModo === "bloquear_fuera") {
+                        postRegisterAlert = "No fue posible obtener tu ubicación. La asistencia fue registrada. Este evento será informado automáticamente a la Jefatura de ESBAS para la validación correspondiente.";
+                    }
+                }
+            }
+        }
+
+        let data = null;
+        let usoLegacy = false;
 
         try {
             data = await intentarRegistrarAsistenciaV2({
                 dniRegistro,
-                deviceId
-            })
+                deviceId,
+                gpsData
+            });
         } catch (errorV2) {
-            console.warn("Fallback legacy:", errorV2)
-
-            debugContextLog("guardarAsistencia: fallback legacy", {
-                dni: dniRegistro,
-                error: String(errorV2?.message || errorV2),
-                rpcV2NoDisponible: esRpcV2NoDisponible(errorV2)
-            })
-
-            usoLegacy = true
+            console.warn("Fallback legacy:", errorV2);
+            usoLegacy = true;
         }
 
         if (usoLegacy) {
@@ -1441,81 +1620,78 @@ async function guardarAsistencia() {
                 dniRegistro,
                 seccionRegistro,
                 deviceId
-            })
+            });
         }
 
         if (!data?.success) {
             setMensaje(
                 normalizarMensajePublicoFinal(String(data?.message || "Ocurrió un problema al procesar la solicitud.")),
                 "error"
-            )
-            programarRetornoPostRegistro()
-            return
+            );
+            programarRetornoPostRegistro();
+            return;
         }
 
         if (!data?.registrado && data?.code === "asistencia_duplicada") {
-            // Remover de la cola local si existe una asistencia pendiente hoy para este DNI
-            const colaLoc = leerColaPendientes()
-            const hoyLoc = obtenerFechaHoraLima(new Date()).fecha
+            const colaLoc = leerColaPendientes();
+            const hoyLoc = obtenerFechaHoraLima(new Date()).fecha;
             const nuevaColaLoc = colaLoc.filter(item => {
-                const esMismoDni = limpiarDni(item?.dni) === dniRegistro
-                const esHoy = String(item?.fecha_local || "").trim() === hoyLoc
-                return !(esMismoDni && esHoy)
-            })
-            guardarColaPendientes(nuevaColaLoc)
-            actualizarContadorPendientes()
+                const esMismoDni = limpiarDni(item?.dni) === dniRegistro;
+                const esHoy = String(item?.fecha_local || "").trim() === hoyLoc;
+                return !(esMismoDni && esHoy);
+            });
+            guardarColaPendientes(nuevaColaLoc);
+            actualizarContadorPendientes();
 
             setMensaje(
                 normalizarMensajePublicoFinal(String(data?.message || "El aspirante ya registró asistencia hoy.")),
                 "warning"
-            )
-            programarRetornoPostRegistro()
-            return
+            );
+            programarRetornoPostRegistro();
+            return;
         }
 
         if (!data?.registrado && data?.code && data?.code !== "ok") {
             setMensaje(
                 normalizarMensajePublicoFinal(String(data?.message || "No se pudo registrar la asistencia.")),
                 "error"
-            )
-            programarRetornoPostRegistro()
-            return
+            );
+            programarRetornoPostRegistro();
+            return;
         }
 
-        const warnings = construirWarningsRegistro(data, contextoAsistencia)
+        const warnings = construirWarningsRegistro(data, contextoAsistencia);
 
         // Remover de la cola local si existe una asistencia pendiente hoy para este DNI
-        const colaLoc = leerColaPendientes()
-        const hoyLoc = obtenerFechaHoraLima(new Date()).fecha
+        const colaLoc = leerColaPendientes();
+        const hoyLoc = obtenerFechaHoraLima(new Date()).fecha;
         const nuevaColaLoc = colaLoc.filter(item => {
-            const esMismoDni = limpiarDni(item?.dni) === dniRegistro
-            const esHoy = String(item?.fecha_local || "").trim() === hoyLoc
-            return !(esMismoDni && esHoy)
-        })
-        guardarColaPendientes(nuevaColaLoc)
-        actualizarContadorPendientes()
+            const esMismoDni = limpiarDni(item?.dni) === dniRegistro;
+            const esHoy = String(item?.fecha_local || "").trim() === hoyLoc;
+            return !(esMismoDni && esHoy);
+        });
+        guardarColaPendientes(nuevaColaLoc);
+        actualizarContadorPendientes();
 
-        if (warnings.length > 0) {
+        if (warningMessage) {
+            setMensaje(warningMessage, "warning");
+        } else if (postRegisterAlert) {
+            setMensaje(postRegisterAlert, "warning");
+        } else if (warnings.length > 0) {
             setMensaje(
                 `✅ Asistencia registrada. ${normalizarMensajePublicoFinal(warnings.join(" | "))}`,
                 "warning"
-            )
+            );
         } else {
-            setMensaje("✅ Asistencia registrada correctamente.", "ok")
+            setMensaje("✅ Asistencia registrada correctamente.", "ok");
         }
 
-        // Limpiar el estado visual posterior al registro ocultando los contenedores interactivos
-        if (formulario) formulario.style.display = "none"
-        if (stepIngreso) stepIngreso.style.display = "none"
+        if (formulario) formulario.style.display = "none";
+        if (stepIngreso) stepIngreso.style.display = "none";
 
-        debugContextLog("guardarAsistencia: registro exitoso", {
-            dni: dniRegistro,
-            usoLegacy,
-            data
-        })
-
-        programarRetornoPostRegistro()
+        programarRetornoPostRegistro();
     } catch (e) {
+        console.error("Error en guardarAsistencia:", e);
         const guardadoOffline = await guardarAsistenciaOffline({
             dniRegistro,
             nombresValor,
@@ -1524,11 +1700,11 @@ async function guardarAsistencia() {
             modalidadRegistro: contextoAsistencia.modalidad,
             motivo: !navigator.onLine || esErrorTransporteSupabase(e)
                 ? "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente."
-                : "Ocurrió un problema al procesar la solicitud."
-        })
+                : "Ocurrió un problema al procesar la solicitud.",
+            gpsData: null
+        });
         if (!guardadoOffline) {
-            console.error("Error inesperado registrando asistencia:", e)
-            setMensaje(mensajeAmigable(e, "Ocurrió un problema al procesar la solicitud."), "error")
+            setMensaje(mensajeAmigable(e, "Ocurrió un problema al procesar la solicitud."), "error");
         }
     }
 }
