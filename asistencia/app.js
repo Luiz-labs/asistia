@@ -1565,7 +1565,23 @@ async function guardarAsistencia() {
         let warningMessage = "";
         let postRegisterAlert = "";
 
-        if (tieneConfigCargada && gpsModo !== "desactivado") {
+        let modoEvaluado = gpsModo;
+        let configCargadaEvaluada = tieneConfigCargada;
+
+        const tienePuntoProgramado = prog && prog.success === true && prog.hay_clase === true && 
+            prog.punto_gps && prog.punto_gps.latitud != null && prog.punto_gps.longitud != null;
+
+        if (tienePuntoProgramado && (!tieneConfigCargada || gpsModo === "desactivado")) {
+            modoEvaluado = "solo_registrar";
+            configCargadaEvaluada = true;
+            gpsData = {
+                estado: "GPS_NO_DISPONIBLE",
+                modo: "solo_registrar",
+                mensaje: "No se pudo obtener la ubicación o no hay programación diaria activa."
+            };
+        }
+
+        if (configCargadaEvaluada && modoEvaluado !== "desactivado") {
             if (prog && prog.success === true && prog.hay_clase === true) {
                 const punto = prog.punto_gps;
                 
@@ -1590,16 +1606,16 @@ async function guardarAsistencia() {
                             punto_tipo: punto.tipo_punto,
                             punto_codigo: punto.codigo_punto,
                             punto_nombre: punto.nombre_punto,
-                            modo: gpsModo
+                            modo: modoEvaluado
                         };
 
                         if (!dentroRango) {
                             gpsData.mensaje = `Fuera de rango por ${Math.round(distancia - punto.radio_metros)} metros.`;
                             
-                            if (gpsModo === "advertencia") {
+                            if (modoEvaluado === "advertencia") {
                                 warningMessage = "Tu asistencia fue registrada, pero tu ubicación está fuera del área autorizada. Este evento será informado automáticamente a la Jefatura de ESBAS.";
                                 gpsData.mensaje = "[ADVERTENCIA] " + gpsData.mensaje;
-                            } else if (gpsModo === "bloquear_fuera" || gpsModo === "bloquear_fuera_sin_gps") {
+                            } else if (modoEvaluado === "bloquear_fuera" || modoEvaluado === "bloquear_fuera_sin_gps") {
                                 setMensaje("No es posible registrar la asistencia. Tu ubicación se encuentra fuera del área autorizada o no se pudo validar. Acércate a la sede correspondiente y vuelve a intentarlo.", "error");
                                 return;
                             }
@@ -1610,31 +1626,31 @@ async function guardarAsistencia() {
                         console.warn("Error capturando ubicación del navegador:", geoError);
                         gpsData = {
                             estado: "GPS_NO_DISPONIBLE",
-                            modo: gpsModo,
+                            modo: modoEvaluado,
                             mensaje: "Error capturando GPS: " + (geoError.message || geoError),
                             punto_tipo: punto.tipo_punto,
                             punto_codigo: punto.codigo_punto,
                             punto_nombre: punto.nombre_punto
                         };
 
-                        if (gpsModo === "bloquear_fuera_sin_gps") {
+                        if (modoEvaluado === "bloquear_fuera_sin_gps") {
                             setMensaje("No es posible registrar la asistencia. Tu ubicación se encuentra fuera del área autorizada o no se pudo validar. Acércate a la sede correspondiente y vuelve a intentarlo.", "error");
                             return;
-                        } else if (gpsModo === "solo_registrar" || gpsModo === "advertencia" || gpsModo === "bloquear_fuera") {
+                        } else if (modoEvaluado === "solo_registrar" || modoEvaluado === "advertencia" || modoEvaluado === "bloquear_fuera") {
                             postRegisterAlert = "No fue posible obtener tu ubicación. La asistencia fue registrada. Este evento será informado automáticamente a la Jefatura de ESBAS para la validación correspondiente.";
                         }
                     }
                 } else {
                     gpsData = {
                         estado: "GPS_NO_DISPONIBLE",
-                        modo: gpsModo,
+                        modo: modoEvaluado,
                         mensaje: "No hay punto GPS configurado para la clase de hoy en el calendario."
                     };
                 }
             } else {
                 gpsData = {
                     estado: "GPS_NO_DISPONIBLE",
-                    modo: gpsModo,
+                    modo: modoEvaluado,
                     mensaje: "No hay clase programada para registrar geocercas hoy."
                 };
             }
