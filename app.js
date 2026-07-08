@@ -5286,7 +5286,12 @@ async function exportarReportesExcel() {
         Alerta: r.alerta || "-",
         Condicion: r.condicion || "-",
         Motivo_Justificación: r.motivo || "-",
-        Tipo_Sustento: r.tipo_sustento || "-"
+        Tipo_Sustento: r.tipo_sustento || "-",
+        GPS_Estado: r.gps_estado || "-",
+        GPS_Punto: r.gps_punto || "-",
+        GPS_Distancia: r.gps_distancia || "-",
+        GPS_Precision: r.gps_precision || "-",
+        GPS_Mensaje: r.gps_mensaje || "-"
     }))
 
     await descargarExcelDesdeJSON("reportes_asistencia.xlsx", rows)
@@ -9817,6 +9822,11 @@ function renderTabla(data) {
         <th>Origen</th>
         <th>Alerta</th>
         <th>Condición</th>
+        <th>GPS Estado</th>
+        <th>GPS Punto</th>
+        <th>GPS Distancia</th>
+        <th>GPS Precisión</th>
+        <th>GPS Mensaje</th>
       </tr>
     </thead>
     <tbody>
@@ -9855,7 +9865,12 @@ function renderTabla(data) {
             alerta: esVirtual ? "-" : (hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta"),
             condicion: esJustificado ? "JUSTIFICADO" : "-",
             motivo: motivoVal,
-            tipo_sustento: sustentoVal
+            tipo_sustento: sustentoVal,
+            gps_estado: esVirtual ? "-" : (r.gps_estado || "-"),
+            gps_punto: esVirtual ? "-" : (r.gps_punto_nombre || "-"),
+            gps_distancia: esVirtual ? "-" : (r.gps_distancia_metros != null ? `${r.gps_distancia_metros} m` : "-"),
+            gps_precision: esVirtual ? "-" : (r.gps_accuracy != null ? `${r.gps_accuracy} m` : "-"),
+            gps_mensaje: esVirtual ? "-" : (r.gps_mensaje || "-")
         })
 
         html += `
@@ -9880,6 +9895,11 @@ function renderTabla(data) {
             ${esJustificado ? "JUSTIFICADO" : "-"}
           </span>
         </td>
+        <td>${escapeHtml(esVirtual ? "-" : (r.gps_estado || "-"))}</td>
+        <td>${escapeHtml(esVirtual ? "-" : (r.gps_punto_nombre || "-"))}</td>
+        <td>${escapeHtml(esVirtual ? "-" : (r.gps_distancia_metros != null ? `${r.gps_distancia_metros} m` : "-"))}</td>
+        <td>${escapeHtml(esVirtual ? "-" : (r.gps_accuracy != null ? `${r.gps_accuracy} m` : "-"))}</td>
+        <td>${escapeHtml(esVirtual ? "-" : (r.gps_mensaje || "-"))}</td>
       </tr>
     `
     })

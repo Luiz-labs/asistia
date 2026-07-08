@@ -95,7 +95,7 @@ function aplicarTenantEnUI() {
 function setMensaje(texto, tipo = "") {
     if (!mensaje) return
     mensaje.className = "message-box"
-    mensaje.innerText = texto || ""
+    mensaje.innerHTML = texto || ""
     if (!texto) return
     if (tipo) mensaje.classList.add(tipo)
 }
@@ -1673,18 +1673,37 @@ async function guardarAsistencia() {
         guardarColaPendientes(nuevaColaLoc);
         actualizarContadorPendientes();
 
-        if (warningMessage) {
-            setMensaje(warningMessage, "warning");
-        } else if (postRegisterAlert) {
-            setMensaje(postRegisterAlert, "warning");
-        } else if (warnings.length > 0) {
-            setMensaje(
-                `✅ Asistencia registrada. ${normalizarMensajePublicoFinal(warnings.join(" | "))}`,
-                "warning"
-            );
-        } else {
-            setMensaje("✅ Asistencia registrada correctamente.", "ok");
+        const estadoHora = String(
+            data?.contexto?.estado_asistencia
+            || contextoAsistencia?.estado_asistencia
+            || "PUNTUAL"
+        ).trim().toUpperCase();
+
+        let horarioTxt = "dentro";
+        if (estadoHora === "TARDANZA") {
+            horarioTxt = "tardanza";
+        } else if (estadoHora === "FUERA_DE_HORARIO") {
+            horarioTxt = "fuera de horario";
         }
+
+        let gpsTxt = "no disponible";
+        let distanciaTxt = "";
+        let gpsDentroRango = true;
+
+        if (gpsData && gpsData.estado === "ok") {
+            const punto = prog?.punto_gps;
+            gpsDentroRango = gpsData.distancia_metros != null && 
+                (punto?.radio_metros != null ? gpsData.distancia_metros <= Number(punto.radio_metros) : true);
+            gpsTxt = gpsDentroRango ? "dentro de geocerca" : "fuera de geocerca";
+            if (gpsData.distancia_metros != null) {
+                distanciaTxt = `<br>Distancia: ${gpsData.distancia_metros} metros`;
+            }
+        }
+
+        const msgFinal = `✅ Asistencia registrada.<br>Horario: ${horarioTxt}<br>GPS: ${gpsTxt}${distanciaTxt}`;
+        const esOk = (estadoHora === "PUNTUAL") && (gpsData ? (gpsData.estado === "ok" && gpsDentroRango) : true);
+
+        setMensaje(msgFinal, esOk ? "ok" : "warning");
 
         if (formulario) formulario.style.display = "none";
         if (stepIngreso) stepIngreso.style.display = "none";
