@@ -586,6 +586,7 @@
                       <option value="">Todos los tipos</option>
                       <option value="APOYO">APOYO</option>
                       <option value="ADJUNTO">ADJUNTO</option>
+                      <option value="INSTRUCTOR ESBAS">INSTRUCTOR ESBAS</option>
                     </select>
 
                     <input id="staffReporteUbo" placeholder="UBO origen" autocomplete="off">
@@ -1039,6 +1040,7 @@
                 <select id="staffTipo">
                   <option value="APOYO">APOYO</option>
                   <option value="ADJUNTO">ADJUNTO</option>
+                  <option value="INSTRUCTOR ESBAS">INSTRUCTOR ESBAS</option>
                 </select>
               </div>
               <div>
@@ -1067,7 +1069,7 @@
             <div class="staff-toolbar">
               <div>
                 <h4>Listado de staff</h4>
-                <p class="hint course-module-hint">Solo integra APOYO y ADJUNTO. El campo foto se muestra solo si ya existe en <code>foto_url</code>.</p>
+                <p class="hint course-module-hint">Solo integra APOYO, ADJUNTO e INSTRUCTOR ESBAS. El campo foto se muestra solo si ya existe en <code>foto_url</code>.</p>
               </div>
               <button type="button" class="secondary" onclick="cargarStaffInstruccion()">Refrescar</button>
             </div>
@@ -1077,6 +1079,7 @@
                 <option value="">Todos los tipos</option>
                 <option value="APOYO">APOYO</option>
                 <option value="ADJUNTO">ADJUNTO</option>
+                <option value="INSTRUCTOR ESBAS">INSTRUCTOR ESBAS</option>
               </select>
               <select id="staffFiltroEstado" onchange="renderStaffInstruccion()">
                 <option value="">Todos los estados</option>

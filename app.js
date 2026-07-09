@@ -7922,7 +7922,12 @@ function obtenerInicialesStaff(row) {
 
 function renderBadgeTipoStaff(tipo) {
     const limpio = String(tipo || "").trim().toUpperCase()
-    const cls = limpio === "ADJUNTO" ? "badge-staff-adjunto" : "badge-staff-apoyo"
+    let cls = "badge-staff-apoyo"
+    if (limpio === "ADJUNTO") {
+        cls = "badge-staff-adjunto"
+    } else if (limpio === "INSTRUCTOR ESBAS") {
+        cls = "badge-staff-instructor"
+    }
     return `<span class="badge ${cls}">${limpio || "APOYO"}</span>`
 }
 
@@ -8245,8 +8250,8 @@ async function guardarStaffInstruccion() {
         mostrarMsgCursoModulo("msgStaffInstruccion", "Completa nombres y apellidos.", "error")
         return
     }
-    if (!["APOYO", "ADJUNTO"].includes(tipoStaff)) {
-        mostrarMsgCursoModulo("msgStaffInstruccion", "El tipo staff debe ser APOYO o ADJUNTO.", "error")
+    if (!["APOYO", "ADJUNTO", "INSTRUCTOR ESBAS"].includes(tipoStaff)) {
+        mostrarMsgCursoModulo("msgStaffInstruccion", "El tipo staff debe ser APOYO, ADJUNTO o INSTRUCTOR ESBAS.", "error")
         return
     }
     if (staffGrado?.value && !gradoValor) {
@@ -8356,7 +8361,7 @@ function renderReportesStaff(data) {
     if (!rows.length) {
         tablaStaffReportes.innerHTML = buildEmptyStateHTML(
             "Sin registros de staff",
-            "Ajusta el rango, el tipo o la UBO para consultar asistencias de APOYO y ADJUNTO.",
+            "Ajusta el rango, el tipo o la UBO para consultar asistencias de APOYO, ADJUNTO e INSTRUCTOR ESBAS.",
             "🗂️"
         )
         return

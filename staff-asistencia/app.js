@@ -237,7 +237,12 @@ function renderStaffCard(row) {
     if (!staffCardSection) return
     const nombre = `${normalizarTexto(row?.nombres)} ${normalizarTexto(row?.apellidos)}`.replace(/\s+/g, " ").trim()
     const tipo = normalizarTexto(row?.tipo_staff).toUpperCase() || "APOYO"
-    const badgeClass = tipo === "ADJUNTO" ? "adjunto" : "apoyo"
+    let badgeClass = "apoyo"
+    if (tipo === "ADJUNTO") {
+        badgeClass = "adjunto"
+    } else if (tipo === "INSTRUCTOR ESBAS") {
+        badgeClass = "instructor"
+    }
     const grado = normalizarTexto(row?.grado) || "Sin grado"
     const codigo = normalizarTexto(row?.codigo_bombero) || "-"
     const ubo = normalizarTexto(row?.ubo_origen) || "-"

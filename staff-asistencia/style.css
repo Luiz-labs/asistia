@@ -359,6 +359,12 @@ button {
   border: 1px solid #d1fae5;
 }
 
+.staff-badge.instructor {
+  background: #faf5ff;
+  color: #6b21a8;
+  border: 1px solid #f3e8ff;
+}
+
 .staff-card-fields {
   gap: 10px;
   width: 100%;
