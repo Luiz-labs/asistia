@@ -5861,7 +5861,8 @@ async function cargarExcelAspirantes() {
         dni: r.dni,
         nombres: r.nombres,
         apellidos: r.apellidos,
-        ubo: r.ubo
+        ubo: r.ubo,
+        curso_id: Number(cursoActualId || 1) || 1
     }))
 
     const { error } = await supabaseClient
@@ -10556,31 +10557,49 @@ function verUbo(ubo) {
 }
 
 async function buscarAspirantes() {
-
     const ubo = filtroUboConfig.value
     const texto = String(filtroTextoRetiro?.value || "").trim().toLowerCase()
 
-    const { data } = await withTenantScope(supabaseClient
+    // 1. Obtener todos los aspirantes del curso y tenant activos
+    let q = withTenantScope(supabaseClient
+        .from("aspirantes")
+        .select("dni,nombres,apellidos,ubo,tenant_id,curso_id")
+        .eq("curso_id", Number(cursoActualId || 1) || 1))
+
+    if (ubo) {
+        q = q.eq("ubo", ubo)
+    }
+
+    const { data: dataAspirantes } = await q
+    const scopedAspirantes = filtrarDataTenantActivo(dataAspirantes)
+
+    // 2. Obtener los DNIs retirados de la tabla asistencias
+    const { data: dataRetirados } = await withTenantScope(supabaseClient
         .from("asistencias")
-        .select("dni,nombre,ubo,tenant_id")
-        .ilike("ubo", "%" + ubo + "%"))
-    const scopedData = filtrarDataTenantActivo(data)
+        .select("dni,tenant_id")
+        .eq("estado", "retirado"))
+    const scopedRetirados = filtrarDataTenantActivo(dataRetirados)
+    const setRetirados = new Set((scopedRetirados || []).map(r => String(r.dni || "").trim()))
+
     const dedupe = new Map()
 
-        ; (scopedData || []).forEach(a => {
-            const dni = String(a?.dni || "").trim()
-            const nombre = String(a?.nombre || "").trim()
-            const matchTexto = !texto ||
-                dni.toLowerCase().includes(texto) ||
-                nombre.toLowerCase().includes(texto)
-            if (!matchTexto) return
-            if (!dni || dedupe.has(dni)) return
-            dedupe.set(dni, {
-                dni,
-                nombre: nombre || "Sin nombre",
-                ubo: String(a?.ubo || "").trim()
-            })
+    ;(scopedAspirantes || []).forEach(a => {
+        const dni = String(a?.dni || "").trim()
+        if (setRetirados.has(dni)) return // Excluir si ya está retirado
+
+        const nombre = `${a.nombres || ""} ${a.apellidos || ""}`.replace(/\s+/g, " ").trim()
+        const matchTexto = !texto ||
+            dni.toLowerCase().includes(texto) ||
+            nombre.toLowerCase().includes(texto)
+
+        if (!matchTexto) return
+        if (!dni || dedupe.has(dni)) return
+        dedupe.set(dni, {
+            dni,
+            nombre: nombre || "Sin nombre",
+            ubo: String(a?.ubo || "").trim()
         })
+    })
 
     const lista = Array.from(dedupe.values()).sort((a, b) =>
         `${a.nombre} ${a.dni}`.localeCompare(`${b.nombre} ${b.dni}`)
@@ -10768,15 +10787,36 @@ function verDetalle(color) {
 
 async function cargarUbos() {
     const dashUboPrevio = dashUbo?.value || ""
-    const { data } = await withTenantScope(supabaseClient
+
+    // 1. Obtener UBOs de asistencias
+    const { data: dataAsistencias } = await withTenantScope(supabaseClient
         .from("asistencias")
         .select("ubo,tenant_id"))
-    const ubosAsistencia = obtenerUbosUnicosDesdeAsistencias(filtrarDataTenantActivo(data))
+    const ubosAsistencia = obtenerUbosUnicosDesdeAsistencias(filtrarDataTenantActivo(dataAsistencias))
 
+    // 2. Obtener UBOs de aspirantes para el curso actual
+    const { data: dataAspirantes } = await withTenantScope(supabaseClient
+        .from("aspirantes")
+        .select("ubo,tenant_id")
+        .eq("curso_id", Number(cursoActualId || 1) || 1))
+    const ubosAspirantes = obtenerUbosUnicosDesdeAsistencias(filtrarDataTenantActivo(dataAspirantes))
+
+    // 3. Obtener UBOs de sedes
     await cargarSedesUbo()
     const ubosSedes = obtenerUbosUnicosDesdeAsistencias(ubosSedeCache)
-    const ubos = Array.from(new Set(ubosAsistencia.concat(ubosSedes)))
-        .sort((a, b) => parseInt(a) - parseInt(b))
+
+    // Unir, normalizar y ordenar
+    const ubos = Array.from(new Set(ubosAsistencia.concat(ubosAspirantes).concat(ubosSedes)))
+        .map(u => String(u).trim())
+        .filter(Boolean)
+        .sort((a, b) => {
+            const numA = parseInt(a, 10)
+            const numB = parseInt(b, 10)
+            if (isNaN(numA) || isNaN(numB)) {
+                return a.localeCompare(b)
+            }
+            return numA - numB
+        })
 
     let html = construirOptionsUbo(ubos, true, "Seleccionar UBO")
 
