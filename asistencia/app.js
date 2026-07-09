@@ -18,6 +18,8 @@ let retornoPostRegistroTimer = 0
 let validacionCursoAspirante = { dni: "", permitido: true, legacy: false, bloqueado: false }
 let perfilAspiranteActual = { dni: "", seccion: "" }
 let contextoAsistenciaActual = null
+let ultimoGpsData = null
+let ultimoResultadoRegistro = null
 let sincronizacionPendientesEnCurso = false
 let ultimoEstadoCurso = { code: "idle", message: "" }
 const OFFLINE_QUEUE_KEY = "asistia_aspirantes_offline_queue_v1"
@@ -303,6 +305,169 @@ function formatearDistancia(metros) {
         const kmRedondeado = Math.round(km * 100) / 100
         return `${kmRedondeado} km`
     }
+}
+
+function generarIdReporte(dni) {
+    const ahora = new Date()
+    const pad = (n) => String(n).padStart(2, '0')
+    const yyyy = ahora.getFullYear()
+    const mm = pad(ahora.getMonth() + 1)
+    const dd = pad(ahora.getDate())
+    const hh = pad(ahora.getHours())
+    const min = pad(ahora.getMinutes())
+    const ss = pad(ahora.getSeconds())
+    const dniLimpio = limpiarDni(dni) || "SIN_DNI"
+    return `ASISTIA-${yyyy}${mm}${dd}-${hh}${min}${ss}-${dniLimpio}`
+}
+
+function detectarEstadoProblema() {
+    const msgText = String(mensaje?.textContent || "").trim()
+    const ctx = contextoAsistenciaActual
+    const gps = ultimoGpsData
+    
+    let problema = "Consulta general"
+    let prioridad = "BAJA"
+    
+    if (msgText.includes("no existe en el padrón") || msgText.includes("no pertenece al curso")) {
+        problema = "DNI no encontrado"
+        prioridad = "ALTA"
+        return { problema, prioridad }
+    }
+    
+    if (msgText.includes("no hay clase programada") || msgText.includes("no hay jornada programada") || msgText.includes("no hay clase programada para registrar")) {
+        problema = "No hay jornada programada"
+        prioridad = "ALTA"
+        return { problema, prioridad }
+    }
+    
+    if (msgText.includes("no tiene sección asignada") || (ctx?.bloqueos || []).some(b => b.code === "aspirante_sin_seccion")) {
+        problema = "Aspirante sin sección"
+        prioridad = "ALTA"
+        return { problema, prioridad }
+    }
+    
+    if (msgText.includes("error") || msgText.includes("no se pudo") || msgText.includes("problema al procesar") || msgText.includes("falló")) {
+        problema = "Error interno"
+        prioridad = "ALTA"
+        return { problema, prioridad }
+    }
+    
+    if (msgText.includes("validar tu ubicación gps") || (gps && gps.estado === "GPS_NO_DISPONIBLE")) {
+        problema = "GPS no disponible"
+        const modo = gps?.modo || ""
+        if (modo === "bloquear_fuera" || modo === "bloquear_fuera_sin_gps") {
+            prioridad = "ALTA"
+        } else {
+            prioridad = "MEDIA"
+        }
+        return { problema, prioridad }
+    }
+    
+    if (msgText.includes("fuera del área autorizada") || (gps && gps.estado === "GPS_FUERA_RANGO")) {
+        problema = "Fuera de geocerca"
+        prioridad = "MEDIA"
+        return { problema, prioridad }
+    }
+    
+    if (ctx?.estado_asistencia === "FUERA_DE_HORARIO" || msgText.includes("fuera del horario programado") || msgText.includes("fuera de horario")) {
+        problema = "Fuera de horario"
+        prioridad = "MEDIA"
+        return { problema, prioridad }
+    }
+    
+    if (ctx?.estado_asistencia === "TARDANZA" || msgText.includes("tardanza")) {
+        problema = "Tardanza"
+        prioridad = "MEDIA"
+        return { problema, prioridad }
+    }
+    
+    return { problema, prioridad }
+}
+
+function generarMensajeWhatsApp() {
+    const dni = limpiarDni(dniMovil || mobileDniInicio?.value) || "SIN_DNI"
+    const idReporte = generarIdReporte(dni)
+    const { problema, prioridad } = detectarEstadoProblema()
+    
+    const ctx = contextoAsistenciaActual
+    const gps = ultimoGpsData
+    
+    const aDni = dni !== "SIN_DNI" ? dni : "Datos aún no validados"
+    const aNombres = String(nombres?.value || "").trim() || "Datos aún no validados"
+    const aApellidos = String(apellidos?.value || "").trim() || "Datos aún no validados"
+    const aNombreCompleto = (aNombres !== "Datos aún no validados" && aApellidos !== "Datos aún no validados")
+        ? `${aNombres} ${aApellidos}`
+        : "Datos aún no validados"
+    const aUbo = String(ubo?.value || "").trim() || "Datos aún no validados"
+    const aSeccion = String(ctx?.seccion || seccion || "").trim() || "Datos aún no validados"
+    const aCurso = String(cursoConfigCache?.nombre_curso || cursoActualId || "").trim() || "Datos aún no validados"
+    const aInstitucion = String(tenantActivoId || "").trim().toUpperCase()
+    
+    const rEstado = ctx?.estado_asistencia_label || ctx?.estado_asistencia || "Pendiente de resolver"
+    const rJornada = ctx?.tipo_jornada_label || ctx?.tipo_jornada || "Pendiente de resolver"
+    const rModalidad = ctx?.modalidad_label || ctx?.modalidad || "Pendiente de resolver"
+    const rFecha = ctx?.fecha || obtenerFechaHoraLima(new Date()).fecha
+    const rHora = ctx?.hora || obtenerFechaHoraLima(new Date()).hora
+    
+    let rGps = "No disponible"
+    if (gps) {
+        if (gps.estado === "GPS_DENTRO_RANGO") rGps = "Dentro de geocerca"
+        else if (gps.estado === "GPS_FUERA_RANGO") rGps = "Fuera de geocerca"
+    }
+    
+    const rDistancia = (gps && gps.distancia_metros != null) ? formatearDistancia(gps.distancia_metros) : "N/A"
+    
+    const appVersion = "1.0.0-build10020"
+    
+    const msg = `ID reporte:
+${idReporte}
+
+Prioridad:
+${prioridad}
+
+Problema detectado:
+- ${problema}
+
+Datos del aspirante:
+- DNI: ${aDni}
+- Nombres: ${aNombres}
+- Apellidos: ${aApellidos}
+- Nombre completo: ${aNombreCompleto}
+- UBO: ${aUbo}
+- Sección: ${aSeccion}
+- Curso: ${aCurso}
+- Institución: ${aInstitucion}
+
+Datos del registro/contexto:
+- Estado del registro: ${rEstado}
+- Jornada: ${rJornada}
+- Modalidad: ${rModalidad}
+- Fecha: ${rFecha}
+- Hora local: ${rHora}
+- Ubicación/GPS: ${rGps}
+- Distancia si existe: ${rDistancia}
+- URL actual: ${window.location.href}
+- Versión asistIA: ${appVersion}
+
+Datos automáticos del dispositivo:
+- User agent: ${navigator.userAgent}
+- Plataforma: ${navigator.platform || "Desconocida"}
+- Idioma: ${navigator.language || "es"}
+- Tamaño de pantalla: ${window.screen.width || 0}x${window.screen.height || 0}
+- Online/offline: ${navigator.onLine ? "Online" : "Offline"}
+- Timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Lima"}
+
+Texto editable para el usuario:
+"Descripción del problema:
+"`
+    
+    return msg
+}
+
+function abrirWhatsAppSoporte() {
+    const text = generarMensajeWhatsApp()
+    const url = `https://wa.me/51983230353?text=${encodeURIComponent(text)}`
+    window.open(url, "_blank")
 }
 
 function normalizarModalidad(valor) {
@@ -1498,6 +1663,8 @@ function obtenerUbicacionNavegador() {
 }
 
 async function guardarAsistencia() {
+    ultimoGpsData = null
+    ultimoResultadoRegistro = null
     const dniRegistro = limpiarDni(dniMovil || mobileDniInicio?.value)
     const nombresValor = String(nombres.value || "").trim()
     const apellidosValor = String(apellidos.value || "").trim()
@@ -1590,6 +1757,8 @@ async function guardarAsistencia() {
                 };
             }
         }
+        ultimoGpsData = gpsData;
+        ultimoResultadoRegistro = { success: true, offline: true };
         await guardarAsistenciaOffline({
             dniRegistro,
             nombresValor,
@@ -1718,6 +1887,8 @@ async function guardarAsistencia() {
             }
         }
 
+        ultimoGpsData = gpsData;
+
         let data = null;
         let usoLegacy = false;
 
@@ -1739,6 +1910,8 @@ async function guardarAsistencia() {
                 deviceId
             });
         }
+
+        ultimoResultadoRegistro = data;
 
         if (!data?.success) {
             setMensaje(
@@ -1833,6 +2006,7 @@ async function guardarAsistencia() {
         programarRetornoPostRegistro();
     } catch (e) {
         console.error("Error en guardarAsistencia:", e);
+        ultimoResultadoRegistro = { success: false, error: e };
         const guardadoOffline = await guardarAsistenciaOffline({
             dniRegistro,
             nombresValor,
@@ -1854,6 +2028,7 @@ function bindEventos() {
     document.getElementById("btnIngresarInicio")?.addEventListener("click", ingresarMovilInicio)
     document.getElementById("btnRegistrar")?.addEventListener("click", guardarAsistencia)
     document.getElementById("btnVolver")?.addEventListener("click", volverInicio)
+    document.getElementById("btnSoporteWa")?.addEventListener("click", abrirWhatsAppSoporte)
 
     mobileDniInicio?.addEventListener("input", () => procesarAutocompletadoDni(mobileDniInicio.value))
 
