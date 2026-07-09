@@ -246,6 +246,65 @@ function esTodosAspirantes(ctx) {
     return origen === "calendario_global_todos_aspirantes" || jornada === "CALENDARIO_GLOBAL"
 }
 
+function obtenerMensajesAdvertenciaAmigables(contexto) {
+    if (!contexto) return []
+    const friendlyWarnings = []
+    const rawWarnings = Array.isArray(contexto.warnings) ? contexto.warnings : []
+    
+    let tieneAnticipado = false
+    let tieneTardanza = false
+    let tieneGpsNoDisp = false
+    
+    rawWarnings.forEach(w => {
+        const code = String(w?.code || "").toLowerCase().trim()
+        const msg = String(w?.message || w || "").toLowerCase().trim()
+        
+        if (code === "anticipado" || msg.includes("anticipado")) {
+            tieneAnticipado = true
+        }
+        if (code === "tardanza" || msg.includes("tardanza")) {
+            tieneTardanza = true
+        }
+        if (code === "gps_no_disponible" || msg.includes("gps") || msg.includes("coordenadas") || msg.includes("validación gps")) {
+            tieneGpsNoDisp = true
+        }
+    })
+    
+    const estado = String(contexto.estado_asistencia || "").toUpperCase().trim()
+    if (estado === "TARDANZA") {
+        tieneTardanza = true
+    }
+    
+    if (tieneAnticipado) {
+        friendlyWarnings.push("Estás intentando registrar tu asistencia antes del horario programado.")
+    } else if (estado === "FUERA_DE_HORARIO") {
+        friendlyWarnings.push("Tu registro está fuera del horario programado.")
+    }
+    
+    if (tieneTardanza) {
+        friendlyWarnings.push("Tu registro será considerado como tardanza.")
+    }
+    
+    if (tieneGpsNoDisp) {
+        friendlyWarnings.push("No fue posible validar tu ubicación GPS.")
+    }
+    
+    return friendlyWarnings
+}
+
+function formatearDistancia(metros) {
+    if (metros == null) return ""
+    const m = Number(metros)
+    if (isNaN(m)) return ""
+    if (m < 1000) {
+        return `${Math.round(m)} m`
+    } else {
+        const km = m / 1000
+        const kmRedondeado = Math.round(km * 100) / 100
+        return `${kmRedondeado} km`
+    }
+}
+
 function normalizarModalidad(valor) {
     const modalidad = String(valor || "").trim().toUpperCase()
     if (modalidad === "VIRTUAL") return "VIRTUAL"
@@ -789,7 +848,7 @@ function construirResumenContextualHTML({ title, nombreCompleto, contexto, secci
                     <span class="context-item-value">${escapeHTML(modalidadValor)}</span>
                 </div>
                 <div class="context-item">
-                    <span class="context-item-label">Estado esperado</span>
+                    <span class="context-item-label">Estado del registro</span>
                     <span class="context-item-value">${escapeHTML(estadoValor)}</span>
                 </div>
             </div>
@@ -1099,15 +1158,9 @@ async function ingresarMovilInicio() {
             }
 
             aplicarContextoResueltoEnFormulario(contextoRPC)
-            const warnings = extraerMensajesContexto(contextoRPC.warnings)
-            const estadoAmigable = formatearEstadoAsistenciaAmigable(contextoRPC.estado_asistencia)
-            if (contextoRPC.estado_asistencia === "TARDANZA") {
-                warnings.unshift(`Registro en ${estadoAmigable.toLowerCase()}`)
-            } else if (contextoRPC.estado_asistencia === "FUERA_DE_HORARIO") {
-                warnings.unshift(`Registro ${estadoAmigable.toLowerCase()}`)
-            }
-            if (warnings.length > 0) {
-                setMensaje(normalizarMensajePublicoFinal(warnings.join(" | ")), "warning")
+            const friendlyWarnings = obtenerMensajesAdvertenciaAmigables(contextoRPC)
+            if (friendlyWarnings.length > 0) {
+                setMensaje(friendlyWarnings.join(" | "), "warning")
             } else {
                 setMensaje("")
             }
@@ -1762,11 +1815,14 @@ async function guardarAsistencia() {
                 gpsDentroRango = false;
             }
             if (gpsData.distancia_metros != null) {
-                distanciaTxt = `<br><br>Distancia:<br>${gpsData.distancia_metros} metros`;
+                const distFormateada = formatearDistancia(gpsData.distancia_metros);
+                if (distFormateada) {
+                    distanciaTxt = `<br><br>Distancia<br>${distFormateada}`;
+                }
             }
         }
 
-        const msgFinal = `✅ Asistencia registrada<br><br>Horario:<br>${horarioTxt}<br><br>GPS:<br>${gpsTxt}${distanciaTxt}`;
+        const msgFinal = `✅ Asistencia registrada<br><br>Horario<br>${horarioTxt}<br><br>Ubicación<br>${gpsTxt}${distanciaTxt}`;
         const esOk = (estadoHora === "PUNTUAL") && (gpsData ? (gpsData.estado !== "GPS_FUERA_RANGO" && gpsData.estado !== "GPS_NO_DISPONIBLE") : true);
 
         setMensaje(msgFinal, esOk ? "ok" : "warning");
