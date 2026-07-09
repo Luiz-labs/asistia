@@ -12651,8 +12651,25 @@ function abrirFormularioDiaCalendario(fechaStr) {
         gpsSelect.appendChild(opt);
     });
 
-    // Resetear Aplica A
-    document.getElementById("calAplicaA").value = "TODAS";
+    // Cargar primer evento existente para esa fecha o resetear a TODAS
+    const primerEvento = (calGpsProgramacion || []).find(x => x.fecha === fechaStr);
+    
+    if (primerEvento) {
+        document.getElementById("calAplicaA").value = primerEvento.aplica_a || "TODAS";
+        if (primerEvento.aplica_a === "SECCION" && primerEvento.seccion) {
+            const seccionLimpia = String(primerEvento.seccion).trim();
+            const existeEnDropdown = uniqueSecs.some(sec => sec.toUpperCase() === seccionLimpia.toUpperCase());
+            if (!existeEnDropdown) {
+                const opt = document.createElement("option");
+                opt.value = seccionLimpia;
+                opt.innerText = `Sección ${seccionLimpia} (Inactiva/Eliminada)`;
+                secSelect.appendChild(opt);
+            }
+            secSelect.value = seccionLimpia;
+        }
+    } else {
+        document.getElementById("calAplicaA").value = "TODAS";
+    }
 
     cargarDetalleProgramacionModal();
     modal.style.display = "flex";
