@@ -1734,30 +1734,30 @@ async function guardarAsistencia() {
             || "PUNTUAL"
         ).trim().toUpperCase();
 
-        let horarioTxt = "dentro";
+        let horarioTxt = "Puntual";
         if (estadoHora === "TARDANZA") {
-            horarioTxt = "tardanza";
+            horarioTxt = "Tardanza";
         } else if (estadoHora === "FUERA_DE_HORARIO") {
-            horarioTxt = "fuera de horario";
+            horarioTxt = "Fuera de horario";
         }
 
-        let gpsTxt = "no disponible";
+        let gpsTxt = "No disponible";
         let distanciaTxt = "";
         let gpsDentroRango = true;
 
         if (gpsData) {
             if (gpsData.estado === "GPS_DENTRO_RANGO") {
-                gpsTxt = "dentro de geocerca";
+                gpsTxt = "Dentro de geocerca";
             } else if (gpsData.estado === "GPS_FUERA_RANGO") {
-                gpsTxt = "fuera de geocerca";
+                gpsTxt = "Fuera de geocerca";
                 gpsDentroRango = false;
             }
             if (gpsData.distancia_metros != null) {
-                distanciaTxt = `<br>Distancia: ${gpsData.distancia_metros} metros`;
+                distanciaTxt = `<br><br>Distancia:<br>${gpsData.distancia_metros} metros`;
             }
         }
 
-        const msgFinal = `✅ Asistencia registrada.<br>Horario: ${horarioTxt}<br>GPS: ${gpsTxt}${distanciaTxt}`;
+        const msgFinal = `✅ Asistencia registrada<br><br>Horario:<br>${horarioTxt}<br><br>GPS:<br>${gpsTxt}${distanciaTxt}`;
         const esOk = (estadoHora === "PUNTUAL") && (gpsData ? (gpsData.estado !== "GPS_FUERA_RANGO" && gpsData.estado !== "GPS_NO_DISPONIBLE") : true);
 
         setMensaje(msgFinal, esOk ? "ok" : "warning");

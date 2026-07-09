@@ -12595,7 +12595,7 @@ function renderizarCalendarioGps() {
                 if (p.hay_clase) {
                     badge.classList.add("clase");
                     const nombreSede = p.puntos_gps?.nombre_punto || p.puntos_gps?.codigo_punto || "Clase";
-                    const seccionSuffix = p.aplica_a === "SECCION" ? ` [${p.seccion}]` : "";
+                    const seccionSuffix = p.aplica_a === "SECCION" ? ` [${p.seccion}]` : (p.aplica_a === "TODOS_ASPIRANTES" ? " [Todos]" : "");
                     badge.innerText = `${nombreSede}${seccionSuffix}`;
                     badge.title = `${nombreSede}${seccionSuffix} - ${p.hora_inicio ? p.hora_inicio.slice(0, 5) : ""}`;
                     
