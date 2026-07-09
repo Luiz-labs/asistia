@@ -239,6 +239,13 @@ function esSeccionLegacy(valor) {
     return seccionNormalizada === "GENERAL" || seccionNormalizada === "DOMINICAL"
 }
 
+function esTodosAspirantes(ctx) {
+    if (!ctx) return false
+    const origen = String(ctx.origen_contexto || "").trim()
+    const jornada = String(ctx.jornada_codigo || ctx.tipo_jornada || "").trim().toUpperCase()
+    return origen === "calendario_global_todos_aspirantes" || jornada === "CALENDARIO_GLOBAL"
+}
+
 function normalizarModalidad(valor) {
     const modalidad = String(valor || "").trim().toUpperCase()
     if (modalidad === "VIRTUAL") return "VIRTUAL"
@@ -274,7 +281,8 @@ function normalizarEstadoAsistencia(valor) {
 }
 
 function tieneContextoRPCActivo() {
-    return String(contextoAsistenciaActual?.origen_contexto || "").trim() === "rpc_resolver_contexto_asistencia"
+    const origen = String(contextoAsistenciaActual?.origen_contexto || "").trim()
+    return origen !== "" && origen !== "frontend_fallback"
 }
 
 function contextoCorrespondeADni(dniValor) {
@@ -1471,7 +1479,8 @@ async function guardarAsistencia() {
         return
     }
 
-    if (!seccionRegistro) {
+    const isTodosAspirantes = esTodosAspirantes(contextoAsistencia)
+    if (!seccionRegistro && !isTodosAspirantes) {
         setMensaje("⚠ Selecciona una sección", "error")
         return
     }

@@ -93,6 +93,12 @@ body {
   gap: 14px;
 }
 
+.aspirante-legacy-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .text-input {
   width: 100%;
   min-height: 48px;
