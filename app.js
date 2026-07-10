@@ -979,6 +979,125 @@ function formatearFechaActividad(value) {
     return d.toLocaleString("es-PE", { hour12: false })
 }
 
+function formatearFechaDDMMYYYY(valor) {
+    const s = String(valor || "").trim()
+    if (!s || s === "-") return "-"
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (m) {
+        return `${m[3]}/${m[2]}/${m[1]}`
+    }
+    const parts = s.split("T")[0].split("-")
+    if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`
+    }
+    return s
+}
+
+async function obtenerRegistrosPreviosDispositivos(deviceIds, fechaLimite) {
+    if (!deviceIds.length || !fechaLimite) return []
+    const { data, error } = await supabaseClient
+        .from("asistencias")
+        .select("device_id, dni, nombre, fecha, hora")
+        .in("device_id", deviceIds)
+        .lt("fecha", fechaLimite)
+        .order("fecha", { ascending: false })
+        .order("hora", { ascending: false })
+    
+    if (error) {
+        console.warn("No se pudieron obtener registros previos de dispositivos:", error.message)
+        return []
+    }
+    const result = []
+    const seen = new Set()
+    for (const r of (data || [])) {
+        if (!seen.has(r.device_id)) {
+            seen.add(r.device_id)
+            result.push(r)
+        }
+    }
+    return result
+}
+
+function unificarAlertasDispositivo(scopedData, preRegs, scopedDatabaseAlertas) {
+    const activos = (scopedData || [])
+        .filter(r => r.estado !== "retirado" && r.device_id !== "virtual_justif")
+        .slice()
+        .sort((a, b) => {
+            const aKey = `${a.fecha || ""} ${a.hora || ""}`
+            const bKey = `${b.fecha || ""} ${b.hora || ""}`
+            return aKey.localeCompare(bKey)
+        })
+
+    const deviceHistory = {}
+    
+    if (preRegs && preRegs.length) {
+        preRegs.forEach(r => {
+            const dev = r.device_id
+            if (dev) {
+                deviceHistory[dev] = [{ dni: String(r.dni || "").trim(), nombre: r.nombre || "", fecha: r.fecha, hora: r.hora }]
+            }
+        })
+    }
+
+    const alertasMap = new Map()
+
+    activos.forEach(r => {
+        const dev = r.device_id || ""
+        if (!dev) return
+
+        const dniVal = String(r.dni || "").trim()
+
+        if (deviceHistory[dev] && deviceHistory[dev].length > 0) {
+            const prev = [...deviceHistory[dev]].reverse().find(x => x.dni !== dniVal)
+            if (prev) {
+                const fisica = (scopedDatabaseAlertas || []).find(a => a.device_id === dev && String(a.dni || "").trim() === dniVal && a.fecha === r.fecha)
+                
+                const dateCurrent = new Date(`${r.fecha}T${r.hora || "00:00:00"}`)
+                const datePrev = new Date(`${prev.fecha}T${prev.hora || "00:00:00"}`)
+                const diffMin = Math.abs(dateCurrent - datePrev) / 60000;
+                
+                let riesgo = "BAJO"
+                if (r.fecha === prev.fecha) {
+                    if (diffMin <= 10) {
+                        riesgo = "ALTO"
+                    } else {
+                        riesgo = "MEDIO"
+                    }
+                }
+
+                const key = `${r.fecha}|${r.hora || ""}|${dev}|${dniVal}`
+                alertasMap.set(key, {
+                    fecha: r.fecha,
+                    hora_actual: r.hora || "",
+                    fecha_previa: prev.fecha || "",
+                    hora_previa: prev.hora || "",
+                    device_id_completo: dev,
+                    device_id_abrev: dev.length > 8 ? dev.slice(0, 8) + "..." : dev,
+                    dni_actual: dniVal,
+                    nombre_actual: r.nombre || "",
+                    dni_anterior: prev.dni,
+                    nombre_anterior: prev.nombre || "",
+                    nivel_riesgo: riesgo,
+                    tipo_deteccion: fisica ? "Registrada en base de datos" : "Detectada por historial"
+                })
+            }
+        }
+
+        if (!deviceHistory[dev]) deviceHistory[dev] = []
+        deviceHistory[dev].push({ dni: dniVal, nombre: r.nombre || "", fecha: r.fecha, hora: r.hora })
+    })
+
+    const alertasLista = Array.from(alertasMap.values()).sort((a, b) => {
+        const aKey = `${a.fecha || ""} ${a.hora_actual || ""}`
+        const bKey = `${b.fecha || ""} ${b.hora_actual || ""}`
+        return bKey.localeCompare(aKey)
+    })
+
+    return { alertasMap, alertasLista }
+}
+
+
 function humanizarAccionActividad(accion) {
     const mapa = {
         login_admin: "Login admin",
@@ -5363,7 +5482,7 @@ function prepararFilaReporte(r, hayAlerta, esJustificado, motivoVal, sustentoVal
         "Modalidad": modalidadTexto,
         "Tipo de evento": tipoEvento,
         "Jornada": jornadaTexto,
-        "Fecha": r.fecha || "",
+        "Fecha": formatearFechaDDMMYYYY(r.fecha),
         "Hora": esVirtual ? "-" : (formatearHoraVisible(r.hora) || "-"),
         "Origen": origenTexto,
         "Alerta": alertaTexto,
@@ -5411,7 +5530,7 @@ async function exportarReportesStaffExcel() {
     }
 
     const rows = cacheReportesStaff.map(r => ({
-        Fecha: r.fecha || "",
+        Fecha: formatearFechaDDMMYYYY(r.fecha),
         Hora_Ingreso: r.hora_ingreso || "",
         Codigo: r.codigo_bombero || "",
         Nombre: r.nombre || "",
@@ -8503,7 +8622,7 @@ function renderReportesStaff(data) {
         const expanded = staffReportExpandedKey === rowKey
         html += `
           <tr>
-            <td>${escapeHtml(r.fecha || "")}</td>
+            <td>${escapeHtml(formatearFechaDDMMYYYY(r.fecha))}</td>
             <td>${escapeHtml(r.hora_ingreso || "")}</td>
             <td>${escapeHtml(r.codigo_bombero || "")}</td>
             <td>${escapeHtml(r.nombre || "")}</td>
@@ -8540,7 +8659,7 @@ function renderReportesStaff(data) {
                     <div class="staff-history-list">
                       ${historial.map(item => `
                         <div class="staff-history-item">
-                          <strong>${escapeHtml(item.fecha || "-")}</strong>
+                          <strong>${escapeHtml(formatearFechaDDMMYYYY(item.fecha))}</strong>
                           <span>${escapeHtml(item.hora_ingreso || "--:--")} · ${escapeHtml(item.jornada || "-")}</span>
                         </div>
                       `).join("")}
@@ -8599,7 +8718,7 @@ async function cargarReportesStaff(trigger = "auto") {
         if (scope.from) q = q.gte("fecha", scope.from)
         if (scope.to) q = q.lte("fecha", scope.to)
         if (scope.tipo) q = q.eq("tipo_staff", scope.tipo)
-        if (scope.ubo) q = q.ilike("ubo_origen", `%${scope.ubo}%`)
+        if (scope.ubo) q = q.eq("ubo_origen", scope.ubo.trim())
 
         console.log("[asistIA-staff-report-debug] filtros", {
             desde: scope.from,
@@ -8642,9 +8761,16 @@ async function cargarReportesStaff(trigger = "auto") {
             return
         }
 
-        const rowsFiltradasTenant = (data || []).filter(item =>
+        let rowsFiltradasTenant = (data || []).filter(item =>
             String(item?.tenant_id || "").trim().toLowerCase() === tenantReporteId
         )
+
+        if (scope.ubo) {
+            const uboTarget = String(scope.ubo).trim().toLowerCase()
+            rowsFiltradasTenant = rowsFiltradasTenant.filter(item =>
+                String(item?.ubo_origen || "").trim().toLowerCase() === uboTarget
+            )
+        }
 
         console.log("[asistIA-staff-report-debug] filas locales", {
             total: rowsFiltradasTenant.length
@@ -9820,7 +9946,7 @@ async function cargarDatos() {
             q = q.lte("fecha", fechaHasta.value)
         }
         if (filtroUbo.value) {
-            q = q.ilike("ubo", "%" + filtroUbo.value + "%")
+            q = q.eq("ubo", filtroUbo.value.trim())
         }
 
         const { data } = await q
@@ -9874,17 +10000,49 @@ async function cargarDatos() {
             })
         }
 
-        // Aplicar filtro de UBO a las filas virtuales si corresponde
+        // Aplicar filtro de UBO exacto a las filas físicas y virtuales si corresponde
+        let filteredScoped = (scopedData || []).filter(d => d.estado !== "retirado")
         let filteredVirtual = virtualAsistencias
         if (filtroUbo.value) {
-            const uboFilter = String(filtroUbo.value).trim().toLowerCase()
-            filteredVirtual = virtualAsistencias.filter(v => String(v.ubo || "").toLowerCase().includes(uboFilter))
+            const uboTarget = String(filtroUbo.value).trim().toLowerCase()
+            filteredScoped = filteredScoped.filter(d => String(d.ubo || "").trim().toLowerCase() === uboTarget)
+            filteredVirtual = virtualAsistencias.filter(v => String(v.ubo || "").trim().toLowerCase() === uboTarget)
         }
 
         const allAsistencias = [
-            ...(scopedData || []).filter(d => d.estado !== "retirado"),
+            ...filteredScoped,
             ...filteredVirtual
         ]
+
+        // 1. Obtener device_ids únicos de las asistencias filtradas
+        const deviceIds = [...new Set(allAsistencias.map(a => a.device_id).filter(Boolean))]
+        
+        // 2. Obtener registros previos (anteriores al rango) de estos dispositivos
+        const preRegs = await obtenerRegistrosPreviosDispositivos(deviceIds, fechaDesde.value)
+
+        // 3. Consultar asistencia_alertas física de base de datos para el cruce (filtrado por rango y UBO)
+        let dbAlertsQ = withTenantScope(supabaseClient
+            .from("asistencia_alertas")
+            .select("*")
+            .eq("curso_id", cursoActualId || 1))
+        
+        if (filtroUbo.value) {
+            dbAlertsQ = dbAlertsQ.eq("ubo", filtroUbo.value.trim())
+        }
+        if (fechaDesde.value) {
+            dbAlertsQ = dbAlertsQ.gte("fecha", fechaDesde.value)
+        }
+        if (fechaHasta.value) {
+            dbAlertsQ = dbAlertsQ.lte("fecha", fechaHasta.value)
+        }
+
+        const { data: dbAlertsData } = await dbAlertsQ
+        const scopedDatabaseAlertas = filtrarDataTenantActivo(dbAlertsData) || []
+
+        // 4. Calcular alertas unificadas
+        const { alertasMap, alertasLista } = unificarAlertasDispositivo(allAsistencias, preRegs, scopedDatabaseAlertas)
+        window.alertasUnificadasMap = alertasMap
+        window.alertasUnificadasLista = alertasLista
 
         renderTabla(allAsistencias)
         await cargarAlertasReporte()
@@ -9903,7 +10061,6 @@ function renderTabla(data) {
             return bKey.localeCompare(aKey)
         })
     const hayFiltroUbo = !!String(filtroUbo?.value || "").trim()
-    const clavesAlerta = obtenerClavesAlertaDispositivo(activos)
     cacheReportes = []
     cacheReportesRaw = data || []
 
@@ -9922,35 +10079,31 @@ function renderTabla(data) {
     let fueraGeocerca = 0;
     let gpsNoDisponible = 0;
     let gpsDesactivado = 0;
-    let alertasCount = 0;
     let erroresCount = 0;
     const dnisUnicos = new Set();
 
     activos.forEach(r => {
         const esVirtual = r.device_id === "virtual_justif";
-        const clave = `${r.device_id || ""}|${(r.dni || "").trim()}|${r.fecha || ""}|${r.hora || ""}`;
-        const hayAlerta = clavesAlerta.has(clave);
-        
+        const dev = r.device_id || "";
         const dniVal = String(r.dni || "").trim();
+        const key = `${r.fecha}|${r.hora || ""}|${dev}|${dniVal}`;
+        const hayAlerta = window.alertasUnificadasMap?.has(key) || false;
+        
         if (dniVal && dniVal !== "40636507") {
             dnisUnicos.add(dniVal);
         }
         
-        if (hayAlerta && !esVirtual) {
-            alertasCount++;
+        if (r.gps_estado === "GPS_DENTRO_RANGO") {
+            dentroGeocerca++;
+        } else if (r.gps_estado === "GPS_FUERA_RANGO") {
+            fueraGeocerca++;
+        } else if (r.gps_estado === "GPS_DESACTIVADO") {
+            gpsDesactivado++;
+        } else {
+            gpsNoDisponible++;
         }
-        
-        if (!esVirtual) {
-            if (r.gps_estado === "GPS_DENTRO_RANGO") {
-                dentroGeocerca++;
-            } else if (r.gps_estado === "GPS_FUERA_RANGO") {
-                fueraGeocerca++;
-            } else if (r.gps_estado === "GPS_NO_DISPONIBLE") {
-                gpsNoDisponible++;
-            } else if (r.gps_estado === "GPS_DESACTIVADO") {
-                gpsDesactivado++;
-            }
 
+        if (!esVirtual) {
             const gpsMsg = String(r.gps_mensaje || "").trim().toLowerCase();
             const esIncidenciaOperativa = 
                 gpsMsg.includes("user denied") || 
@@ -9991,29 +10144,34 @@ function renderTabla(data) {
         cacheReportes.push(filaPreparada)
     });
 
+    const alertasCount = window.alertasUnificadasLista?.length || 0;
+
     const aspirantesUnicos = dnisUnicos.size;
 
+    const totalRegistrosVal = activos.length;
+
     let kpiHtml = `
-      <div class="card kpi-card historical-kpi-card">
-        <span>Asistencias del mes</span>
-        <strong>${activos.length}</strong>
-      </div>
-      <div class="card kpi-card historical-kpi-card">
-        <span>Aspirantes únicos</span>
-        <strong>${aspirantesUnicos}</strong>
-      </div>
-      <div class="card kpi-card historical-kpi-card">
-        <span>Dentro geocerca</span>
-        <strong style="color: #1f7a3b;">${dentroGeocerca}</strong>
-      </div>
-      <div class="card kpi-card historical-kpi-card">
-        <span>Fuera geocerca</span>
-        <strong style="color: #b12d2d;">${fueraGeocerca}</strong>
-      </div>
-      <div class="card kpi-card historical-kpi-card">
-        <span>GPS no disponible</span>
-        <strong style="color: #64748b;">${gpsNoDisponible}</strong>
-      </div>
+      <div style="margin-bottom: 20px; width: 100%;">
+        <div style="font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+          A. Estado GPS <span style="font-weight: 500; text-transform: none; color: #64748b;">(Excluyentes · La suma equivale al Total de registros)</span>
+        </div>
+        <div class="historical-kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px;">
+          <div class="card kpi-card historical-kpi-card">
+            <span>Total registros</span>
+            <strong style="color: #1e293b;">${totalRegistrosVal}</strong>
+          </div>
+          <div class="card kpi-card historical-kpi-card">
+            <span>Dentro geocerca</span>
+            <strong style="color: #1f7a3b;">${dentroGeocerca}</strong>
+          </div>
+          <div class="card kpi-card historical-kpi-card">
+            <span>Fuera geocerca</span>
+            <strong style="color: #b12d2d;">${fueraGeocerca}</strong>
+          </div>
+          <div class="card kpi-card historical-kpi-card">
+            <span>GPS no disponible</span>
+            <strong style="color: #64748b;">${gpsNoDisponible}</strong>
+          </div>
     `;
 
     if (gpsDesactivado > 0) {
@@ -10026,20 +10184,37 @@ function renderTabla(data) {
     }
 
     kpiHtml += `
-      <div class="card kpi-card historical-kpi-card">
-        <span>Alertas</span>
-        <strong style="color: #946200;">${alertasCount}</strong>
+        </div>
       </div>
-      <div class="card kpi-card historical-kpi-card">
-        <span>Errores</span>
-        <strong style="color: #b12d2d;">${erroresCount}</strong>
+      <div style="width: 100%;">
+        <div style="font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+          B. Incidencias y Métricas <span style="font-weight: 500; text-transform: none; color: #64748b;">(Indicadores paralelos e independientes)</span>
+        </div>
+        <div class="historical-kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px;">
+          <div class="card kpi-card historical-kpi-card">
+            <span>Asistencias del mes</span>
+            <strong style="color: #1e293b;">${totalRegistrosVal}</strong>
+          </div>
+          <div class="card kpi-card historical-kpi-card">
+            <span>Aspirantes únicos</span>
+            <strong style="color: #1e293b;">${aspirantesUnicos}</strong>
+          </div>
+          <div class="card kpi-card historical-kpi-card">
+            <span>Alertas</span>
+            <strong style="color: #946200;">${alertasCount}</strong>
+          </div>
+          <div class="card kpi-card historical-kpi-card">
+            <span>Errores</span>
+            <strong style="color: #b12d2d;">${erroresCount}</strong>
+          </div>
+        </div>
       </div>
     `;
 
     const kpiGrid = document.getElementById("reporteKpiGrid");
     if (kpiGrid) {
         kpiGrid.innerHTML = kpiHtml;
-        kpiGrid.style.display = "grid";
+        kpiGrid.style.display = "block";
     }
 
     // Pagination calculations
@@ -10167,99 +10342,62 @@ function obtenerEtiquetaTipoAlerta(tipo) {
 }
 
 async function cargarAlertasReporte() {
-    let q = withTenantScope(supabaseClient
-        .from("asistencia_alertas")
-        .select("*")
-        .eq("curso_id", cursoActualId || 1)
-        .order("fecha", { ascending: false })
-        .order("hora", { ascending: false })
-        .limit(120))
+    const list = window.alertasUnificadasLista || []
 
-    if (filtroUbo.value) {
-        q = q.eq("ubo", filtroUbo.value)
-    }
-
-    if (fechaDesde.value) {
-        q = q.gte("fecha", fechaDesde.value)
-    }
-
-    if (fechaHasta.value) {
-        q = q.lte("fecha", fechaHasta.value)
-    }
-
-    const { data, error } = await q
-        .order("fecha", { ascending: false })
-        .order("hora", { ascending: false })
-
-    if (error) {
-        console.warn("No se pudo cargar asistencia_alertas:", error.message)
+    if (list.length === 0) {
         tablaAlertasContenido.innerHTML = buildEmptyStateHTML(
-            "No se pudieron cargar alertas",
-            "Intenta nuevamente o revisa la conexion con el servidor.",
-            "⚠️"
-        )
-        return
-    }
-
-    const scopedData = filtrarDataTenantActivo(data)
-
-    if (!scopedData || scopedData.length === 0) {
-        tablaAlertasContenido.innerHTML = buildEmptyStateHTML(
-            "Sin alertas registradas",
-            "No se encontraron alertas para el periodo consultado.",
+            "Sin alertas de dispositivo",
+            "No se encontraron alertas en el rango y filtros seleccionados.",
             "🔍"
         )
         return
     }
 
-    const alertasUnicas = []
-    const claves = new Set()
-        ; (scopedData || []).forEach(r => {
-            const key = [
-                r.fecha || "",
-                r.hora || "",
-                r.dni || "",
-                r.tipo || "",
-                r.detalle || ""
-            ].join("|")
-            if (claves.has(key)) return
-            claves.add(key)
-            alertasUnicas.push(r)
-        })
-
     let html = `
-  <table>
-    <thead>
-      <tr>
-        <th>Fecha</th>
-        <th>Hora</th>
-        <th>DNI</th>
-        <th>Nombre</th>
-        <th>UBO</th>
-        <th>Sección</th>
-        <th>Tipo</th>
-        <th>Detalle</th>
-      </tr>
-    </thead>
-    <tbody>
-  `
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha/Hora Actual</th>
+          <th>DNI Actual</th>
+          <th>Nombre Actual</th>
+          <th>Fecha/Hora Previa</th>
+          <th>DNI anterior en el dispositivo</th>
+          <th>Nombre Anterior</th>
+          <th>Dispositivo</th>
+          <th>Riesgo</th>
+          <th>Origen de detección</th>
+        </tr>
+      </thead>
+      <tbody>
+    `
 
-    alertasUnicas.forEach(r => {
+    list.forEach(item => {
+        const badgeRiesgoColor = item.nivel_riesgo === "ALTO" ? "color: #b12d2d; font-weight: bold;" : item.nivel_riesgo === "MEDIO" ? "color: #946200; font-weight: bold;" : "color: #1f7a3b; font-weight: bold;";
+        
+        const fechaHoraActual = `${formatearFechaDDMMYYYY(item.fecha)} ${formatearHoraVisible(item.hora_actual) || "-"}`
+        const fechaHoraPrevia = `${formatearFechaDDMMYYYY(item.fecha_previa)} ${formatearHoraVisible(item.hora_previa) || "-"}`
+
         html += `
       <tr>
-        <td>${r.fecha || ""}</td>
-        <td>${r.hora || ""}</td>
-        <td>${r.dni || ""}</td>
-        <td>${r.nombre || ""}</td>
-        <td>${r.ubo || ""}</td>
-        <td>${r.seccion || ""}</td>
-        <td>${obtenerEtiquetaTipoAlerta(r.tipo)}</td>
-        <td>${r.detalle || ""}</td>
+        <td>${escapeHtml(fechaHoraActual)}</td>
+        <td>${escapeHtml(item.dni_actual)}</td>
+        <td>${escapeHtml(item.nombre_actual)}</td>
+        <td>${escapeHtml(fechaHoraPrevia)}</td>
+        <td>${escapeHtml(item.dni_anterior)}</td>
+        <td>${escapeHtml(item.nombre_anterior)}</td>
+        <td><span title="${escapeHtml(item.device_id_completo)}" style="cursor: help; border-bottom: 1px dotted #94a3b8;">${escapeHtml(item.device_id_abrev)}</span></td>
+        <td>
+          <span style="${badgeRiesgoColor}">
+            ${escapeHtml(item.nivel_riesgo)}
+          </span>
+        </td>
+        <td><span style="font-size: 11px; color: #64748b;">${escapeHtml(item.tipo_deteccion)}</span></td>
       </tr>
     `
     })
 
-    html += "</tbody></table>"
+    html += "</tbody></table></div>"
     tablaAlertasContenido.innerHTML = html
 }
 
