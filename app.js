@@ -247,6 +247,8 @@ let editUsuarioIndex = null
 let usuariosAdmin = []
 let cacheReportes = []
 let cacheReportesRaw = []
+let reportesCurrentPage = 1
+let reportesPageSize = 20
 let cacheReportesStaff = []
 let cacheDashboard = []
 let cacheRiesgoUbo = []
@@ -5376,6 +5378,17 @@ function prepararFilaReporte(r, hayAlerta, esJustificado, motivoVal, sustentoVal
     };
 }
 
+window.cambiarPageSize = function(size) {
+    reportesPageSize = Number(size)
+    reportesCurrentPage = 1
+    renderTabla(cacheReportesRaw)
+}
+
+window.cambiarPagina = function(page) {
+    reportesCurrentPage = page
+    renderTabla(cacheReportesRaw)
+}
+
 async function exportarReportesExcel() {
     if (!cacheReportes.length) {
         alert("No hay datos para exportar")
@@ -9797,6 +9810,7 @@ async function cargarDatos() {
     if (datosAsistenciaCargando) return
     datosAsistenciaCargando = true
     try {
+        reportesCurrentPage = 1
         let q = withTenantScope(supabaseClient.from("asistencias").select("*"))
 
         if (fechaDesde.value) {
@@ -9910,11 +9924,17 @@ function renderTabla(data) {
     let gpsDesactivado = 0;
     let alertasCount = 0;
     let erroresCount = 0;
+    const dnisUnicos = new Set();
 
     activos.forEach(r => {
         const esVirtual = r.device_id === "virtual_justif";
         const clave = `${r.device_id || ""}|${(r.dni || "").trim()}|${r.fecha || ""}|${r.hora || ""}`;
         const hayAlerta = clavesAlerta.has(clave);
+        
+        const dniVal = String(r.dni || "").trim();
+        if (dniVal && dniVal !== "40636507") {
+            dnisUnicos.add(dniVal);
+        }
         
         if (hayAlerta && !esVirtual) {
             alertasCount++;
@@ -9971,10 +9991,16 @@ function renderTabla(data) {
         cacheReportes.push(filaPreparada)
     });
 
+    const aspirantesUnicos = dnisUnicos.size;
+
     let kpiHtml = `
       <div class="card kpi-card historical-kpi-card">
-        <span>Total registros</span>
+        <span>Asistencias del mes</span>
         <strong>${activos.length}</strong>
+      </div>
+      <div class="card kpi-card historical-kpi-card">
+        <span>Aspirantes únicos</span>
+        <strong>${aspirantesUnicos}</strong>
       </div>
       <div class="card kpi-card historical-kpi-card">
         <span>Dentro geocerca</span>
@@ -10016,6 +10042,23 @@ function renderTabla(data) {
         kpiGrid.style.display = "grid";
     }
 
+    // Pagination calculations
+    const totalRecords = cacheReportes.length;
+    const totalPages = Math.ceil(totalRecords / reportesPageSize);
+    
+    if (reportesCurrentPage > totalPages && totalPages > 0) {
+        reportesCurrentPage = totalPages;
+    }
+
+    const startIndex = (reportesCurrentPage - 1) * reportesPageSize;
+    const endIndex = Math.min(startIndex + reportesPageSize, totalRecords);
+    
+    const textoMostrando = totalRecords === 0
+        ? "Mostrando 0 de 0 registros"
+        : `Mostrando ${startIndex + 1}–${endIndex} de ${totalRecords} registros`;
+
+    const visibleRows = cacheReportes.slice(startIndex, endIndex);
+
     let html = `
   <table>
     <thead>
@@ -10044,7 +10087,7 @@ function renderTabla(data) {
     <tbody>
   `
 
-    cacheReportes.forEach(item => {
+    visibleRows.forEach(item => {
         html += `
       <tr>
         <td>${escapeHtml(item["DNI"])}</td>
@@ -10079,13 +10122,38 @@ function renderTabla(data) {
     `
     })
 
+    let paginationHtml = "";
+    if (totalRecords > 0) {
+        paginationHtml = `
+          <div class="reportes-pagination-controls" style="display: ${totalRecords <= 10 ? "none" : "flex"}; justify-content: space-between; align-items: center; margin-top: 15px; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 13px; color: #627590;">Filas por página:</span>
+              <select id="reportesPageSizeSelect" onchange="cambiarPageSize(this.value)" class="filter-select-sm" style="width: auto; padding: 4px 8px;">
+                <option value="10" ${reportesPageSize === 10 ? "selected" : ""}>10</option>
+                <option value="20" ${reportesPageSize === 20 ? "selected" : ""}>20</option>
+                <option value="50" ${reportesPageSize === 50 ? "selected" : ""}>50</option>
+                <option value="100" ${reportesPageSize === 100 ? "selected" : ""}>100</option>
+              </select>
+            </div>
+            
+            <div style="font-size: 13px; color: #627590; font-weight: 500;">
+              ${textoMostrando}
+            </div>
+
+            <div style="display: ${totalRecords <= reportesPageSize ? "none" : "flex"}; align-items: center; gap: 10px;">
+              <button onclick="cambiarPagina(${reportesCurrentPage - 1})" ${reportesCurrentPage <= 1 ? "disabled style='opacity:0.5; cursor:not-allowed;'" : ""} class="secondary" style="padding: 4px 10px;">Anterior</button>
+              <span style="font-weight: 600; font-size: 13px; color: #14284f;">Página ${reportesCurrentPage} de ${totalPages || 1}</span>
+              <button onclick="cambiarPagina(${reportesCurrentPage + 1})" ${reportesCurrentPage >= totalPages ? "disabled style='opacity:0.5; cursor:not-allowed;'" : ""} class="secondary" style="padding: 4px 10px;">Siguiente</button>
+            </div>
+          </div>
+        `;
+    }
+
     html += `
     </tbody>
   </table>
 
-  <div style="margin-top:10px;font-weight:bold;">
-    Total registros: ${activos.length}
-  </div>
+  ${paginationHtml}
   `
 
     tabla.innerHTML = html
