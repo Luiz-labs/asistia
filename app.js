@@ -246,6 +246,7 @@ let editSedeUboIndex = -1
 let editUsuarioIndex = null
 let usuariosAdmin = []
 let cacheReportes = []
+let cacheReportesRaw = []
 let cacheReportesStaff = []
 let cacheDashboard = []
 let cacheRiesgoUbo = []
@@ -4946,6 +4947,7 @@ function formatearTipoJornadaAmigable(valor) {
     if (jornada === "DOMINICAL_GRUPAL") return "Dominical grupal"
     if (jornada === "SECCION_REGULAR") return "Regular de sección"
     if (jornada === "GENERAL_LEGACY") return "General (legacy)"
+    if (jornada === "CALENDARIO_GLOBAL") return "Sesión especial"
     return jornada || "Regular de sección"
 }
 
@@ -5263,41 +5265,127 @@ function formatearHoraVisible(valor) {
     return String(valor || "").trim().slice(0, 8)
 }
 
+function formatearResultadoGps(mensaje) {
+    const msg = String(mensaje || "").trim();
+    if (!msg || msg === "-") return "-";
+    
+    if (/fuera de rango/i.test(msg)) {
+        return "⚠ Fuera de la geocerca";
+    }
+    if (/user denied geolocation/i.test(msg)) {
+        return "Permiso GPS denegado por el usuario.";
+    }
+    if (/timeout expired/i.test(msg)) {
+        return "No fue posible obtener la ubicación dentro del tiempo permitido.";
+    }
+    if (/dentro de rango/i.test(msg)) {
+        return "✅ Dentro de la geocerca";
+    }
+    if (/gps desactivado|control gps está desactivado/i.test(msg)) {
+        return "GPS desactivado para esta jornada.";
+    }
+    return msg;
+}
+
+function formatearDistanciaGps(distanciaMetros) {
+    if (distanciaMetros == null || distanciaMetros === "" || distanciaMetros === "-") return "-";
+    const m = Number(distanciaMetros);
+    if (isNaN(m)) return String(distanciaMetros);
+    if (m < 1000) {
+        return `${Math.round(m)} m`;
+    } else {
+        const km = m / 1000;
+        const kmRedondeado = Math.round(km * 100) / 100;
+        return `${kmRedondeado} km`;
+    }
+}
+
+function prepararFilaReporte(r, hayAlerta, esJustificado, motivoVal, sustentoVal) {
+    const esVirtual = r.device_id === "virtual_justif";
+    
+    // 1. Tipo de evento
+    let tipoEvento = "Clase regular";
+    if (r.tipo_jornada === "CALENDARIO_GLOBAL" || r.jornada === "CALENDARIO_GLOBAL") {
+        tipoEvento = "Sesión especial";
+    }
+    
+    // 2. Jornada
+    const jornadaTexto = esVirtual ? "-" : (formatearTipoJornadaAmigable(r.tipo_jornada || r.jornada) || "-");
+    
+    // 3. Sección aspirante
+    let seccionTexto = "";
+    if (
+        r.tipo_jornada === "CALENDARIO_GLOBAL" || 
+        r.jornada === "CALENDARIO_GLOBAL" || 
+        r.origen_contexto === "calendario_global_todos_aspirantes" || 
+        r.origen_registro === "calendario_global_todos_aspirantes" ||
+        tipoEvento === "Sesión especial"
+    ) {
+        seccionTexto = "No aplica (evento general)";
+    } else {
+        seccionTexto = esVirtual ? (r.seccion || "") : formatearSeccionRegistro(r.seccion, r.tipo_jornada || r.jornada);
+    }
+    
+    // 4. Modalidad
+    const modalidadTexto = esVirtual ? "-" : (formatearModalidadAmigable(resolverModalidadRegistro(r)) || "-");
+    
+    // 5. Origen
+    const origenTexto = esVirtual ? "JUSTIFICACIÓN" : (normalizarOrigenRegistroLabel(r.origen_registro) || "-");
+    
+    // 6. Alerta
+    const alertaTexto = esVirtual ? "-" : (hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta");
+    
+    // 7. Condición
+    const condicionTexto = esJustificado ? "JUSTIFICADO" : "-";
+    
+    // 8. GPS Estado
+    const gpsEstadoTexto = esVirtual ? "-" : (r.gps_estado || "-");
+    
+    // 9. Punto GPS (GPS Punto)
+    const puntoGpsTexto = esVirtual ? "-" : (r.gps_punto_nombre || "-");
+    
+    // 10. Distancia GPS (GPS Distancia)
+    const distanciaGpsTexto = esVirtual ? "-" : formatearDistanciaGps(r.gps_distancia_metros);
+    
+    // 11. Precisión GPS (GPS Precisión)
+    const precisionGpsTexto = esVirtual ? "-" : (r.gps_accuracy != null ? `${Math.round(r.gps_accuracy)} m` : "-");
+    
+    // 12. Resultado GPS (GPS Mensaje)
+    const resultadoGpsTexto = esVirtual ? "-" : formatearResultadoGps(r.gps_mensaje);
+
+    return {
+        "DNI": r.dni || "",
+        "Nombre": r.nombre || "",
+        "UBO": r.ubo || "",
+        "Sección aspirante": seccionTexto,
+        "Modalidad": modalidadTexto,
+        "Tipo de evento": tipoEvento,
+        "Jornada": jornadaTexto,
+        "Fecha": r.fecha || "",
+        "Hora": esVirtual ? "-" : (formatearHoraVisible(r.hora) || "-"),
+        "Origen": origenTexto,
+        "Alerta": alertaTexto,
+        "Condición": condicionTexto,
+        "GPS Estado": gpsEstadoTexto,
+        "Punto GPS": puntoGpsTexto,
+        "Distancia GPS": distanciaGpsTexto,
+        "Precisión GPS": precisionGpsTexto,
+        "Resultado GPS": resultadoGpsTexto,
+        "Motivo Justificación": motivoVal || "-",
+        "Tipo de Sustento": sustentoVal || "-"
+    };
+}
+
 async function exportarReportesExcel() {
     if (!cacheReportes.length) {
         alert("No hay datos para exportar")
         return
     }
 
-    const rows = cacheReportes.map(r => ({
-        DNI: r.dni || "",
-        Nombre: r.nombre || "",
-        UBO: r.ubo || "",
-        Jornada: r.jornada === "-" ? "-" : formatearTipoJornadaAmigable(r.jornada),
-        Seccion_Aspirante: r.jornada === "-" ? r.seccion : formatearSeccionRegistro(r.seccion, r.jornada),
-        Modalidad: r.modalidad === "-" ? "-" : (formatearModalidadAmigable(r.modalidad) || "-"),
-        Fecha: r.fecha || "",
-        Hora: r.hora || "-",
-        Origen: r.origen || "",
-        Import_Batch_ID: r.import_batch_id || "-",
-        Fuente_Importacion: r.fuente_importacion || r.archivo_origen || "-",
-        Importado_En: r.importado_en || "-",
-        Importado_Por: r.importado_por || "-",
-        Alerta: r.alerta || "-",
-        Condicion: r.condicion || "-",
-        Motivo_Justificación: r.motivo || "-",
-        Tipo_Sustento: r.tipo_sustento || "-",
-        GPS_Estado: r.gps_estado || "-",
-        GPS_Punto: r.gps_punto || "-",
-        GPS_Distancia: r.gps_distancia || "-",
-        GPS_Precision: r.gps_precision || "-",
-        GPS_Mensaje: r.gps_mensaje || "-"
-    }))
-
-    await descargarExcelDesdeJSON("reportes_asistencia.xlsx", rows)
+    await descargarExcelDesdeJSON("reportes_asistencia.xlsx", cacheReportes)
     void registrarActividadBackofficeSegura("reportes_excel_exportado", {
         modulo: "reportes",
-        total: rows.length,
+        total: cacheReportes.length,
         rangoDesde: String(fechaDesde?.value || ""),
         rangoHasta: String(fechaHasta?.value || "")
     }, { tenantId: tenantActivoId })
@@ -9803,14 +9891,129 @@ function renderTabla(data) {
     const hayFiltroUbo = !!String(filtroUbo?.value || "").trim()
     const clavesAlerta = obtenerClavesAlertaDispositivo(activos)
     cacheReportes = []
+    cacheReportesRaw = data || []
 
     if (!activos.length) {
+        const kpiGrid = document.getElementById("reporteKpiGrid");
+        if (kpiGrid) kpiGrid.style.display = "none";
         tabla.innerHTML = buildEmptyStateHTML(
             "No hay registros disponibles",
             "Ajusta los filtros para consultar asistencias registradas.",
             "🔎"
         )
         return
+    }
+
+    let dentroGeocerca = 0;
+    let fueraGeocerca = 0;
+    let gpsNoDisponible = 0;
+    let gpsDesactivado = 0;
+    let alertasCount = 0;
+    let erroresCount = 0;
+
+    activos.forEach(r => {
+        const esVirtual = r.device_id === "virtual_justif";
+        const clave = `${r.device_id || ""}|${(r.dni || "").trim()}|${r.fecha || ""}|${r.hora || ""}`;
+        const hayAlerta = clavesAlerta.has(clave);
+        
+        if (hayAlerta && !esVirtual) {
+            alertasCount++;
+        }
+        
+        if (!esVirtual) {
+            if (r.gps_estado === "GPS_DENTRO_RANGO") {
+                dentroGeocerca++;
+            } else if (r.gps_estado === "GPS_FUERA_RANGO") {
+                fueraGeocerca++;
+            } else if (r.gps_estado === "GPS_NO_DISPONIBLE") {
+                gpsNoDisponible++;
+            } else if (r.gps_estado === "GPS_DESACTIVADO") {
+                gpsDesactivado++;
+            }
+
+            const gpsMsg = String(r.gps_mensaje || "").trim().toLowerCase();
+            const esIncidenciaOperativa = 
+                gpsMsg.includes("user denied") || 
+                gpsMsg.includes("timeout") || 
+                gpsMsg.includes("expired") || 
+                gpsMsg.includes("gps desactivado") || 
+                gpsMsg.includes("control gps está desactivado") ||
+                r.gps_estado === "GPS_NO_DISPONIBLE" ||
+                r.gps_estado === "GPS_DESACTIVADO";
+
+            const esError = r.gps_estado === "GPS_ERROR" || 
+                            (!esIncidenciaOperativa && (
+                                gpsMsg.includes("error") || 
+                                gpsMsg.includes("fail") || 
+                                gpsMsg.includes("falló") || 
+                                gpsMsg.includes("fallo") ||
+                                gpsMsg.includes("network") ||
+                                gpsMsg.includes("connection")
+                            ));
+
+            if (esError) {
+                erroresCount++;
+            }
+        }
+
+        const keyJustif = `${r.dni}|${r.fecha}`
+        const justif = window.justificacionesAprobadasMap?.get(keyJustif)
+        const esJustificado = !!justif
+
+        const motivoVal = esJustificado
+            ? (justif.motivo_inasistencia === "Otro" ? (justif.motivo_inasistencia_otro || "Otro") : (justif.motivo_inasistencia || "-"))
+            : "-"
+        const sustentoVal = esJustificado
+            ? (justif.tipo_sustento === "Otro" ? (justif.tipo_sustento_otro || "Otro") : (justif.tipo_sustento || "-"))
+            : "-"
+
+        const filaPreparada = prepararFilaReporte(r, hayAlerta, esJustificado, motivoVal, sustentoVal)
+        cacheReportes.push(filaPreparada)
+    });
+
+    let kpiHtml = `
+      <div class="card kpi-card historical-kpi-card">
+        <span>Total registros</span>
+        <strong>${activos.length}</strong>
+      </div>
+      <div class="card kpi-card historical-kpi-card">
+        <span>Dentro geocerca</span>
+        <strong style="color: #1f7a3b;">${dentroGeocerca}</strong>
+      </div>
+      <div class="card kpi-card historical-kpi-card">
+        <span>Fuera geocerca</span>
+        <strong style="color: #b12d2d;">${fueraGeocerca}</strong>
+      </div>
+      <div class="card kpi-card historical-kpi-card">
+        <span>GPS no disponible</span>
+        <strong style="color: #64748b;">${gpsNoDisponible}</strong>
+      </div>
+    `;
+
+    if (gpsDesactivado > 0) {
+        kpiHtml += `
+          <div class="card kpi-card historical-kpi-card">
+            <span>GPS desactivado</span>
+            <strong style="color: #64748b;">${gpsDesactivado}</strong>
+          </div>
+        `;
+    }
+
+    kpiHtml += `
+      <div class="card kpi-card historical-kpi-card">
+        <span>Alertas</span>
+        <strong style="color: #946200;">${alertasCount}</strong>
+      </div>
+      <div class="card kpi-card historical-kpi-card">
+        <span>Errores</span>
+        <strong style="color: #b12d2d;">${erroresCount}</strong>
+      </div>
+    `;
+
+    const kpiGrid = document.getElementById("reporteKpiGrid");
+    if (kpiGrid) {
+        kpiGrid.innerHTML = kpiHtml;
+        kpiGrid.style.display = "grid";
     }
 
     let html = `
@@ -9820,92 +10023,58 @@ function renderTabla(data) {
         <th>DNI</th>
         <th>Nombre</th>
         <th>UBO</th>
-        <th>Jornada</th>
         <th>Sección aspirante</th>
         <th>Modalidad</th>
+        <th>Tipo de evento</th>
+        <th>Jornada</th>
         <th>Fecha</th>
         <th>Hora</th>
         <th>Origen</th>
         <th>Alerta</th>
         <th>Condición</th>
         <th>GPS Estado</th>
-        <th>GPS Punto</th>
-        <th>GPS Distancia</th>
-        <th>GPS Precisión</th>
-        <th>GPS Mensaje</th>
+        <th>Punto GPS</th>
+        <th>Distancia GPS</th>
+        <th>Precisión GPS</th>
+        <th>Resultado GPS</th>
+        <th>Motivo Justificación</th>
+        <th>Tipo de Sustento</th>
       </tr>
     </thead>
     <tbody>
   `
 
-    activos.forEach(r => {
-        const clave = `${r.device_id || ""}|${(r.dni || "").trim()}|${r.fecha || ""}|${r.hora || ""}`
-        const hayAlerta = clavesAlerta.has(clave)
-        const keyJustif = `${r.dni}|${r.fecha}`
-        const justif = window.justificacionesAprobadasMap?.get(keyJustif)
-        const esJustificado = !!justif
-        const esVirtual = r.device_id === "virtual_justif"
-
-        const motivoVal = esJustificado
-            ? (justif.motivo_inasistencia === "Otro" ? (justif.motivo_inasistencia_otro || "Otro") : (justif.motivo_inasistencia || "-"))
-            : "-"
-        const sustentoVal = esJustificado
-            ? (justif.tipo_sustento === "Otro" ? (justif.tipo_sustento_otro || "Otro") : (justif.tipo_sustento || "-"))
-            : "-"
-
-        cacheReportes.push({
-            dni: r.dni || "",
-            nombre: r.nombre || "",
-            ubo: r.ubo || "",
-            jornada: esVirtual ? "-" : normalizarTipoJornada(r.tipo_jornada),
-            seccion: r.seccion || "",
-            modalidad: esVirtual ? "-" : resolverModalidadRegistro(r),
-            fecha: r.fecha || "",
-            hora: esVirtual ? "-" : formatearHoraVisible(r.hora || ""),
-            origen: esVirtual ? "JUSTIFICACIÓN" : normalizarOrigenRegistroLabel(r.origen_registro),
-            import_batch_id: r.import_batch_id || "",
-            fuente_importacion: r.fuente_importacion || "",
-            archivo_origen: r.archivo_origen || "",
-            importado_en: r.importado_en || "",
-            importado_por: r.importado_por || "",
-            alerta: esVirtual ? "-" : (hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta"),
-            condicion: esJustificado ? "JUSTIFICADO" : "-",
-            motivo: motivoVal,
-            tipo_sustento: sustentoVal,
-            gps_estado: esVirtual ? "-" : (r.gps_estado || "-"),
-            gps_punto: esVirtual ? "-" : (r.gps_punto_nombre || "-"),
-            gps_distancia: esVirtual ? "-" : (r.gps_distancia_metros != null ? `${r.gps_distancia_metros} m` : "-"),
-            gps_precision: esVirtual ? "-" : (r.gps_accuracy != null ? `${r.gps_accuracy} m` : "-"),
-            gps_mensaje: esVirtual ? "-" : (r.gps_mensaje || "-")
-        })
-
+    cacheReportes.forEach(item => {
         html += `
       <tr>
-        <td>${r.dni}</td>
-        <td>${r.nombre}</td>
-        <td>${r.ubo}</td>
-        <td>${esVirtual ? "-" : formatearTipoJornadaAmigable(r.tipo_jornada)}</td>
-        <td>${formatearSeccionRegistro(r.seccion, r.tipo_jornada)}</td>
-        <td>${esVirtual ? "-" : (formatearModalidadAmigable(resolverModalidadRegistro(r)) || "-")}</td>
-        <td>${r.fecha}</td>
-        <td>${esVirtual ? "-" : (formatearHoraVisible(r.hora) || "-")}</td>
-        <td>${escapeHtml(esVirtual ? "JUSTIFICACIÓN" : (normalizarOrigenRegistroLabel(r.origen_registro) || "-"))}</td>
+        <td>${escapeHtml(item["DNI"])}</td>
+        <td>${escapeHtml(item["Nombre"])}</td>
+        <td>${escapeHtml(item["UBO"])}</td>
+        <td>${escapeHtml(item["Sección aspirante"])}</td>
+        <td>${escapeHtml(item["Modalidad"])}</td>
+        <td>${escapeHtml(item["Tipo de evento"])}</td>
+        <td>${escapeHtml(item["Jornada"])}</td>
+        <td>${escapeHtml(item["Fecha"])}</td>
+        <td>${escapeHtml(item["Hora"])}</td>
+        <td>${escapeHtml(item["Origen"])}</td>
         <td>
-          ${esVirtual ? "-" : `
-          <span class="badge-alerta ${hayAlerta ? "warn" : "ok"}">
-            ${hayAlerta ? "DNI distinto en dispositivo" : "Sin alerta"}
+          ${item["Origen"] === "JUSTIFICACIÓN" ? "-" : `
+          <span class="badge-alerta ${item["Alerta"] === "Sin alerta" ? "ok" : "warn"}">
+            ${escapeHtml(item["Alerta"])}
           </span>`}
         </td>
         <td>
-          <span class="badge-alerta ${esJustificado ? "ok" : ""}">
-            ${esJustificado ? "JUSTIFICADO" : "-"}
+          <span class="badge-alerta ${item["Condición"] === "JUSTIFICADO" ? "ok" : ""}">
+            ${escapeHtml(item["Condición"])}
           </span>
         </td>
-        <td>${escapeHtml(esVirtual ? "-" : (r.gps_estado || "-"))}</td>
-        <td>${escapeHtml(esVirtual ? "-" : (r.gps_punto_nombre || "-"))}</td>
-        <td>${escapeHtml(esVirtual ? "-" : (r.gps_distancia_metros != null ? `${r.gps_distancia_metros} m` : "-"))}</td>
-        <td>${escapeHtml(esVirtual ? "-" : (r.gps_accuracy != null ? `${r.gps_accuracy} m` : "-"))}</td>
-        <td>${escapeHtml(esVirtual ? "-" : (r.gps_mensaje || "-"))}</td>
+        <td>${escapeHtml(item["GPS Estado"])}</td>
+        <td>${escapeHtml(item["Punto GPS"])}</td>
+        <td>${escapeHtml(item["Distancia GPS"])}</td>
+        <td>${escapeHtml(item["Precisión GPS"])}</td>
+        <td>${escapeHtml(item["Resultado GPS"])}</td>
+        <td>${escapeHtml(item["Motivo Justificación"])}</td>
+        <td>${escapeHtml(item["Tipo de Sustento"])}</td>
       </tr>
     `
     })
