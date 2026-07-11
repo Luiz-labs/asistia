@@ -262,12 +262,16 @@ let staffInstruccionHidratado = false
 let usuariosAdminHidratados = false
 let datosAsistenciaCargando = false
 let reportesStaffCargando = false
+let ubosCargadas = false
+let loadingUbos = false
 
 function resetCacheFlags() {
     configCursoCargada = false
     aspirantesCargadosHidratados = false
     staffInstruccionHidratado = false
     usuariosAdminHidratados = false
+    ubosCargadas = false
+    loadingUbos = false
     datosAsistenciaCargando = false
     reportesStaffCargando = false
 }
@@ -1068,6 +1072,7 @@ function unificarAlertasDispositivo(scopedData, preRegs, scopedDatabaseAlertas) 
 
                 const key = `${r.fecha}|${r.hora || ""}|${dev}|${dniVal}`
                 alertasMap.set(key, {
+                    key: key,
                     fecha: r.fecha,
                     hora_actual: r.hora || "",
                     fecha_previa: prev.fecha || "",
@@ -8718,7 +8723,6 @@ async function cargarReportesStaff(trigger = "auto") {
         if (scope.from) q = q.gte("fecha", scope.from)
         if (scope.to) q = q.lte("fecha", scope.to)
         if (scope.tipo) q = q.eq("tipo_staff", scope.tipo)
-        if (scope.ubo) q = q.eq("ubo_origen", scope.ubo.trim())
 
         console.log("[asistIA-staff-report-debug] filtros", {
             desde: scope.from,
@@ -8761,12 +8765,44 @@ async function cargarReportesStaff(trigger = "auto") {
             return
         }
 
+        // Calcular y poblar UBOs del personal de apoyo dinámicamente
+        const ubosStaff = Array.from(
+            new Set((data || []).map(r => String(r.ubo_origen || "").trim()).filter(Boolean))
+        ).sort((a, b) => {
+            const numA = parseInt(a, 10)
+            const numB = parseInt(b, 10)
+            if (isNaN(numA) || isNaN(numB)) {
+                return a.localeCompare(b)
+            }
+            return numA - numB
+        })
+
+        const previousSelectedUbo = staffReporteUbo?.value || ""
+        let selectHtml = ""
+        if (ubosStaff.length === 0) {
+            selectHtml = '<option value="">Sin UBO disponibles</option>'
+        } else {
+            selectHtml = '<option value="">Todas</option>'
+            ubosStaff.forEach(u => {
+                selectHtml += `<option value="${u}">${u}</option>`
+            })
+        }
+        if (staffReporteUbo) {
+            staffReporteUbo.innerHTML = selectHtml
+            if (previousSelectedUbo && ubosStaff.includes(previousSelectedUbo)) {
+                staffReporteUbo.value = previousSelectedUbo
+            } else {
+                staffReporteUbo.value = ""
+            }
+        }
+
         let rowsFiltradasTenant = (data || []).filter(item =>
             String(item?.tenant_id || "").trim().toLowerCase() === tenantReporteId
         )
 
-        if (scope.ubo) {
-            const uboTarget = String(scope.ubo).trim().toLowerCase()
+        const selectedUbo = staffReporteUbo?.value || ""
+        if (selectedUbo) {
+            const uboTarget = String(selectedUbo).trim().toLowerCase()
             rowsFiltradasTenant = rowsFiltradasTenant.filter(item =>
                 String(item?.ubo_origen || "").trim().toLowerCase() === uboTarget
             )
@@ -9278,6 +9314,11 @@ function actualizarEstadoChecks() {
 
 async function cargarDatosDeSesionAutorizada() {
     if (!haySupabase()) return
+    try {
+        await cargarUbos()
+    } catch (e) {
+        console.error("Error al cargar UBOs iniciales:", e)
+    }
     try {
         await cargarConfigCurso()
     } catch (e) {
@@ -9933,6 +9974,9 @@ function logout() {
 
 /* ADMIN */
 async function cargarDatos() {
+    if (!ubosCargadas && !loadingUbos) {
+        await cargarUbos()
+    }
     if (datosAsistenciaCargando) return
     datosAsistenciaCargando = true
     try {
@@ -10358,41 +10402,42 @@ async function cargarAlertasReporte() {
     <table>
       <thead>
         <tr>
-          <th>Fecha/Hora Actual</th>
-          <th>DNI Actual</th>
-          <th>Nombre Actual</th>
-          <th>Fecha/Hora Previa</th>
-          <th>DNI anterior en el dispositivo</th>
-          <th>Nombre Anterior</th>
-          <th>Dispositivo</th>
+          <th>Fecha/Hora actual</th>
+          <th>DNI actual</th>
+          <th>Nombre actual</th>
           <th>Riesgo</th>
-          <th>Origen de detección</th>
+          <th>Dispositivo abreviado</th>
+          <th>Detalle</th>
         </tr>
       </thead>
       <tbody>
     `
 
     list.forEach(item => {
-        const badgeRiesgoColor = item.nivel_riesgo === "ALTO" ? "color: #b12d2d; font-weight: bold;" : item.nivel_riesgo === "MEDIO" ? "color: #946200; font-weight: bold;" : "color: #1f7a3b; font-weight: bold;";
-        
+        const key = item.key || `${item.fecha}|${item.hora_actual || ""}|${item.device_id_completo}|${item.dni_actual}`
         const fechaHoraActual = `${formatearFechaDDMMYYYY(item.fecha)} ${formatearHoraVisible(item.hora_actual) || "-"}`
-        const fechaHoraPrevia = `${formatearFechaDDMMYYYY(item.fecha_previa)} ${formatearHoraVisible(item.hora_previa) || "-"}`
+        const badgeRiesgoColorClass = `badge-risk-${item.nivel_riesgo.toLowerCase()}`
 
         html += `
       <tr>
         <td>${escapeHtml(fechaHoraActual)}</td>
         <td>${escapeHtml(item.dni_actual)}</td>
         <td>${escapeHtml(item.nombre_actual)}</td>
-        <td>${escapeHtml(fechaHoraPrevia)}</td>
-        <td>${escapeHtml(item.dni_anterior)}</td>
-        <td>${escapeHtml(item.nombre_anterior)}</td>
-        <td><span title="${escapeHtml(item.device_id_completo)}" style="cursor: help; border-bottom: 1px dotted #94a3b8;">${escapeHtml(item.device_id_abrev)}</span></td>
         <td>
-          <span style="${badgeRiesgoColor}">
+          <span class="badge-risk ${badgeRiesgoColorClass}">
             ${escapeHtml(item.nivel_riesgo)}
           </span>
         </td>
-        <td><span style="font-size: 11px; color: #64748b;">${escapeHtml(item.tipo_deteccion)}</span></td>
+        <td><span title="${escapeHtml(item.device_id_completo)}" style="cursor: help; border-bottom: 1px dotted #94a3b8;">${escapeHtml(item.device_id_abrev)}</span></td>
+        <td>
+          <button class="btn-circular" onclick="mostrarDetalleAlerta('${key}')" title="Ver detalle" aria-label="Ver detalle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+          </button>
+        </td>
       </tr>
     `
     })
@@ -10400,6 +10445,291 @@ async function cargarAlertasReporte() {
     html += "</tbody></table></div>"
     tablaAlertasContenido.innerHTML = html
 }
+
+function calcularDiferenciaTiempoAmigable(dateCurrent, datePrev) {
+    const diffMs = Math.abs(dateCurrent - datePrev);
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHrs = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHrs / 24);
+
+    if (diffSecs < 60) {
+        return `${diffSecs} segundo${diffSecs !== 1 ? 's' : ''}`;
+    } else if (diffMins < 60) {
+        const remainingSecs = diffSecs % 60;
+        return `${diffMins} minuto${diffMins !== 1 ? 's' : ''}${remainingSecs > 0 ? ` y ${remainingSecs} segundo${remainingSecs !== 1 ? 's' : ''}` : ''}`;
+    } else if (diffHrs < 24) {
+        const remainingMins = diffMins % 60;
+        return `${diffHrs} hora${diffHrs !== 1 ? 's' : ''}${remainingMins > 0 ? ` y ${remainingMins} minuto${remainingMins !== 1 ? 's' : ''}` : ''}`;
+    } else {
+        const remainingHrs = diffHrs % 24;
+        return `${diffDays} día${diffDays !== 1 ? 's' : ''}${remainingHrs > 0 ? ` y ${remainingHrs} hora${remainingHrs !== 1 ? 's' : ''}` : ''}`;
+    }
+}
+
+function generarInterpretacionAmigable(dniPrincipal, dniActual, diffAmigable) {
+    const p1 = dniPrincipal 
+        ? `Este dispositivo quedó vinculado inicialmente al DNI ${dniPrincipal}.`
+        : `La primera vinculación de este dispositivo no está determinada.`;
+    const p2 = `Posteriormente fue utilizado por el DNI ${dniActual}, ${diffAmigable} después de la marcación anterior.`;
+    const p3 = `Se observa un posible uso compartido del dispositivo. Se recomienda verificar ambas marcaciones.`;
+    return `${p1} ${p2} ${p3}`;
+}
+
+function formatearFechaHoraLocal(fechaString) {
+    if (!fechaString) return "No determinado";
+    try {
+        const d = new Date(fechaString);
+        if (isNaN(d.getTime())) return fechaString;
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}`;
+    } catch (e) {
+        return fechaString;
+    }
+}
+
+async function mostrarDetalleAlerta(key) {
+    const item = window.alertasUnificadasMap?.get(key)
+    if (!item) {
+        alert("No se encontró el detalle de la alerta seleccionada.")
+        return
+    }
+
+    modalTitulo.innerText = "Cargando Detalle de Alerta..."
+    modalContenido.innerHTML = `
+      <div style="display:flex; justify-content:center; align-items:center; height:150px; flex-direction:column; gap:12px;">
+        <div class="spinner-simple"></div>
+        <span style="color:#64748b; font-size:14px; font-weight:500;">Consultando historial del dispositivo...</span>
+      </div>
+    `
+    modal.style.display = "flex"
+
+    const cursoId = item.curso_id || cursoActualId || 1
+    const deviceId = item.device_id_completo
+
+    let dniPrincipal = null
+    let fechaVinculacion = null
+    let nombrePrincipal = "No determinado"
+    let origenDniPrincipal = "No determinado"
+
+    // 1. Consultar public.dni_dispositivos
+    try {
+        const { data: dniDispData, error: dniDispError } = await withTenantScope(supabaseClient
+            .from("dni_dispositivos")
+            .select("dni, created_at"))
+            .eq("device_id", deviceId)
+            .order("created_at", { ascending: true })
+            .limit(1)
+
+        if (!dniDispError && dniDispData && dniDispData.length > 0) {
+            dniPrincipal = dniDispData[0].dni
+            fechaVinculacion = formatearFechaHoraLocal(dniDispData[0].created_at)
+            origenDniPrincipal = "dni_dispositivos"
+        }
+    } catch (e) {
+        console.error("Error al consultar dni_dispositivos:", e)
+    }
+
+    // 2. Fallback a primera asistencia
+    if (!dniPrincipal) {
+        try {
+            const { data: firstAsistencia, error: firstErr } = await withTenantScope(supabaseClient
+                .from("asistencias")
+                .select("dni, nombre, fecha, hora"))
+                .eq("device_id", deviceId)
+                .eq("curso_id", cursoId)
+                .order("fecha", { ascending: true })
+                .order("hora", { ascending: true })
+                .limit(1)
+
+            if (!firstErr && firstAsistencia && firstAsistencia.length > 0) {
+                dniPrincipal = firstAsistencia[0].dni
+                nombrePrincipal = firstAsistencia[0].nombre || "No determinado"
+                const horaPart = firstAsistencia[0].hora ? ` ${formatearHoraVisible(firstAsistencia[0].hora)}` : ""
+                fechaVinculacion = `${formatearFechaDDMMYYYY(firstAsistencia[0].fecha)}${horaPart}`
+                origenDniPrincipal = "asistencias"
+            }
+        } catch (e) {
+            console.error("Error al consultar fallback primera asistencia:", e)
+        }
+    }
+
+    // 3. Resolver nombre si es de dni_dispositivos
+    if (dniPrincipal && nombrePrincipal === "No determinado") {
+        try {
+            const { data: aspData } = await withTenantScope(supabaseClient
+                .from("aspirantes")
+                .select("nombres, apellidos"))
+                .eq("dni", dniPrincipal)
+                .limit(1)
+
+            if (aspData && aspData.length > 0) {
+                nombrePrincipal = `${aspData[0].apellidos || ""}, ${aspData[0].nombres || ""}`.trim().replace(/^,|,$/g, "").trim()
+            } else {
+                const { data: asisData } = await withTenantScope(supabaseClient
+                    .from("asistencias")
+                    .select("nombre"))
+                    .eq("dni", dniPrincipal)
+                    .limit(1)
+
+                if (asisData && asisData.length > 0) {
+                    nombrePrincipal = asisData[0].nombre || "No determinado"
+                }
+            }
+        } catch (e) {
+            console.error("Error resolviendo nombre para DNI principal:", e)
+        }
+    }
+
+    const dateCurrent = new Date(`${item.fecha}T${item.hora_actual || "00:00:00"}`)
+    const datePrev = new Date(`${item.fecha_previa}T${item.hora_previa || "00:00:00"}`)
+    const diffAmigable = calcularDiferenciaTiempoAmigable(dateCurrent, datePrev)
+    const interpretacion = generarInterpretacionAmigable(dniPrincipal, item.dni_actual, diffAmigable)
+
+    modalTitulo.innerText = "Detalle de Alerta de Dispositivo"
+
+    const badgeRiesgoClass = `badge-risk-${item.nivel_riesgo.toLowerCase()}`
+
+    modalContenido.innerHTML = `
+      <style>
+        .alert-modal-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+          margin-top: 16px;
+        }
+        @media (max-width: 768px) {
+          .alert-modal-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+        .alert-modal-card {
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 16px;
+          background-color: #f8fafc;
+        }
+        .alert-modal-card h4 {
+          margin-top: 0;
+          margin-bottom: 12px;
+          color: #1e293b;
+          font-size: 14px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border-bottom: 1px solid #e2e8f0;
+          padding-bottom: 6px;
+        }
+        .alert-modal-field {
+          margin-bottom: 8px;
+          font-size: 13.5px;
+        }
+        .alert-modal-field strong {
+          color: #475569;
+        }
+        .alert-modal-field span {
+          color: #0f172a;
+        }
+        .alert-modal-banner {
+          margin-top: 16px;
+          border-radius: 12px;
+          padding: 16px;
+          background-color: #fffbeb;
+          border: 1px solid #fef3c7;
+          color: #78350f;
+          font-size: 13.5px;
+          line-height: 1.5;
+        }
+        .alert-modal-banner strong {
+          display: block;
+          margin-bottom: 6px;
+          font-size: 14px;
+          color: #92400e;
+        }
+      </style>
+      <div style="font-size: 14px; color: #475569; margin-bottom: 12px;">
+        Información del dispositivo y las marcaciones asociadas dentro del mismo tenant y curso.
+      </div>
+      
+      <div class="alert-modal-grid">
+        <!-- Columna Dispositivo -->
+        <div class="alert-modal-card">
+          <h4>Dispositivo y Detección</h4>
+          <div class="alert-modal-field">
+            <strong>ID Completo:</strong> <span style="font-family: monospace; word-break: break-all;">${escapeHtml(item.device_id_completo)}</span>
+          </div>
+          <div class="alert-modal-field">
+            <strong>ID Abreviado:</strong> <span>${escapeHtml(item.device_id_abrev)}</span>
+          </div>
+          <div class="alert-modal-field">
+            <strong>Nivel de Riesgo:</strong> 
+            <span class="badge-risk ${badgeRiesgoClass}" style="margin-left: 5px;">${escapeHtml(item.nivel_riesgo)}</span>
+          </div>
+          <div class="alert-modal-field">
+            <strong>Origen de Detección:</strong> <span>${escapeHtml(item.tipo_deteccion)}</span>
+          </div>
+        </div>
+
+        <!-- Columna DNI Principal -->
+        <div class="alert-modal-card">
+          <h4>DNI Principal del Dispositivo</h4>
+          <div class="alert-modal-field">
+            <strong>DNI:</strong> <span>${dniPrincipal ? escapeHtml(dniPrincipal) : "No determinado"}</span>
+          </div>
+          <div class="alert-modal-field">
+            <strong>Nombre:</strong> <span>${escapeHtml(nombrePrincipal)}</span>
+          </div>
+          <div class="alert-modal-field">
+            <strong>Fecha primera vinculación:</strong> <span>${fechaVinculacion ? escapeHtml(fechaVinculacion) : "No determinado"}</span>
+          </div>
+          <div class="alert-modal-field" style="font-size: 11px; color: #94a3b8; margin-top: 6px;">
+            * Primer DNI vinculado históricamente en este tenant/curso.
+          </div>
+        </div>
+
+        <!-- Columna Marcación Actual -->
+        <div class="alert-modal-card">
+          <h4>Marcación Actual (DNI Actual)</h4>
+          <div class="alert-modal-field">
+            <strong>DNI Actual:</strong> <span>${escapeHtml(item.dni_actual)}</span>
+          </div>
+          <div class="alert-modal-field">
+            <strong>Nombre Actual:</strong> <span>${escapeHtml(item.nombre_actual)}</span>
+          </div>
+          <div class="alert-modal-field">
+            <strong>Fecha y Hora actual:</strong> <span>${escapeHtml(item.fecha)} ${escapeHtml(formatearHoraVisible(item.hora_actual))}</span>
+          </div>
+        </div>
+
+        <!-- Columna Marcación Previa -->
+        <div class="alert-modal-card">
+          <h4>Marcación Previa (Último DNI Anterior)</h4>
+          <div class="alert-modal-field">
+            <strong>DNI Anterior:</strong> <span>${escapeHtml(item.dni_anterior)}</span>
+          </div>
+          <div class="alert-modal-field">
+            <strong>Nombre Anterior:</strong> <span>${escapeHtml(item.nombre_anterior)}</span>
+          </div>
+          <div class="alert-modal-field">
+            <strong>Fecha y Hora previa:</strong> <span>${escapeHtml(item.fecha_previa)} ${escapeHtml(formatearHoraVisible(item.hora_previa))}</span>
+          </div>
+          <div class="alert-modal-field">
+            <strong>Diferencia de tiempo:</strong> <span>${escapeHtml(diffAmigable)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert-modal-banner">
+        <strong>🔍 Posible uso compartido del dispositivo</strong>
+        ${escapeHtml(interpretacion)}
+      </div>
+    `
+}
+
+window.mostrarDetalleAlerta = mostrarDetalleAlerta
 
 async function aplicarFiltros() {
     await cargarDatos()
@@ -10543,6 +10873,9 @@ async function cargarDashboardStaffOperativo() {
 }
 
 async function cargarDashboard() {
+    if (!ubosCargadas && !loadingUbos) {
+        await cargarUbos()
+    }
     const scope = resolverScopeDashboardAspirantes()
 
     if (!haySupabase() || !scope.tenantId) {
@@ -11161,50 +11494,87 @@ function verDetalle(color) {
 }
 
 async function cargarUbos() {
-    const dashUboPrevio = dashUbo?.value || ""
+    if (loadingUbos) return
+    loadingUbos = true
 
-    // 1. Obtener UBOs de asistencias
-    const { data: dataAsistencias } = await withTenantScope(supabaseClient
-        .from("asistencias")
-        .select("ubo,tenant_id"))
-    const ubosAsistencia = obtenerUbosUnicosDesdeAsistencias(filtrarDataTenantActivo(dataAsistencias))
-
-    // 2. Obtener UBOs de aspirantes para el curso actual
-    const { data: dataAspirantes } = await withTenantScope(supabaseClient
-        .from("aspirantes")
-        .select("ubo,tenant_id")
-        .eq("curso_id", Number(cursoActualId || 1) || 1))
-    const ubosAspirantes = obtenerUbosUnicosDesdeAsistencias(filtrarDataTenantActivo(dataAspirantes))
-
-    // 3. Obtener UBOs de sedes
-    await cargarSedesUbo()
-    const ubosSedes = obtenerUbosUnicosDesdeAsistencias(ubosSedeCache)
-
-    // Unir, normalizar y ordenar
-    const ubos = Array.from(new Set(ubosAsistencia.concat(ubosAspirantes).concat(ubosSedes)))
-        .map(u => String(u).trim())
-        .filter(Boolean)
-        .sort((a, b) => {
-            const numA = parseInt(a, 10)
-            const numB = parseInt(b, 10)
-            if (isNaN(numA) || isNaN(numB)) {
-                return a.localeCompare(b)
-            }
-            return numA - numB
-        })
-
-    let html = construirOptionsUbo(ubos, true, "Seleccionar UBO")
-
-    filtroUboConfig.innerHTML = html
-    filtroUbo.innerHTML = html
-    filtroRetirados.innerHTML = html
-    dashUbo.innerHTML = construirOptionsUbo(ubos, true, "Todas las UBO")
-    if (dashUboPrevio && ubos.includes(dashUboPrevio)) {
-        dashUbo.value = dashUboPrevio
+    const setCargando = (el) => {
+        if (el) el.innerHTML = '<option value="">Cargando...</option>'
     }
+    setCargando(filtroUboConfig)
+    setCargando(filtroUbo)
+    setCargando(filtroRetirados)
+    setCargando(dashUbo)
+    setCargando(uboSecUbo)
 
-    const htmlSede = construirOptionsUbo(ubos, true, "Seleccionar UBO sede")
-    uboSecUbo.innerHTML = htmlSede
+    try {
+        const dashUboPrevio = dashUbo?.value || ""
+        const filtroUboPrevio = filtroUbo?.value || ""
+        const filtroRetiradosPrevio = filtroRetirados?.value || ""
+        const filtroUboConfigPrevio = filtroUboConfig?.value || ""
+        const uboSecUboPrevio = uboSecUbo?.value || ""
+
+        // 1. Obtener UBOs de asistencias
+        const { data: dataAsistencias } = await withTenantScope(supabaseClient
+            .from("asistencias")
+            .select("ubo,tenant_id"))
+        const ubosAsistencia = obtenerUbosUnicosDesdeAsistencias(filtrarDataTenantActivo(dataAsistencias))
+
+        // 2. Obtener UBOs de aspirantes para el curso actual
+        const { data: dataAspirantes } = await withTenantScope(supabaseClient
+            .from("aspirantes")
+            .select("ubo,tenant_id")
+            .eq("curso_id", Number(cursoActualId || 1) || 1))
+        const ubosAspirantes = obtenerUbosUnicosDesdeAsistencias(filtrarDataTenantActivo(dataAspirantes))
+
+        // 3. Obtener UBOs de sedes
+        await cargarSedesUbo()
+        const ubosSedes = obtenerUbosUnicosDesdeAsistencias(ubosSedeCache)
+
+        // Unir, normalizar y ordenar
+        const ubos = Array.from(new Set(ubosAsistencia.concat(ubosAspirantes).concat(ubosSedes)))
+            .map(u => String(u).trim())
+            .filter(Boolean)
+            .sort((a, b) => {
+                const numA = parseInt(a, 10)
+                const numB = parseInt(b, 10)
+                if (isNaN(numA) || isNaN(numB)) {
+                    return a.localeCompare(b)
+                }
+                return numA - numB
+            })
+
+        const populateSelect = (el, defaultText, emptyText, previousValue) => {
+            if (!el) return
+            if (ubos.length === 0) {
+                el.innerHTML = `<option value="">${emptyText}</option>`
+            } else {
+                el.innerHTML = construirOptionsUbo(ubos, true, defaultText)
+                if (previousValue && ubos.includes(previousValue)) {
+                    el.value = previousValue
+                }
+            }
+        }
+
+        populateSelect(filtroUboConfig, "Seleccionar UBO", "Sin UBO disponibles", filtroUboConfigPrevio)
+        populateSelect(filtroUbo, "Seleccionar UBO", "Sin UBO disponibles", filtroUboPrevio)
+        populateSelect(filtroRetirados, "Seleccionar UBO", "Sin UBO disponibles", filtroRetiradosPrevio)
+        populateSelect(dashUbo, "Todas las UBO", "Sin UBO disponibles", dashUboPrevio)
+        populateSelect(uboSecUbo, "Seleccionar UBO sede", "Sin UBO disponibles", uboSecUboPrevio)
+
+        ubosCargadas = true
+    } catch (err) {
+        console.error("Error in cargarUbos:", err)
+        const setErr = (el, text) => {
+            if (el) el.innerHTML = `<option value="">${text}</option>`
+        }
+        setErr(filtroUboConfig, "Error cargando UBOs")
+        setErr(filtroUbo, "Error cargando UBOs")
+        setErr(filtroRetirados, "Error cargando UBOs")
+        setErr(dashUbo, "Error cargando UBOs")
+        setErr(uboSecUbo, "Error cargando UBOs")
+    } finally {
+        loadingUbos = false
+    }
 }
 
 function cerrarModal() {
