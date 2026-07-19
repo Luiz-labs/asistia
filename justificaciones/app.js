@@ -761,6 +761,10 @@ async function procesarPaso2() {
         // En modo offline, permitimos pasar al siguiente paso con validaciones básicas de frontend
         summaryDni.textContent = validacionDniAspirante.dni
         summaryFecha.textContent = rawFecha
+
+        const summaryJornadaRow = document.getElementById("summaryJornadaRow")
+        if (summaryJornadaRow) summaryJornadaRow.style.display = "none"
+
         mostrarPaso("sustento")
         setMensaje("Sin conexión. La justificación será validada operativamente al sincronizar.", "warning")
         return
@@ -771,7 +775,7 @@ async function procesarPaso2() {
 
     try {
         const fechaFormatoDB = `${fechaDate.getFullYear()}-${String(fechaDate.getMonth() + 1).padStart(2, "0")}-${String(fechaDate.getDate()).padStart(2, "0")}`
-        
+
         const { data, error } = await supabaseClient.rpc("rpc_validar_fecha_justificable", {
             p_tenant_id: tenantActivoId,
             p_curso_id: cursoActualId,
@@ -790,6 +794,18 @@ async function procesarPaso2() {
         // Habilitar paso 3
         summaryDni.textContent = validacionDniAspirante.dni
         summaryFecha.textContent = rawFecha
+
+        const summaryJornadaRow = document.getElementById("summaryJornadaRow")
+        const summaryJornada = document.getElementById("summaryJornada")
+        if (summaryJornadaRow && summaryJornada) {
+            if (data.jornada_label) {
+                summaryJornada.textContent = data.jornada_label
+                summaryJornadaRow.style.display = ""
+            } else {
+                summaryJornadaRow.style.display = "none"
+            }
+        }
+
         setMensaje("")
         mostrarPaso("sustento")
     } catch (e) {
@@ -1010,6 +1026,11 @@ function limpiarPasoSustento() {
     if (inputSustentoOtro) inputSustentoOtro.value = ""
     if (wrapperMotivoOtro) wrapperMotivoOtro.style.display = "none"
     if (wrapperSustentoOtro) wrapperSustentoOtro.style.display = "none"
+
+    const summaryJornadaRow = document.getElementById("summaryJornadaRow")
+    const summaryJornada = document.getElementById("summaryJornada")
+    if (summaryJornadaRow) summaryJornadaRow.style.display = "none"
+    if (summaryJornada) summaryJornada.textContent = ""
 }
 
 function resetTodoElFlujo() {
