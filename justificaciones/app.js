@@ -1042,6 +1042,123 @@ function resetTodoElFlujo() {
     mostrarPaso("ingreso")
 }
 
+// ----------------------------------------------------
+// SOPORTE Y REPORTE DE PROBLEMAS (WHATSAPP)
+// ----------------------------------------------------
+function detectarEstadoProblemaJustificacion() {
+    const msgText = String(mensaje?.textContent || "").trim()
+    let problema = "Consulta general de justificación"
+    let prioridad = "BAJA"
+
+    if (msgText.includes("no existe en el padrón")) {
+        problema = "DNI no encontrado en padrón"
+        prioridad = "ALTA"
+        return { problema, prioridad }
+    }
+    if (msgText.includes("no pertenece al curso")) {
+        problema = "Aspirante no pertenece al curso"
+        prioridad = "ALTA"
+        return { problema, prioridad }
+    }
+    if (msgText.includes("no hubo una jornada") || msgText.includes("no se puede justificar")) {
+        problema = "Fecha no justificable / Sin jornada"
+        prioridad = "MEDIA"
+        return { problema, prioridad }
+    }
+    if (msgText.includes("excede el plazo")) {
+        problema = "Plazo excedido para justificación"
+        prioridad = "BAJA"
+        return { problema, prioridad }
+    }
+    if (msgText.includes("obligatorio adjuntar") || msgText.includes("motivo") || msgText.includes("sustento")) {
+        problema = "Validación de sustento / motivo"
+        prioridad = "BAJA"
+        return { problema, prioridad }
+    }
+    if (msgText.includes("No se pudo conectar") || msgText.includes("Sin conexión") || msgText.includes("Error de red")) {
+        problema = "Error de conexión u offline"
+        prioridad = "MEDIA"
+        return { problema, prioridad }
+    }
+
+    return { problema, prioridad }
+}
+
+function obtenerPasoActualJustificacion() {
+    if (stepIngreso && stepIngreso.style.display === "flex") return "Paso 1: Ingreso DNI"
+    if (stepFecha && stepFecha.style.display === "flex") return "Paso 2: Selección de fecha"
+    if (stepSustento && stepSustento.style.display === "flex") return "Paso 3: Adjuntar sustento"
+    if (stepExito && stepExito.style.display === "flex") return "Paso 4: Registro exitoso"
+    return "No determinado"
+}
+
+function generarMensajeWhatsAppJustificacion() {
+    const dniRaw = validacionDniAspirante?.dni || String(mobileDniInicio?.value || "").replace(/\D/g, "").slice(0, 8) || "SIN_DNI"
+    const idReporte = generarIdReporteComun("JUSTIF", dniRaw)
+    const { problema, prioridad } = detectarEstadoProblemaJustificacion()
+
+    const aDni = validacionDniAspirante?.dni || (dniRaw !== "SIN_DNI" ? dniRaw : "Datos aún no validados")
+    const aNombres = validacionDniAspirante?.nombres || "Datos aún no validados"
+    const aApellidos = validacionDniAspirante?.apellidos || "Datos aún no validados"
+    const aNombreCompleto = (validacionDniAspirante?.nombres && validacionDniAspirante?.apellidos)
+        ? `${validacionDniAspirante.nombres} ${validacionDniAspirante.apellidos}`
+        : "Datos aún no validados"
+    const aUbo = validacionDniAspirante?.ubo || "Datos aún no validados"
+    const aSeccion = validacionDniAspirante?.seccion || "Datos aún no validados"
+    const aCurso = cursoActualId ? String(cursoActualId) : "Datos aún no validados"
+    const aInstitucion = String(tenantActivoId || "").trim().toUpperCase() || "Datos aún no validados"
+
+    const fechaSolicitada = fechaJustificar?.value || summaryFecha?.textContent || "No seleccionada"
+    const jornadaDetectada = document.getElementById("summaryJornada")?.textContent || "No especificada"
+    const pasoActual = obtenerPasoActualJustificacion()
+    const errorVisible = String(mensaje?.textContent || "").trim() || "Ninguno"
+    const ahoraLimaInfo = obtenerFechaHoraLima(new Date())
+    const appVersion = obtenerVersionAsistIA()
+
+    return `ID reporte:
+${idReporte}
+
+Prioridad:
+${prioridad}
+
+Problema detectado:
+- ${problema}
+
+Contexto del módulo:
+- Módulo: Justificaciones
+- Paso del flujo: ${pasoActual}
+
+Datos del aspirante:
+- DNI: ${aDni}
+- Nombres: ${aNombres}
+- Apellidos: ${aApellidos}
+- Nombre completo: ${aNombreCompleto}
+- UBO: ${aUbo}
+- Sección: ${aSeccion}
+- Curso: ${aCurso}
+- Institución: ${aInstitucion}
+
+Datos del registro/contexto:
+- Fecha a justificar: ${fechaSolicitada}
+- Jornada detectada: ${jornadaDetectada}
+- Mensaje visible: ${errorVisible}
+- Fecha local: ${ahoraLimaInfo.fecha}
+- Hora local: ${ahoraLimaInfo.hora}
+- URL actual: ${window.location.href}
+- Versión asistIA: ${appVersion}
+
+${obtenerDatosDispositivoReporte()}
+
+Texto editable para el usuario:
+"Descripción del problema:
+"`
+}
+
+function abrirWhatsAppSoporteJustificacion() {
+    const text = generarMensajeWhatsAppJustificacion()
+    abrirWhatsAppSoporteMensaje(text)
+}
+
 function bindEventos() {
     btnIngresarInicio?.addEventListener("click", procesarPaso1)
     mobileDniInicio?.addEventListener("keydown", (e) => {
@@ -1071,6 +1188,8 @@ function bindEventos() {
     selectTipoSustento?.addEventListener("change", (e) => {
         if (wrapperSustentoOtro) wrapperSustentoOtro.style.display = e.target.value === "Otro" ? "block" : "none"
     })
+
+    document.getElementById("btnSoporteWa")?.addEventListener("click", abrirWhatsAppSoporteJustificacion)
 }
 
 async function init() {

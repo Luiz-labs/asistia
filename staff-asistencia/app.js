@@ -797,9 +797,96 @@ function bindEventos() {
         const input = document.getElementById("staffPerfilCelular")
         if (input) input.value = normalizarCelular(input.value)
     })
+// ----------------------------------------------------
+// SOPORTE Y REPORTE DE PROBLEMAS (WHATSAPP)
+// ----------------------------------------------------
+function detectarEstadoProblemaStaff() {
+    const msgText = String(mensaje?.textContent || "").trim()
+    let problema = "Consulta general staff"
+    let prioridad = "BAJA"
+
+    if (msgText.includes("no existe en el padrón") || msgText.includes("Código no encontrado")) {
+        problema = "Código CBP no encontrado"
+        prioridad = "ALTA"
+        return { problema, prioridad }
+    }
+    if (msgText.includes("no hay jornada") || msgText.includes("no hay clase")) {
+        problema = "Sin jornada activa para staff"
+        prioridad = "ALTA"
+        return { problema, prioridad }
+    }
+    if (msgText.includes("Error") || msgText.includes("falló") || msgText.includes("no se pudo")) {
+        problema = "Error en registro de staff"
+        prioridad = "ALTA"
+        return { problema, prioridad }
+    }
+
+    return { problema, prioridad }
+}
+
+function generarMensajeWhatsAppStaff() {
+    const codIdentificador = staffSeleccionado?.codigo_bombero || staffSeleccionado?.dni || String(codigoBomberoInput?.value || "").trim() || "SIN_CODIGO"
+    const idReporte = generarIdReporteComun("STAFF", codIdentificador)
+    const { problema, prioridad } = detectarEstadoProblemaStaff()
+
+    const sCodigo = staffSeleccionado?.codigo_bombero || (codIdentificador !== "SIN_CODIGO" ? codIdentificador : "Datos aún no validados")
+    const sNombreCompleto = staffSeleccionado ? `${staffSeleccionado.nombres || ""} ${staffSeleccionado.apellidos || ""}`.trim() : "Datos aún no validados"
+    const sTipoStaff = staffSeleccionado?.tipo_staff || "No disponible"
+    const sSeccion = staffSeleccionado?.seccion || "No disponible"
+    const sCurso = cursoActualId ? String(cursoActualId) : "No disponible"
+    const sInstitucion = String(tenantActivoId || "").trim().toUpperCase() || "No disponible"
+
+    const vistaActual = staffCurrentView || "login"
+    const errorVisible = String(mensaje?.textContent || "").trim() || "Ninguno"
+
+    const fechaLocal = new Date().toLocaleDateString("es-PE")
+    const horaLocal = new Date().toLocaleTimeString("es-PE")
+    const appVersion = obtenerVersionAsistIA()
+
+    return `ID reporte:
+${idReporte}
+
+Prioridad:
+${prioridad}
+
+Problema detectado:
+- ${problema}
+
+Contexto del módulo:
+- Módulo: Staff Asistencia
+- Vista actual: ${vistaActual}
+
+Datos del staff:
+- Código CBP/ID: ${sCodigo}
+- Nombre completo: ${sNombreCompleto}
+- Tipo staff: ${sTipoStaff}
+- Sección: ${sSeccion}
+- Curso: ${sCurso}
+- Institución: ${sInstitucion}
+
+Datos del registro/contexto:
+- Mensaje visible: ${errorVisible}
+- Fecha local: ${fechaLocal}
+- Hora local: ${horaLocal}
+- URL actual: ${window.location.href}
+- Versión asistIA: ${appVersion}
+
+${obtenerDatosDispositivoReporte()}
+
+Texto editable para el usuario:
+"Descripción del problema:
+"`
+}
+
+function abrirWhatsAppSoporteStaff() {
+    const text = generarMensajeWhatsAppStaff()
+    abrirWhatsAppSoporteMensaje(text)
+}
+
     document.addEventListener("keydown", event => {
         if (event.key === "Escape" && !staffProfileModal?.hidden) cancelarEdicionPerfilStaff()
     })
+    document.getElementById("btnSoporteWa")?.addEventListener("click", abrirWhatsAppSoporteStaff)
 }
 
 async function init() {

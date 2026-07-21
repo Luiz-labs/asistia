@@ -417,6 +417,35 @@ button:active {
   box-shadow: 0 8px 20px rgba(37, 99, 235, 0.08);
 }
 
+.support-badge-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+  border-top: 1px solid rgba(28, 47, 94, 0.06);
+  padding-top: 12px;
+}
+
+.support-badge-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 20px;
+  padding: 6px 14px;
+  min-height: auto;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.support-badge-btn:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
 @media (min-width: 560px) {
   .step-actions {
     grid-template-columns: 1fr 1fr;
