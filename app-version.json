@@ -1,0 +1,8 @@
+{
+  "appName": "asistIA",
+  "version": "0.9.5-beta",
+  "build": "20260722.001",
+  "releasedAt": "2026-07-22T20:00:00-05:00",
+  "minimumSupportedBuild": "20260722.001",
+  "message": "Mejoras de estabilidad, geolocalización y mensajes de asistencia"
+}

@@ -248,6 +248,37 @@ function esTodosAspirantes(ctx) {
     return origen === "calendario_global_todos_aspirantes" || jornada === "CALENDARIO_GLOBAL"
 }
 
+function extraerCodigosBloqueo(bloqueos) {
+    if (!Array.isArray(bloqueos)) return []
+    return bloqueos.map(b => String(b?.code || "").trim().toLowerCase()).filter(Boolean)
+}
+
+function resolverMensajeBloqueoAmigable(contexto) {
+    if (!contexto) {
+        return "Ocurrió un problema al procesar la solicitud."
+    }
+
+    const code = String(contexto.code || extraerCodigosBloqueo(contexto.bloqueos)[0] || "").trim().toLowerCase()
+    const rawMessage = String(contexto.message || extraerMensajesContexto(contexto.bloqueos)[0] || "").trim()
+
+    if (code === "aspirante_fuera_de_curso" || rawMessage.includes("no pertenece al curso")) {
+        return "⚠ El aspirante no pertenece al curso de este QR."
+    }
+    if (code === "aspirante_no_encontrado" || rawMessage.includes("no existe en el padrón")) {
+        return "⚠ El DNI ingresado no existe en el padrón del curso. Verifica el número o consulta con la administración."
+    }
+
+    if (code === "sin_jornada_programada" || rawMessage.includes("no hay una jornada programada") || rawMessage.includes("no hay clase programada")) {
+        return "ℹ️ No hay una jornada de asistencia habilitada en este momento. Verifica la fecha y el horario programados."
+    }
+
+    if (code === "aspirante_sin_seccion" || rawMessage.includes("sección asignada")) {
+        return "⚠️ No tienes una sección asignada para esta jornada. Comunícate con la administración de ESBAS."
+    }
+
+    return normalizarMensajePublicoFinal(rawMessage || "No se pudo registrar la asistencia.")
+}
+
 function obtenerMensajesAdvertenciaAmigables(contexto) {
     if (!contexto) return []
     const friendlyWarnings = []
@@ -417,7 +448,9 @@ function generarMensajeWhatsApp() {
     
     const rDistancia = (gps && gps.distancia_metros != null) ? formatearDistancia(gps.distancia_metros) : "N/A"
     
-    const appVersion = "1.0.0-build10020"
+    const appVersion = (typeof window.obtenerEtiquetaVersionAsistia === "function") 
+        ? window.obtenerEtiquetaVersionAsistia("short") 
+        : "v0.9.5-beta · 20260722.001"
     
     const msg = `ID reporte:
 ${idReporte}
@@ -1315,7 +1348,7 @@ async function ingresarMovilInicio() {
 
         if (contextoRPC?.success === true) {
             if (!contextoRPC.permitido) {
-                const msgBloqueo = String(contextoRPC.message || extraerMensajesContexto(contextoRPC.bloqueos)[0] || "No se pudo resolver el contexto de asistencia.").trim()
+                const msgBloqueo = resolverMensajeBloqueoAmigable(contextoRPC)
                 formulario.style.display = "none"
                 if (stepIngreso) stepIngreso.style.display = "flex"
                 setMensaje(msgBloqueo, "error")
@@ -1882,7 +1915,7 @@ async function guardarAsistencia() {
 
         // Si hay respuesta y hay_clase = false, bloquear
         if (prog && prog.success === true && prog.hay_clase === false) {
-            setMensaje("Hoy no hay clase programada para registrar asistencia.", "error");
+            setMensaje("ℹ️ No hay una jornada de asistencia habilitada en este momento. Verifica la fecha y el horario programados.", "error");
             return;
         }
 
@@ -2027,10 +2060,8 @@ async function guardarAsistencia() {
         ultimoResultadoRegistro = data;
 
         if (!data?.success) {
-            setMensaje(
-                normalizarMensajePublicoFinal(String(data?.message || "Ocurrió un problema al procesar la solicitud.")),
-                "error"
-            );
+            const msgBloqueo = resolverMensajeBloqueoAmigable(data);
+            setMensaje(msgBloqueo, "error");
             programarRetornoPostRegistro();
             return;
         }
@@ -2055,10 +2086,8 @@ async function guardarAsistencia() {
         }
 
         if (!data?.registrado && data?.code && data?.code !== "ok") {
-            setMensaje(
-                normalizarMensajePublicoFinal(String(data?.message || "No se pudo registrar la asistencia.")),
-                "error"
-            );
+            const msgBloqueo = resolverMensajeBloqueoAmigable(data);
+            setMensaje(msgBloqueo, "error");
             programarRetornoPostRegistro();
             return;
         }
