@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2563eb">
   <title>asistIA Asistencia Staff</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/staff-asistencia/style.css">
+  <link rel="stylesheet" href="/staff-asistencia/style.css?v=1.0.0-build10020">
 </head>
 <body>
   <main class="public-shell">
@@ -15,71 +16,93 @@
       <div class="brand-block">
         <img class="brand-logo" src="/asistIA_logo.png" alt="asistIA">
         <div>
-          <h1 class="brand-title">Asistencia Staff</h1>
+          <h1 class="brand-title">asist<span>IA</span></h1>
+          <span class="module-badge module-badge-staff">🧑‍🚒 MÓDULO STAFF</span>
+          <p class="brand-subtitle">Registro de asistencia</p>
           <p id="tenantLabel" class="tenant-label"></p>
-          <p class="brand-subtitle">Registro del Staff de APOYO y ADJUNTO.</p>
         </div>
       </div>
-
-      <section id="staffLookupSection" class="step-block">
-        <p class="step-copy">Ingresa tu Código CBP.</p>
-        <input id="codigoBomberoInput" class="text-input" placeholder="Ejemplo: A17200" autocomplete="off">
-        <button id="btnBuscarStaff" class="primary-btn" type="button">Ingresar</button>
-      </section>
-
-      <section id="staffCardSection" class="staff-card-shell" hidden></section>
-
-      <section id="staffSuccessSection" class="success-shell" hidden></section>
-
-      <p id="mensaje" class="message-box" aria-live="polite"></p>
+      <p class="step-copy">Redirigiendo al módulo staff...</p>
     </section>
-    <footer class="public-footer">Desarrollado por Luiz-Labs © 2026</footer>
+    <footer class="public-footer">asistIA v1.0.0-build10020 · Módulo Staff · Luiz-Labs © 2026</footer>
   </main>
 
-  <div id="staffProfileModal" class="staff-modal" hidden aria-hidden="true">
-    <div class="staff-modal-backdrop" data-close-staff-modal="true"></div>
-    <section class="staff-modal-sheet" role="dialog" aria-modal="true" aria-label="Editar perfil staff">
-      <div class="staff-modal-handle" aria-hidden="true"></div>
-      <div class="staff-modal-head">
-        <div>
-          <h3>Editar perfil</h3>
-          <p>Actualiza foto, celular y correo.</p>
-        </div>
-        <button id="btnCloseStaffModal" class="staff-modal-close" type="button" aria-label="Cerrar">×</button>
-      </div>
-
-      <form id="staffProfileForm" class="staff-profile-form">
-        <div class="staff-photo-editor">
-          <div id="staffPhotoPreview" class="staff-photo-preview"></div>
-          <div class="staff-photo-copy">
-            <strong>Foto de perfil</strong>
-            <span>JPG, PNG o WEBP. Máximo 2 MB.</span>
-            <input id="staffFotoFile" type="file" accept="image/jpeg,image/png,image/webp">
-          </div>
-        </div>
-
-        <div class="staff-profile-grid">
-          <label class="staff-profile-field">
-            <span>Celular</span>
-            <input id="staffPerfilCelular" class="text-input" placeholder="Solo números" inputmode="numeric" autocomplete="tel">
-          </label>
-          <label class="staff-profile-field">
-            <span>Correo</span>
-            <input id="staffPerfilCorreo" class="text-input" placeholder="correo@dominio.com" type="email" autocomplete="email">
-          </label>
-        </div>
-
-        <p id="staffProfileMsg" class="inline-form-msg" aria-live="polite"></p>
-
-        <div class="staff-profile-actions">
-          <button id="btnGuardarPerfilStaff" class="primary-btn" type="submit">Guardar cambios</button>
-          <button id="btnCancelarPerfilStaff" class="secondary-btn" type="button">Cancelar</button>
-        </div>
-      </form>
-    </section>
-  </div>
-
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script src="/staff-asistencia/app.js"></script>
+  <script>
+    (() => {
+      const APP_VERSION = "1.0.0-build10020"
+      const RESET_KEY = `asistia_staff_cache_reset_${APP_VERSION}`
+      const path = String(window.location.pathname || "")
+      const isStaffRoute = /(^|\/)staff-asistencia(\/|$)/.test(path)
+
+      function redirigirRutaPublicaBonitaSiCorresponde() {
+        const segments = path.split("/").filter(Boolean)
+        const idxStaff = segments.indexOf("staff-asistencia")
+        if (idxStaff <= 0) return false
+
+        const tenant = String(segments[idxStaff - 1] || "").trim().toLowerCase()
+        if (!tenant) return false
+
+        const params = new URLSearchParams(window.location.search || "")
+        if (!params.get("tenant")) {
+          params.set("tenant", tenant)
+        }
+
+        const destino = `/staff-asistencia/index.html?${params.toString()}`
+        if (window.location.pathname === "/staff-asistencia/index.html") return false
+        window.location.replace(destino)
+        return true
+      }
+
+      if (redirigirRutaPublicaBonitaSiCorresponde()) {
+        return
+      }
+
+      function appendScript(src) {
+        const script = document.createElement("script")
+        script.src = src
+        document.body.appendChild(script)
+      }
+
+      function bootScripts() {
+        appendScript(`/support-report.js?v=${APP_VERSION}`)
+        appendScript(`/staff-asistencia/app.js?v=${APP_VERSION}`)
+        appendScript(`/pwa-register.js?v=${APP_VERSION}`)
+      }
+
+      if (!isStaffRoute) {
+        bootScripts()
+        return
+      }
+
+      if (sessionStorage.getItem(RESET_KEY) === "done") {
+        bootScripts()
+        return
+      }
+
+      ;(async () => {
+        try {
+          if ("serviceWorker" in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations()
+            await Promise.all(registrations.map(registration => registration.unregister()))
+          }
+
+          if ("caches" in window) {
+            const cacheNames = await caches.keys()
+            await Promise.all(
+              cacheNames
+                .filter(name => /asist|pwa|workbox/i.test(String(name || "")))
+                .map(name => caches.delete(name))
+            )
+          }
+        } catch (error) {
+          console.warn("No se pudo limpiar el cache de staff:", error)
+        } finally {
+          sessionStorage.setItem(RESET_KEY, "done")
+          window.location.replace(window.location.href)
+        }
+      })()
+    })()
+  </script>
 </body>
 </html>
