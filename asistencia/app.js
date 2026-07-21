@@ -1648,131 +1648,224 @@ function calcularDistanciaGpsMetros(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+let ultimoDiagnosticoGps = null;
+
+function setEstadoCargandoBotonRegistrar(cargando, texto = "Obteniendo ubicación...") {
+    const btn = document.getElementById("btnRegistrar");
+    if (!btn) return;
+    if (cargando) {
+        btn.disabled = true;
+        btn.setAttribute("aria-busy", "true");
+        if (!btn.dataset.originalText) {
+            btn.dataset.originalText = btn.textContent || "Registrar asistencia";
+        }
+        btn.textContent = texto;
+    } else {
+        btn.disabled = false;
+        btn.removeAttribute("aria-busy");
+        btn.textContent = btn.dataset.originalText || "Registrar asistencia";
+    }
+}
+
+function registrarDiagnosticoGps({ estado, codigo = null, precision = null, distanciaMetros = null, radioPermitido = null, duracionMs = null }) {
+    ultimoDiagnosticoGps = {
+        estado: String(estado || "GPS_NO_DISPONIBLE"),
+        codigo: codigo != null ? Number(codigo) : null,
+        precision: precision != null ? Number(precision) : null,
+        distanciaMetros: distanciaMetros != null ? Number(distanciaMetros) : null,
+        radioPermitido: radioPermitido != null ? Number(radioPermitido) : null,
+        duracionMs: duracionMs != null ? Number(duracionMs) : null,
+        fechaHora: new Date().toISOString()
+    };
+    if (typeof window !== "undefined") {
+        window.ultimoDiagnosticoGps = ultimoDiagnosticoGps;
+    }
+    return ultimoDiagnosticoGps;
+}
+
+function obtenerDetalleErrorGps(geoError) {
+    const code = Number(geoError?.code);
+    if (code === 1) {
+        return {
+            estado: "PERMISSION_DENIED",
+            codigo: 1,
+            mensaje: "⚠ No se pudo acceder a tu ubicación porque el permiso está desactivado o fue rechazado. Habilita la ubicación para este sitio desde la configuración de Chrome o Safari y vuelve a intentarlo."
+        };
+    }
+    if (code === 2) {
+        return {
+            estado: "POSITION_UNAVAILABLE",
+            codigo: 2,
+            mensaje: "⚠ No se pudo obtener la señal de ubicación. Verifica que la ubicación/GPS de tu celular esté activada e inténtalo nuevamente."
+        };
+    }
+    if (code === 3) {
+        return {
+            estado: "TIMEOUT",
+            codigo: 3,
+            mensaje: "⚠ La ubicación tardó demasiado en responder. Inténtalo nuevamente y, de ser posible, colócate en un lugar abierto."
+        };
+    }
+    return {
+        estado: "GEOLOCATION_NO_SOPORTADA",
+        codigo: 0,
+        mensaje: "⚠ Este navegador no permite obtener la ubicación. Abre el QR desde Chrome en Android o Safari en iPhone."
+    };
+}
+
 function obtenerUbicacionNavegador() {
+    const inicioMs = Date.now();
     return new Promise((resolve, reject) => {
         if (!navigator || !navigator.geolocation) {
-            reject(new Error("Geolocalización no soportada por el navegador."));
+            const err = new Error("GEOLOCATION_NO_SOPORTADA");
+            err.code = 0;
+            err.duracionMs = Date.now() - inicioMs;
+            reject(err);
             return;
         }
         navigator.geolocation.getCurrentPosition(
-            (pos) => resolve(pos.coords),
-            (err) => reject(err),
-            { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+            (pos) => {
+                const duracionMs = Date.now() - inicioMs;
+                pos.coords.duracionMs = duracionMs;
+                resolve(pos.coords);
+            },
+            (err) => {
+                err.duracionMs = Date.now() - inicioMs;
+                reject(err);
+            },
+            { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
         );
     });
 }
 
 async function guardarAsistencia() {
-    ultimoGpsData = null
-    ultimoResultadoRegistro = null
-    const dniRegistro = limpiarDni(dniMovil || mobileDniInicio?.value)
-    const nombresValor = String(nombres.value || "").trim()
-    const apellidosValor = String(apellidos.value || "").trim()
-    const uboValor = String(ubo.value || "").replace(/\D/g, "")
-    const seccionBase = seccion || obtenerSeccionAspiranteDetectada()
-    const contextoAsistencia = contextoAsistenciaActual || construirContextoLocalAsistencia(new Date(), seccionBase)
-    const seccionRegistro = normalizarCodigoSeccion(contextoAsistencia.seccion || seccionBase)
-    const deviceId = getDeviceId()
-
-    if (!dniRegistro) {
-        setMensaje("⚠ DNI no válido", "error")
-        return
-    }
-
-    if (!cursoQRValido) {
-        setMensaje("Acceso no válido. Escanee el código QR oficial del curso.", "error")
-        return
-    }
-
-    if (validacionCursoAspirante?.dni === dniRegistro && validacionCursoAspirante?.bloqueado) {
-        setMensaje("⚠ El aspirante no pertenece al curso de este QR.", "error")
-        return
-    }
-
-    if (!nombresValor || !apellidosValor) {
-        setMensaje("⚠ Completa nombres y apellidos", "error")
-        return
-    }
-
-    if (!uboValor) {
-        setMensaje("⚠ UBO debe ser numérico", "error")
-        return
-    }
-
-    const isTodosAspirantes = esTodosAspirantes(contextoAsistencia)
-    if (!seccionRegistro && !isTodosAspirantes) {
-        setMensaje("⚠ Selecciona una sección", "error")
-        return
-    }
-
-    // 1. Obtener modo GPS del caché local o del cursoConfigCache
-    const cachedGps = localStorage.getItem(`asistia_gps_config_${tenantActivoId}_${cursoActualId || 1}`);
-    const gpsModoParsed = cachedGps ? JSON.parse(cachedGps) : null;
-    const tieneConfigCargada = !!(cursoConfigCache || gpsModoParsed);
-    const gpsModo = cursoConfigCache?.oper_gps_modo || gpsModoParsed?.oper_gps_modo || "desactivado";
-
-    let gpsData = null;
-
-    if (!tieneConfigCargada) {
-        gpsData = {
-            estado: "GPS_NO_DISPONIBLE",
-            modo: "desactivado",
-            mensaje: "No se pudo validar GPS porque no se pudo cargar la configuración del curso."
-        };
-    } else if (gpsModo === "desactivado") {
-        gpsData = {
-            estado: "GPS_DESACTIVADO",
-            modo: "desactivado",
-            mensaje: "El control GPS está desactivado para este curso."
-        };
-    } else {
-        gpsData = {
-            estado: "GPS_NO_DISPONIBLE",
-            modo: gpsModo,
-            mensaje: "No se pudo obtener la ubicación o no hay programación diaria activa."
-        };
-    }
-
-    const isOnline = navigator.onLine && haySupabase();
-
-    // Flujo Offline contingente
-    if (!isOnline) {
-        if (tieneConfigCargada && gpsModo !== "desactivado") {
-            try {
-                const coords = await obtenerUbicacionNavegador();
-                gpsData = {
-                    latitud: coords.latitude,
-                    longitud: coords.longitude,
-                    accuracy: coords.accuracy,
-                    estado: "GPS_DENTRO_RANGO",
-                    modo: gpsModo,
-                    mensaje: "offline_contingency"
-                };
-            } catch (err) {
-                console.warn("Fallo captura GPS offline:", err);
-                gpsData = {
-                    estado: "GPS_NO_DISPONIBLE",
-                    modo: gpsModo,
-                    mensaje: "No se pudo obtener ubicación offline: " + (err.message || err)
-                };
-            }
-        }
-        ultimoGpsData = gpsData;
-        ultimoResultadoRegistro = { success: true, offline: true };
-        await guardarAsistenciaOffline({
-            dniRegistro,
-            nombresValor,
-            apellidosValor,
-            seccionRegistro,
-            modalidadRegistro: contextoAsistencia.modalidad,
-            motivo: "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente.",
-            gpsData
-        });
-        return;
-    }
-
-    // Flujo Online con validación real
     try {
+        ultimoGpsData = null
+        ultimoResultadoRegistro = null
+        const dniRegistro = limpiarDni(dniMovil || mobileDniInicio?.value)
+        const nombresValor = String(nombres.value || "").trim()
+        const apellidosValor = String(apellidos.value || "").trim()
+        const uboValor = String(ubo.value || "").replace(/\D/g, "")
+        const seccionBase = seccion || obtenerSeccionAspiranteDetectada()
+        const contextoAsistencia = contextoAsistenciaActual || construirContextoLocalAsistencia(new Date(), seccionBase)
+        const seccionRegistro = normalizarCodigoSeccion(contextoAsistencia.seccion || seccionBase)
+        const deviceId = getDeviceId()
+
+        if (!dniRegistro) {
+            setMensaje("⚠ DNI no válido", "error")
+            return
+        }
+
+        if (!cursoQRValido) {
+            setMensaje("Acceso no válido. Escanee el código QR oficial del curso.", "error")
+            return
+        }
+
+        if (validacionCursoAspirante?.dni === dniRegistro && validacionCursoAspirante?.bloqueado) {
+            setMensaje("⚠ El aspirante no pertenece al curso de este QR.", "error")
+            return
+        }
+
+        if (!nombresValor || !apellidosValor) {
+            setMensaje("⚠ Completa nombres y apellidos", "error")
+            return
+        }
+
+        if (!uboValor) {
+            setMensaje("⚠ UBO debe ser numérico", "error")
+            return
+        }
+
+        const isTodosAspirantes = esTodosAspirantes(contextoAsistencia)
+        if (!seccionRegistro && !isTodosAspirantes) {
+            setMensaje("⚠ Selecciona una sección", "error")
+            return
+        }
+
+        setEstadoCargandoBotonRegistrar(true, "Procesando...");
+
+        // 1. Obtener modo GPS del caché local o del cursoConfigCache
+        const cachedGps = localStorage.getItem(`asistia_gps_config_${tenantActivoId}_${cursoActualId || 1}`);
+        const gpsModoParsed = cachedGps ? JSON.parse(cachedGps) : null;
+        const tieneConfigCargada = !!(cursoConfigCache || gpsModoParsed);
+        const gpsModo = cursoConfigCache?.oper_gps_modo || gpsModoParsed?.oper_gps_modo || "desactivado";
+
+        let gpsData = null;
+
+        if (!tieneConfigCargada) {
+            gpsData = {
+                estado: "GPS_NO_DISPONIBLE",
+                modo: "desactivado",
+                mensaje: "No se pudo validar GPS porque no se pudo cargar la configuración del curso."
+            };
+            registrarDiagnosticoGps({ estado: "GPS_NO_DISPONIBLE" });
+        } else if (gpsModo === "desactivado") {
+            gpsData = {
+                estado: "GPS_DESACTIVADO",
+                modo: "desactivado",
+                mensaje: "El control GPS está desactivado para este curso."
+            };
+            registrarDiagnosticoGps({ estado: "GPS_DESACTIVADO" });
+        } else {
+            gpsData = {
+                estado: "GPS_NO_DISPONIBLE",
+                modo: gpsModo,
+                mensaje: "No se pudo obtener la ubicación o no hay programación diaria activa."
+            };
+            registrarDiagnosticoGps({ estado: "GPS_NO_DISPONIBLE" });
+        }
+
+        const isOnline = navigator.onLine && haySupabase();
+
+        // Flujo Offline contingente
+        if (!isOnline) {
+            if (tieneConfigCargada && gpsModo !== "desactivado") {
+                setEstadoCargandoBotonRegistrar(true, "Obteniendo ubicación...");
+                try {
+                    const coords = await obtenerUbicacionNavegador();
+                    gpsData = {
+                        latitud: coords.latitude,
+                        longitud: coords.longitude,
+                        accuracy: coords.accuracy,
+                        estado: "GPS_DENTRO_RANGO",
+                        modo: gpsModo,
+                        mensaje: "offline_contingency"
+                    };
+                    registrarDiagnosticoGps({
+                        estado: "GPS_DENTRO_RANGO",
+                        precision: coords.accuracy,
+                        duracionMs: coords.duracionMs
+                    });
+                } catch (err) {
+                    console.warn("Fallo captura GPS offline:", err);
+                    const detalleError = obtenerDetalleErrorGps(err);
+                    gpsData = {
+                        estado: detalleError.estado,
+                        modo: gpsModo,
+                        mensaje: "No se pudo obtener ubicación offline: " + (err.message || err)
+                    };
+                    registrarDiagnosticoGps({
+                        estado: detalleError.estado,
+                        codigo: detalleError.codigo,
+                        duracionMs: err.duracionMs
+                    });
+                }
+            }
+            ultimoGpsData = gpsData;
+            ultimoResultadoRegistro = { success: true, offline: true };
+            await guardarAsistenciaOffline({
+                dniRegistro,
+                nombresValor,
+                apellidosValor,
+                seccionRegistro,
+                modalidadRegistro: contextoAsistencia.modalidad,
+                motivo: "No se pudo conectar con asistIA. Verifica tu conexión e inténtalo nuevamente.",
+                gpsData
+            });
+            return;
+        }
+
+        // Flujo Online con validación real
         const fechaLoc = obtenerFechaHoraLima(new Date()).fecha;
         
         // Consultar programación diaria de geocercas
@@ -1810,6 +1903,7 @@ async function guardarAsistencia() {
                 modo: "solo_registrar",
                 mensaje: "No se pudo obtener la ubicación o no hay programación diaria activa."
             };
+            registrarDiagnosticoGps({ estado: "GPS_NO_DISPONIBLE" });
         }
 
         if (configCargadaEvaluada && modoEvaluado !== "desactivado") {
@@ -1817,6 +1911,7 @@ async function guardarAsistencia() {
                 const punto = prog.punto_gps;
                 
                 if (punto && punto.latitud != null && punto.longitud != null) {
+                    setEstadoCargandoBotonRegistrar(true, "Obteniendo ubicación...");
                     try {
                         // Solicitar geolocalización
                         const coords = await obtenerUbicacionNavegador();
@@ -1840,6 +1935,14 @@ async function guardarAsistencia() {
                             modo: modoEvaluado
                         };
 
+                        registrarDiagnosticoGps({
+                            estado: gpsData.estado,
+                            precision: coords.accuracy,
+                            distanciaMetros: gpsData.distancia_metros,
+                            radioPermitido: Number(punto.radio_metros || 50),
+                            duracionMs: coords.duracionMs
+                        });
+
                         if (!dentroRango) {
                             gpsData.mensaje = `Fuera de rango por ${Math.round(distancia - punto.radio_metros)} metros.`;
                             
@@ -1847,7 +1950,7 @@ async function guardarAsistencia() {
                                 warningMessage = "Tu asistencia fue registrada, pero tu ubicación está fuera del área autorizada. Este evento será informado automáticamente a la Jefatura de ESBAS.";
                                 gpsData.mensaje = "[ADVERTENCIA] " + gpsData.mensaje;
                             } else if (modoEvaluado === "bloquear_fuera" || modoEvaluado === "bloquear_fuera_sin_gps") {
-                                setMensaje("No es posible registrar la asistencia. Tu ubicación se encuentra fuera del área autorizada o no se pudo validar. Acércate a la sede correspondiente y vuelve a intentarlo.", "error");
+                                setMensaje("⚠ Te encuentras fuera del área autorizada para registrar la asistencia. Acércate a la sede correspondiente y vuelve a intentarlo.", "error");
                                 return;
                             }
                         } else {
@@ -1855,17 +1958,25 @@ async function guardarAsistencia() {
                         }
                     } catch (geoError) {
                         console.warn("Error capturando ubicación del navegador:", geoError);
+                        const detalleError = obtenerDetalleErrorGps(geoError);
+
                         gpsData = {
-                            estado: "GPS_NO_DISPONIBLE",
+                            estado: detalleError.estado,
                             modo: modoEvaluado,
-                            mensaje: "Error capturando GPS: " + (geoError.message || geoError),
+                            mensaje: detalleError.mensaje,
                             punto_tipo: punto.tipo_punto,
                             punto_codigo: punto.codigo_punto,
                             punto_nombre: punto.nombre_punto
                         };
 
+                        registrarDiagnosticoGps({
+                            estado: detalleError.estado,
+                            codigo: detalleError.codigo,
+                            duracionMs: geoError.duracionMs
+                        });
+
                         if (modoEvaluado === "bloquear_fuera_sin_gps") {
-                            setMensaje("No es posible registrar la asistencia. Tu ubicación se encuentra fuera del área autorizada o no se pudo validar. Acércate a la sede correspondiente y vuelve a intentarlo.", "error");
+                            setMensaje(detalleError.mensaje, "error");
                             return;
                         } else if (modoEvaluado === "solo_registrar" || modoEvaluado === "advertencia" || modoEvaluado === "bloquear_fuera") {
                             postRegisterAlert = "No fue posible obtener tu ubicación. La asistencia fue registrada. Este evento será informado automáticamente a la Jefatura de ESBAS para la validación correspondiente.";
@@ -1877,6 +1988,7 @@ async function guardarAsistencia() {
                         modo: modoEvaluado,
                         mensaje: "No hay punto GPS configurado para la clase de hoy en el calendario."
                     };
+                    registrarDiagnosticoGps({ estado: "GPS_NO_DISPONIBLE" });
                 }
             } else {
                 gpsData = {
@@ -1884,6 +1996,7 @@ async function guardarAsistencia() {
                     modo: modoEvaluado,
                     mensaje: "No hay clase programada para registrar geocercas hoy."
                 };
+                registrarDiagnosticoGps({ estado: "GPS_NO_DISPONIBLE" });
             }
         }
 
@@ -2021,6 +2134,8 @@ async function guardarAsistencia() {
         if (!guardadoOffline) {
             setMensaje(mensajeAmigable(e, "Ocurrió un problema al procesar la solicitud."), "error");
         }
+    } finally {
+        setEstadoCargandoBotonRegistrar(false);
     }
 }
 
