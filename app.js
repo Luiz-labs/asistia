@@ -11020,15 +11020,20 @@ async function cargarDashboard() {
     // 6. Aplicar reglas específicas por contexto para Universo y Con Asistencia (Numerador)
     let padronTotal = 0;
     let total = 0;
+    let alumnos = {};
 
     if (contextoEfectivo === "global") {
         // Numerador: DNI únicos con marcaciones válidas de Calendario Global en el rango
-        const dnisConAsistenciaGlobal = new Set(
-            dataActivos
-                .filter(esMarcacionCalendarioGlobal)
-                .map(r => String(r.dni || "").trim())
-        );
-        total = dnisConAsistenciaGlobal.size;
+        dataActivos.forEach(r => {
+            if (esMarcacionCalendarioGlobal(r)) {
+                const dniClean = String(r.dni || "").trim();
+                if (!alumnos[dniClean]) {
+                    alumnos[dniClean] = { nombre: r.nombre, ubo: r.ubo, total: 0 }
+                }
+                alumnos[dniClean].total++
+            }
+        });
+        total = Object.keys(alumnos).length;
 
         // Universo: DNI válidos acumulados históricos hasta scope.to
         try {
@@ -11060,7 +11065,6 @@ async function cargarDashboard() {
         // Caso Regular o Mixto
         padronTotal = aspirantesFiltrados.length;
 
-        let alumnos = {}
         dataActivos.forEach(r => {
             const dniClean = String(r.dni || "").trim();
             if (!alumnos[dniClean]) {
