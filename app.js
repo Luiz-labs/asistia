@@ -11079,23 +11079,52 @@ async function cargarDashboard() {
         total = Object.keys(alumnos).length;
     }
 
-    // 7. Cargar y filtrar alertas de marcación en memoria para consistencia total
-    let dbAlertsQ = withTenantScope(supabaseClient
-        .from("asistencia_alertas")
-        .select("*")
-        .eq("curso_id", scope.cursoId)
-        .eq("tipo", "dni_en_otro_dispositivo")
-    );
-    if (scope.from) dbAlertsQ = dbAlertsQ.gte("fecha", scope.from)
-    if (scope.to) dbAlertsQ = dbAlertsQ.lte("fecha", scope.to)
-
+    // 7. Cargar y filtrar alertas de marcación en memoria (unificadas)
     let alertasDispNoHabitual = 0;
     let alertasDetalle = [];
     try {
+        const deviceIds = [...new Set(dataActivos.map(a => a.device_id).filter(Boolean))];
+        const preRegs = await obtenerRegistrosPreviosDispositivos(deviceIds, scope.from);
+
+        let dbAlertsQ = withTenantScope(supabaseClient
+            .from("asistencia_alertas")
+            .select("*")
+            .eq("curso_id", scope.cursoId)
+            .eq("tipo", "dni_en_otro_dispositivo")
+        );
+        if (scope.from) dbAlertsQ = dbAlertsQ.gte("fecha", scope.from);
+        if (scope.to) dbAlertsQ = dbAlertsQ.lte("fecha", scope.to);
+        if (scope.ubo) dbAlertsQ = dbAlertsQ.eq("ubo", scope.ubo);
+
         const { data: dbAlertsData } = await dbAlertsQ;
         const scopedDatabaseAlertas = filtrarDataTenantActivo(dbAlertsData) || [];
-        // Filtrar solo las alertas correspondientes a los aspirantes filtrados
-        alertasDetalle = scopedDatabaseAlertas.filter(a => dnisFiltradosSet.has(String(a.dni || "").trim()));
+
+        // Calcular alertas usando la misma lógica que Reportes
+        const { alertasLista } = unificarAlertasDispositivo(dataActivos, preRegs, scopedDatabaseAlertas);
+        
+        // Mapear alertas al formato requerido por la tabla de detalle del Dashboard
+        const uboPorDniMap = {};
+        const seccionPorDniMap = {};
+        aspirantesFiltrados.forEach(a => {
+            const d = String(a.dni || "").trim();
+            uboPorDniMap[d] = a.ubo;
+            seccionPorDniMap[d] = a.seccion;
+        });
+
+        alertasDetalle = alertasLista.map(item => {
+            const ubo = uboPorDniMap[item.dni_actual] || "-";
+            const seccion = seccionPorDniMap[item.dni_actual] || "-";
+            return {
+                fecha: item.fecha,
+                hora: item.hora_actual,
+                dni: item.dni_actual,
+                nombre: item.nombre_actual,
+                ubo: ubo,
+                seccion: seccion,
+                detalle: `Dispositivo compartido. Anterior: ${item.nombre_anterior} (${item.dni_anterior}) el ${item.fecha_previa} a las ${item.hora_previa}. Riesgo: ${item.nivel_riesgo}.`
+            };
+        });
+
         alertasDispNoHabitual = alertasDetalle.length;
     } catch (e) {
         console.error("Error al cargar alertas para el dashboard:", e);
