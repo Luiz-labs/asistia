@@ -749,41 +749,44 @@ async function sincronizarPendientes({ notificar = false } = {}) {
 
     try {
         for (const item of cola) {
+            const estadoSync = item?.estado_sync || "pendiente"
+            // Omitir registros que no estén pendientes de sincronización
+            if (estadoSync !== "pendiente") {
+                restantes.push(item)
+                continue
+            }
+
+            // Tratar registros antiguos sin token de curso
+            if (!item.qr_token) {
+                console.warn("Registro offline sin qr_token omitido de sincronización automática. Requiere revisión:", item)
+                item.estado_sync = "requiere_revision"
+                item.motivo_revision = "Registro offline antiguo sin token de curso (imposible usar rpc_registrar_asistencia_v2)"
+                restantes.push(item)
+                continue
+            }
+
             try {
-                let response;
-                if (item.qr_token) {
-                    response = await supabaseClient.rpc("rpc_registrar_asistencia_v2", {
-                        p_qr_token: String(item.qr_token).trim(),
-                        p_dni: limpiarDni(item.dni),
-                        p_timestamp: item.timestamp_local || item.created_local_at || new Date().toISOString(),
-                        p_device_id: String(item.device_id || getDeviceId()).trim(),
-                        p_latitud: item.latitud == null ? null : Number(item.latitud),
-                        p_longitud: item.longitud == null ? null : Number(item.longitud),
-                        p_origen_registro: "offline",
-                        p_gps_latitud: item.gps_latitud == null ? null : Number(item.gps_latitud),
-                        p_gps_longitud: item.gps_longitud == null ? null : Number(item.gps_longitud),
-                        p_gps_accuracy: item.gps_accuracy == null ? null : Number(item.gps_accuracy),
-                        p_gps_distancia_metros: item.gps_distancia_metros == null ? null : Number(item.gps_distancia_metros),
-                        p_gps_estado: item.gps_estado || null,
-                        p_gps_punto_tipo: item.gps_punto_tipo || null,
-                        p_gps_punto_codigo: item.gps_punto_codigo || null,
-                        p_gps_punto_nombre: item.gps_punto_nombre || null,
-                        p_gps_modo: item.gps_modo || null,
-                        p_gps_mensaje: item.gps_mensaje || null
-                    });
-                } else {
-                    response = await supabaseClient.rpc("rpc_registrar_asistencia", {
-                        p_dni: limpiarDni(item?.dni),
-                        p_tenant_id: String(item?.tenant_id || "").trim(),
-                        p_seccion: String(item?.seccion || "GENERAL").trim() || "GENERAL",
-                        p_latitud: item?.latitud == null ? 0 : Number(item.latitud),
-                        p_longitud: item?.longitud == null ? 0 : Number(item.longitud),
-                        p_device_id: String(item?.device_id || getDeviceId()).trim(),
-                        p_timestamp_local: item?.timestamp_local || item?.created_local_at || new Date().toISOString(),
-                        p_curso_id: Number(item?.curso_id || 1) || 1,
-                        p_origen_registro: String(item?.origen_registro || "offline").trim() || "offline"
-                    });
-                }
+                const response = await supabaseClient.rpc("rpc_registrar_asistencia_v2", {
+                    p_qr_token: String(item.qr_token).trim(),
+                    p_dni: limpiarDni(item.dni),
+                    p_timestamp: item.timestamp_local || item.created_local_at || new Date().toISOString(),
+                    p_device_id: String(item.device_id || getDeviceId()).trim(),
+                    p_latitud: item.latitud == null ? null : Number(item.latitud),
+                    p_longitud: item.longitud == null ? null : Number(item.longitud),
+                    p_origen_registro: "offline",
+                    p_gps_latitud: item.gps_latitud == null ? null : Number(item.gps_latitud),
+                    p_gps_longitud: item.gps_longitud == null ? null : Number(item.gps_longitud),
+                    p_gps_accuracy: item.gps_accuracy == null ? null : Number(item.gps_accuracy),
+                    p_gps_distancia_metros: item.gps_distancia_metros == null ? null : Number(item.gps_distancia_metros),
+                    p_gps_estado: item.gps_estado || null,
+                    p_gps_punto_tipo: item.gps_punto_tipo || null,
+                    p_gps_punto_codigo: item.gps_punto_codigo || null,
+                    p_gps_punto_nombre: item.gps_punto_nombre || null,
+                    p_gps_modo: item.gps_modo || null,
+                    p_gps_mensaje: item.gps_mensaje || null
+                });
+
+                const { data, error } = response;
 
                 const errorText = error ? String(error.message || error) : ""
                 const isDuplicate = data?.code === "asistencia_duplicada" ||
@@ -795,15 +798,26 @@ async function sincronizarPendientes({ notificar = false } = {}) {
                     } else if (isDuplicate) {
                         sincronizados += 1
                     } else {
-                        console.warn("Error permanente en sincronización offline, descartando registro:", errorText)
+                        // Error Postgres / técnico permanente de Supabase
+                        console.warn("Error permanente en sincronización offline, marcando para revisión:", errorText)
+                        item.estado_sync = "requiere_revision"
+                        item.motivo_revision = `Error Supabase RPC: ${errorText}`
+                        restantes.push(item)
                     }
                     continue
                 }
 
-                if (!data?.success) {
+                const esExito = data?.success === true && data?.registrado === true && data?.permitido === true;
+
+                if (!esExito) {
                     if (isDuplicate) {
                         sincronizados += 1
                     } else {
+                        // Rechazo lógico de negocio emitido por el backend
+                        const razon = data?.message || (data?.success === false ? "success=false" : (data?.registrado === false ? "registrado=false" : "permitido=false"));
+                        console.warn("Rechazo de negocio en sincronización offline, marcando para revisión:", razon)
+                        item.estado_sync = "requiere_revision"
+                        item.motivo_revision = `Rechazo negocio: ${razon}`
                         restantes.push(item)
                     }
                     continue
@@ -814,7 +828,10 @@ async function sincronizarPendientes({ notificar = false } = {}) {
                 if (esErrorConexion(error)) {
                     restantes.push(item)
                 } else {
-                    console.warn("Excepción permanente en sincronización offline, descartando:", error)
+                    console.warn("Excepción permanente en sincronización offline, marcando para revisión:", error)
+                    item.estado_sync = "requiere_revision"
+                    item.motivo_revision = `Excepción JS: ${String(error?.message || error)}`
+                    restantes.push(item)
                 }
             }
         }
@@ -2036,7 +2053,6 @@ async function guardarAsistencia() {
         ultimoGpsData = gpsData;
 
         let data = null;
-        let usoLegacy = false;
 
         try {
             data = await intentarRegistrarAsistenciaV2({
@@ -2045,16 +2061,9 @@ async function guardarAsistencia() {
                 gpsData
             });
         } catch (errorV2) {
-            console.warn("Fallback legacy:", errorV2);
-            usoLegacy = true;
-        }
-
-        if (usoLegacy) {
-            data = await intentarRegistrarAsistenciaLegacy({
-                dniRegistro,
-                seccionRegistro,
-                deviceId
-            });
+            console.error("Fallo al registrar asistencia con rpc_registrar_asistencia_v2:", errorV2);
+            // Propagar el error para activar el catch general y guardar offline
+            throw errorV2;
         }
 
         ultimoResultadoRegistro = data;

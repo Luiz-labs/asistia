@@ -251,6 +251,7 @@ let reportesCurrentPage = 1
 let reportesPageSize = 20
 let cacheReportesStaff = []
 let cacheDashboard = []
+let cacheCalendarioGlobal = []
 let cacheRiesgoUbo = []
 let staffInstruccionCache = []
 let cacheDashboardStaff = []
@@ -5178,6 +5179,20 @@ function describirMotivoSemaforo(motivo) {
     return mapa[motivo] || String(motivo || "Sin criterio")
 }
 
+function esRegistroAsistenciaValido(r) {
+    if (!r) return false;
+    const dniClean = String(r.dni || "").trim();
+    if (!dniClean || dniClean === "40636507") return false;
+    if (r.estado === "retirado") return false;
+    return true;
+}
+
+function esMarcacionCalendarioGlobal(r) {
+    if (!r) return false;
+    const tj = String(r.tipo_jornada || r.jornada || "").trim().toUpperCase();
+    return tj === "CALENDARIO_GLOBAL";
+}
+
 function evaluarSemaforoPorRegla(registrosAlumno) {
     const registros = (registrosAlumno || []).slice().sort((a, b) => {
         const f = String(a.fecha || "").localeCompare(String(b.fecha || ""))
@@ -5192,11 +5207,39 @@ function evaluarSemaforoPorRegla(registrosAlumno) {
     const primerMarcadoUltimoDia = registros
         .filter(x => x.fecha === ultimaFecha)
         .sort((a, b) => (a.hora || "").localeCompare(b.hora || ""))[0]
+    
     const seccionEvaluada = normalizarCodigoSeccion(primerMarcadoUltimoDia?.seccion)
-    const jornadaEvaluada = normalizarTipoJornada(primerMarcadoUltimoDia?.tipo_jornada)
-    const regla = obtenerReglaSeccion(seccionEvaluada)
     const horaMarcadaMin = horaATotalMinutos(primerMarcadoUltimoDia?.hora || "")
     const horaMarcadaTexto = String(primerMarcadoUltimoDia?.hora || "").slice(0, 5)
+
+    // Bypass para Calendario Global: No exige sección y busca la hora en el calendario global cacheado
+    if (esMarcacionCalendarioGlobal(primerMarcadoUltimoDia)) {
+        const event = (cacheCalendarioGlobal || []).find(x => x.fecha === ultimaFecha && x.aplica_a === "TODOS_ASPIRANTES")
+        if (!event) {
+            return { estado: "rojo", motivo: "sin_hora_configurada", fecha: ultimaFecha, horaMarcada: horaMarcadaTexto, seccion: "No aplica", horaInicio: "-" }
+        }
+
+        const horaInicioMin = horaATotalMinutos(event.hora_inicio)
+        const horaInicioTexto = String(event.hora_inicio || "").slice(0, 5)
+
+        if (horaMarcadaMin == null) {
+            return { estado: "rojo", motivo: "sin_hora_marcada", fecha: ultimaFecha, horaMarcada: "-", seccion: "No aplica", horaInicio: horaInicioTexto || "-" }
+        }
+
+        const deltaMin = horaMarcadaMin - horaInicioMin
+        if (deltaMin < -120) {
+            return { estado: "rojo", motivo: "hora_invalida_para_seccion", fecha: ultimaFecha, horaMarcada: horaMarcadaTexto, seccion: "No aplica", horaInicio: horaInicioTexto || "-" }
+        }
+
+        const tolerancia = Number.isFinite(Number(event.tolerancia_minutos)) ? Number(event.tolerancia_minutos) : 15
+        if (deltaMin <= tolerancia) {
+            return { estado: "verde", motivo: "a_tiempo", fecha: ultimaFecha, horaMarcada: horaMarcadaTexto, seccion: "No aplica", horaInicio: horaInicioTexto || "-" }
+        }
+        
+        return { estado: "amarillo", motivo: "tardanza_moderada", fecha: ultimaFecha, horaMarcada: horaMarcadaTexto, seccion: "No aplica", horaInicio: horaInicioTexto || "-" }
+    }
+
+    const regla = obtenerReglaSeccion(seccionEvaluada)
 
     if (!seccionEvaluada) {
         return { estado: "rojo", motivo: "sin_seccion", fecha: ultimaFecha, horaMarcada: horaMarcadaTexto, seccion: "-", horaInicio: "-" }
@@ -10883,103 +10926,173 @@ async function cargarDashboard() {
         return
     }
 
-    let q = withTenantScope(supabaseClient.from("asistencias").select("*"))
-        .eq("curso_id", scope.cursoId)
-
-    if (scope.from) {
-        q = q.gte("fecha", scope.from)
-    }
-
-    if (scope.to) {
-        q = q.lte("fecha", scope.to)
-    }
-
-    if (scope.ubo) {
-        q = q.eq("ubo", scope.ubo)
-    }
-    if (scope.seccion) {
-        q = q.eq("seccion", scope.seccion)
-    }
-
-    const { data } = await q
-    const scopedData = filtrarDataTenantActivo(data)
-    const dataActivos = (scopedData || []).filter(r => r.estado !== "retirado")
-    cacheDashboard = dataActivos
-
-    let padronTotal = 0
+    // 1. Obtener padrón maestro de alumnos activos del curso (excluyendo retirados)
+    let dataAspirantes = []
     try {
-        let padronQ = withTenantScope(supabaseClient
+        const { data: aspData } = await withTenantScope(supabaseClient
             .from("aspirantes")
-            .select("dni", { count: "exact", head: true })
-            .eq("curso_id", scope.cursoId))
-        if (scope.ubo) {
-            padronQ = padronQ.eq("ubo", scope.ubo)
-        }
-        if (scope.seccion) {
-            padronQ = padronQ.eq("seccion", scope.seccion)
-        }
-        const { count } = await padronQ
-        padronTotal = Number(count || 0)
+            .select("dni,nombres,apellidos,ubo,seccion")
+            .eq("curso_id", scope.cursoId)
+        );
+        dataAspirantes = filtrarDataTenantActivo(aspData) || [];
     } catch (e) {
-        console.warn("No se pudo calcular padrón total:", e)
+        console.error("Error al cargar aspirantes para el dashboard:", e);
     }
 
-    let alertasQ = withTenantScope(supabaseClient
-        .from("asistencia_alertas")
-        .select("id", { count: "exact", head: true })
+    // Cargar retirados de asistencias
+    let dnisRetirados = new Set();
+    try {
+        const { data: retData } = await withTenantScope(supabaseClient
+            .from("asistencias")
+            .select("dni")
+            .eq("curso_id", scope.cursoId)
+            .eq("estado", "retirado")
+        );
+        const filteredRet = filtrarDataTenantActivo(retData) || [];
+        dnisRetirados = new Set(filteredRet.map(r => String(r.dni || "").trim()));
+    } catch (e) {
+        console.warn("Error al cargar alumnos retirados:", e);
+    }
+
+    const aspirantesActivos = dataAspirantes.filter(a => {
+        const dniClean = String(a.dni || "").trim();
+        return dniClean && dniClean !== "40636507" && !dnisRetirados.has(dniClean);
+    });
+
+    // 2. Cargar programación del calendario global
+    let calQ = withTenantScope(supabaseClient
+        .from("calendario_sedes_gps")
+        .select("fecha,hora_inicio,tolerancia_minutos,aplica_a,hay_clase")
         .eq("curso_id", scope.cursoId)
-        .eq("tipo", "dni_en_otro_dispositivo"))
+        .eq("activo", true)
+        .eq("hay_clase", true)
+    );
+    if (scope.from) calQ = calQ.gte("fecha", scope.from)
+    if (scope.to) calQ = calQ.lte("fecha", scope.to)
+    
+    try {
+        const { data: calData } = await calQ;
+        cacheCalendarioGlobal = filtrarDataTenantActivo(calData) || [];
+    } catch (e) {
+        console.error("Error al cargar calendario global:", e);
+        cacheCalendarioGlobal = [];
+    }
 
-    if (scope.from) {
-        alertasQ = alertasQ.gte("fecha", scope.from)
+    // 3. Consultar asistencias por rango de fechas
+    let qAsist = withTenantScope(supabaseClient.from("asistencias").select("*").eq("curso_id", scope.cursoId))
+    if (scope.from) qAsist = qAsist.gte("fecha", scope.from)
+    if (scope.to) qAsist = qAsist.lte("fecha", scope.to)
+    
+    const { data: asistData } = await qAsist;
+    // Aplicar función unificada para excluir no válidos de scopedAsistData
+    const scopedAsistData = (filtrarDataTenantActivo(asistData) || []).filter(esRegistroAsistenciaValido);
+
+    // 4. Determinar Contexto Efectivo
+    const tieneGlobalEnRango = scopedAsistData.some(esMarcacionCalendarioGlobal) ||
+                               cacheCalendarioGlobal.some(c => c.aplica_a === "TODOS_ASPIRANTES");
+
+    const tieneSeccionEnRango = scopedAsistData.some(r => !esMarcacionCalendarioGlobal(r)) ||
+                                (cursoSecciones && cursoSecciones.length > 0 && cacheCalendarioGlobal.some(c => c.aplica_a !== "TODOS_ASPIRANTES"));
+
+    let contextoEfectivo = "seccion";
+    if (scope.seccion) {
+        contextoEfectivo = "seccion";
+    } else if (tieneGlobalEnRango && tieneSeccionEnRango) {
+        contextoEfectivo = "mixto";
+    } else if (tieneGlobalEnRango && !tieneSeccionEnRango) {
+        contextoEfectivo = "global";
     }
-    if (scope.to) {
-        alertasQ = alertasQ.lte("fecha", scope.to)
-    }
+
+    // 5. Filtrar roster y asistencias en memoria por UBO / Sección (según padrón)
+    let aspirantesFiltrados = aspirantesActivos;
     if (scope.ubo) {
-        alertasQ = alertasQ.eq("ubo", scope.ubo)
+        aspirantesFiltrados = aspirantesFiltrados.filter(a => String(a.ubo || "").trim() === scope.ubo);
     }
     if (scope.seccion) {
-        alertasQ = alertasQ.eq("seccion", scope.seccion)
+        aspirantesFiltrados = aspirantesFiltrados.filter(a => normalizarCodigoSeccion(a.seccion) === scope.seccion);
+    }
+    const dnisFiltradosSet = new Set(aspirantesFiltrados.map(a => String(a.dni || "").trim()));
+
+    // Filtrar asistencias del rango que correspondan a los alumnos activos filtrados
+    let dataActivos = scopedAsistData.filter(r => dnisFiltradosSet.has(String(r.dni || "").trim()));
+    cacheDashboard = dataActivos;
+
+    // 6. Aplicar reglas específicas por contexto para Universo y Con Asistencia (Numerador)
+    let padronTotal = 0;
+    let total = 0;
+
+    if (contextoEfectivo === "global") {
+        // Numerador: DNI únicos con marcaciones válidas de Calendario Global en el rango
+        const dnisConAsistenciaGlobal = new Set(
+            dataActivos
+                .filter(esMarcacionCalendarioGlobal)
+                .map(r => String(r.dni || "").trim())
+        );
+        total = dnisConAsistenciaGlobal.size;
+
+        // Universo: DNI válidos acumulados históricos hasta scope.to
+        try {
+            const { data: dataUniv } = await withTenantScope(supabaseClient
+                .from("asistencias")
+                .select("dni,estado,tipo_jornada,jornada") // Seleccionar campos para validación
+                .eq("curso_id", scope.cursoId)
+                .lte("fecha", scope.to || new Date().toISOString().split("T")[0])
+            );
+            const rawUniv = filtrarDataTenantActivo(dataUniv) || [];
+            const dnisUnivMap = new Set(
+                rawUniv
+                    .filter(r => esRegistroAsistenciaValido(r) && esMarcacionCalendarioGlobal(r))
+                    .map(r => String(r.dni || "").trim())
+            );
+            
+            // Cruzar contra el padrón activo filtrado por UBO
+            const univActivos = aspirantesActivos.filter(a => dnisUnivMap.has(String(a.dni || "").trim()));
+            let univFiltrados = univActivos;
+            if (scope.ubo) {
+                univFiltrados = univFiltrados.filter(a => String(a.ubo || "").trim() === scope.ubo);
+            }
+            padronTotal = univFiltrados.length;
+        } catch (e) {
+            console.error("Error al calcular universo acumulado de Calendario Global:", e);
+            padronTotal = 0;
+        }
+    } else {
+        // Caso Regular o Mixto
+        padronTotal = aspirantesFiltrados.length;
+
+        let alumnos = {}
+        dataActivos.forEach(r => {
+            const dniClean = String(r.dni || "").trim();
+            if (!alumnos[dniClean]) {
+                alumnos[dniClean] = { nombre: r.nombre, ubo: r.ubo, total: 0 }
+            }
+            alumnos[dniClean].total++
+        })
+        total = Object.keys(alumnos).length;
     }
 
-    const { count: alertasDispNoHabitual } = await alertasQ
-
-    let alertasDetalleQ = withTenantScope(supabaseClient
+    // 7. Cargar y filtrar alertas de marcación en memoria para consistencia total
+    let dbAlertsQ = withTenantScope(supabaseClient
         .from("asistencia_alertas")
-        .select("fecha,hora,dni,nombre,ubo,seccion,detalle,device_id,tenant_id,curso_id")
+        .select("*")
         .eq("curso_id", scope.cursoId)
         .eq("tipo", "dni_en_otro_dispositivo")
-        .order("fecha", { ascending: false })
-        .order("hora", { ascending: false })
-        .limit(120))
+    );
+    if (scope.from) dbAlertsQ = dbAlertsQ.gte("fecha", scope.from)
+    if (scope.to) dbAlertsQ = dbAlertsQ.lte("fecha", scope.to)
 
-    if (scope.from) {
-        alertasDetalleQ = alertasDetalleQ.gte("fecha", scope.from)
+    let alertasDispNoHabitual = 0;
+    let alertasDetalle = [];
+    try {
+        const { data: dbAlertsData } = await dbAlertsQ;
+        const scopedDatabaseAlertas = filtrarDataTenantActivo(dbAlertsData) || [];
+        // Filtrar solo las alertas correspondientes a los aspirantes filtrados
+        alertasDetalle = scopedDatabaseAlertas.filter(a => dnisFiltradosSet.has(String(a.dni || "").trim()));
+        alertasDispNoHabitual = alertasDetalle.length;
+    } catch (e) {
+        console.error("Error al cargar alertas para el dashboard:", e);
     }
-    if (scope.to) {
-        alertasDetalleQ = alertasDetalleQ.lte("fecha", scope.to)
-    }
-    if (scope.ubo) {
-        alertasDetalleQ = alertasDetalleQ.eq("ubo", scope.ubo)
-    }
-    if (scope.seccion) {
-        alertasDetalleQ = alertasDetalleQ.eq("seccion", scope.seccion)
-    }
-
-    const { data: alertasDetalle } = await alertasDetalleQ
-    window.detalleAlertasDispositivo = filtrarDataTenantActivo(alertasDetalle)
-
-    let alumnos = {}
-
-    dataActivos.forEach(r => {
-        if (!alumnos[r.dni]) {
-            alumnos[r.dni] = { nombre: r.nombre, ubo: r.ubo, total: 0 }
-        }
-        alumnos[r.dni].total++
-    })
-
-    let total = Object.keys(alumnos).length
+    window.detalleAlertasDispositivo = alertasDetalle;
 
     let verde = 0, amarillo = 0, rojo = 0
     let rojoTardanza = 0
