@@ -11037,13 +11037,16 @@ async function cargarDashboard() {
 
         // Universo: DNI válidos acumulados históricos hasta scope.to
         try {
-            const { data: dataUniv } = await withTenantScope(supabaseClient
+            const { data: dataUniv, error: univError } = await withTenantScope(supabaseClient
                 .from("asistencias")
-                .select("dni,estado,tipo_jornada,jornada,tenant_id") // Seleccionar campos para validación
+                .select("dni,estado,tipo_jornada,tenant_id") // Seleccionar campos para validación
                 .eq("curso_id", scope.cursoId)
                 .eq("tipo_jornada", "CALENDARIO_GLOBAL")
                 .lte("fecha", scope.to || new Date().toISOString().split("T")[0])
             );
+            if (univError) {
+                console.error("Error al obtener universo acumulado de Calendario Global:", univError.message || univError);
+            }
             const rawUniv = filtrarDataTenantActivo(dataUniv) || [];
             const dnisUnivMap = new Set(
                 rawUniv
