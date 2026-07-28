@@ -7,16 +7,16 @@
         return;
     }
 
-    const INSTALLED_BUILD = "20260722.001";
+    const INSTALLED_BUILD = "20260728.001";
 
     const FALLBACK_VERSION = Object.freeze({
         appName: "asistIA",
-        version: "0.9.5-beta",
-        build: "20260722.001",
+        version: "0.9.6",
+        build: "20260728.001",
         installedBuild: INSTALLED_BUILD,
-        releasedAt: "2026-07-22T20:00:00-05:00",
+        releasedAt: "2026-07-28T14:00:00-05:00",
         minimumSupportedBuild: "20260722.001",
-        message: "Mejoras de estabilidad, geolocalización y mensajes de asistencia",
+        message: "Mejoras de consistencia en el Dashboard, KPIs de Calendario Global y unificación de alertas",
         source: "fallback",
         loaded: false,
         error: null

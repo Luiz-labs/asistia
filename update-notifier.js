@@ -7,7 +7,7 @@
         return;
     }
 
-    const INSTALLED_BUILD = "20260722.001";
+    const INSTALLED_BUILD = "20260728.001";
 
     let estadoActualizacion = {
         checked: false,
