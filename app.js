@@ -10931,7 +10931,7 @@ async function cargarDashboard() {
     try {
         const { data: aspData } = await withTenantScope(supabaseClient
             .from("aspirantes")
-            .select("dni,nombres,apellidos,ubo,seccion")
+            .select("dni,nombres,apellidos,ubo,seccion,tenant_id")
             .eq("curso_id", scope.cursoId)
         );
         dataAspirantes = filtrarDataTenantActivo(aspData) || [];
@@ -10944,7 +10944,7 @@ async function cargarDashboard() {
     try {
         const { data: retData } = await withTenantScope(supabaseClient
             .from("asistencias")
-            .select("dni")
+            .select("dni,tenant_id")
             .eq("curso_id", scope.cursoId)
             .eq("estado", "retirado")
         );
@@ -10962,7 +10962,7 @@ async function cargarDashboard() {
     // 2. Cargar programación del calendario global
     let calQ = withTenantScope(supabaseClient
         .from("calendario_sedes_gps")
-        .select("fecha,hora_inicio,tolerancia_minutos,aplica_a,hay_clase")
+        .select("fecha,hora_inicio,tolerancia_minutos,aplica_a,hay_clase,tenant_id")
         .eq("curso_id", scope.cursoId)
         .eq("activo", true)
         .eq("hay_clase", true)
@@ -11039,8 +11039,9 @@ async function cargarDashboard() {
         try {
             const { data: dataUniv } = await withTenantScope(supabaseClient
                 .from("asistencias")
-                .select("dni,estado,tipo_jornada,jornada") // Seleccionar campos para validación
+                .select("dni,estado,tipo_jornada,jornada,tenant_id") // Seleccionar campos para validación
                 .eq("curso_id", scope.cursoId)
+                .eq("tipo_jornada", "CALENDARIO_GLOBAL")
                 .lte("fecha", scope.to || new Date().toISOString().split("T")[0])
             );
             const rawUniv = filtrarDataTenantActivo(dataUniv) || [];
