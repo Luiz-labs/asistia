@@ -10877,20 +10877,18 @@ function limpiarFiltrosStaffOps() {
 
 async function cargarDashboardStaffOperativo() {
     const target = document.getElementById("staffOpsRecentTable")
-    const rangeLabel = document.getElementById("staffOpsRangeLabel")
     const kPresentes = document.getElementById("staffOpsPresentesHoy")
     const kAdjuntos = document.getElementById("staffOpsAdjuntosHoy")
     const kApoyos = document.getElementById("staffOpsApoyosHoy")
     const kInstructoresEsbas = document.getElementById("staffOpsInstructoresEsbasHoy")
     const kUltHora = document.getElementById("staffOpsUltimaHora")
     const kUltDetalle = document.getElementById("staffOpsUltimaDetalle")
-    if (!target || !rangeLabel) return
+    if (!target) return
 
     inicializarFiltrosStaffOps()
 
     const scope = resolverScopeStaffOps()
     const tenantScopeId = scope.tenantId
-    rangeLabel.textContent = `${scope.from} → ${scope.to}`
 
     if (!haySupabase() || !tenantScopeId) {
         target.innerHTML = buildEmptyStateHTML("Sin conexión disponible", "No se pudo cargar el dashboard staff.", "⚠️", true)
@@ -10951,24 +10949,21 @@ async function cargarDashboardStaffOperativo() {
     }
 
     // Obtener roster para resolver nombres y grados confiables
-    const codigosUnicos = Array.from(new Set(asistenciasUnfiltered.map(r => r.codigo_bombero).filter(Boolean)))
     let rosterMap = {}
-    if (codigosUnicos.length > 0) {
-        try {
-            const { data: instData } = await withTenantScope(
-                supabaseClient
-                    .from("staff_instruccion")
-                    .select("codigo_bombero,nombres,apellidos,grado,dni")
-                    .in("codigo_bombero", codigosUnicos)
-            )
-            const roster = filtrarDataTenantActivo(instData || [])
-            roster.forEach(r => {
-                const cod = normalizarCodigoBombero(r.codigo_bombero)
-                if (cod) rosterMap[cod] = r
-            })
-        } catch (e) {
-            console.warn("No se pudo cargar el maestro de staff_instruccion:", e)
-        }
+    try {
+        const { data: instData } = await withTenantScope(
+            supabaseClient
+                .from("staff_instruccion")
+                .select("codigo_bombero,nombres,apellidos,grado,dni")
+                .eq("curso_id", scope.cursoId)
+        )
+        const roster = filtrarDataTenantActivo(instData || [])
+        roster.forEach(r => {
+            const cod = normalizarCodigoBombero(r.codigo_bombero)
+            if (cod) rosterMap[cod] = r
+        })
+    } catch (e) {
+        console.warn("No se pudo cargar el maestro de staff_instruccion:", e)
     }
 
     // Mapear resolved properties
@@ -11051,7 +11046,7 @@ async function cargarDashboardStaffOperativo() {
         const codigoNorm = normalizarCodigoBombero(item.codigo_bombero)
         const meta = fotoMap[codigoNorm] || {}
         
-        const gradoStr = item.resolvedGrado ? `${item.resolvedGrado} · ` : ""
+        const gradoStr = String(item.resolvedGrado || "").trim() ? `${String(item.resolvedGrado).trim()} · ` : ""
         const subcopy = `${gradoStr}CBP ${item.codigo_bombero || "-"} · ${item.resolvedTipo || "APOYO"}`
         const nombreCompleto = `${item.resolvedNombre} ${item.resolvedApellido}`.replace(/\s+/g, " ").trim() || item.nombre || "Staff"
 

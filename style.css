@@ -5343,4 +5343,10 @@ body {
   to { transform: rotate(360deg); }
 }
 
+/* Staff Operativo buscador */
+#staffOpsBuscar {
+  min-width: 250px;
+  flex: 1 1 250px;
+}
+
 
