@@ -10809,17 +10809,86 @@ async function limpiarFiltros() {
     await cargarDatos()
 }
 
+function normalizarBuscarTexto(str) {
+    return String(str || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
+function resolverScopeStaffOps() {
+    const tenantRuta = resolverAccesoDesdeRuta()
+    const tenantId = normalizarTenantId(tenantRuta?.tenantId || tenantActivoId || "")
+    const cursoId = Number(cursoActualId || 1) || 1
+    const rangoDefault = obtenerRangoMesActual()
+    const from = String(window.staffOpsDesde?.value || rangoDefault.from).trim()
+    const to = String(window.staffOpsHasta?.value || rangoDefault.to).trim()
+    const tipo = String(window.staffOpsTipo?.value || "").trim().toUpperCase()
+    const ubo = String(window.staffOpsUbo?.value || "").trim()
+    const buscar = String(window.staffOpsBuscar?.value || "").trim()
+
+    return {
+        tenantId,
+        cursoId,
+        from,
+        to,
+        tipo,
+        ubo,
+        buscar
+    }
+}
+
+function inicializarFiltrosStaffOps() {
+    const elDesde = document.getElementById("staffOpsDesde")
+    const elHasta = document.getElementById("staffOpsHasta")
+    const elTipo = document.getElementById("staffOpsTipo")
+    const elUbo = document.getElementById("staffOpsUbo")
+    const elBuscar = document.getElementById("staffOpsBuscar")
+
+    if (elDesde && !elDesde.value) {
+        const rango = obtenerRangoMesActual()
+        elDesde.value = rango.from
+    }
+    if (elHasta && !elHasta.value) {
+        const rango = obtenerRangoMesActual()
+        elHasta.value = rango.to
+    }
+    if (elTipo && !elTipo.value) elTipo.value = ""
+    if (elBuscar && !elBuscar.value) elBuscar.value = ""
+    if (elUbo && !elUbo.value) elUbo.value = ""
+}
+
+function limpiarFiltrosStaffOps() {
+    const elDesde = document.getElementById("staffOpsDesde")
+    const elHasta = document.getElementById("staffOpsHasta")
+    const elTipo = document.getElementById("staffOpsTipo")
+    const elUbo = document.getElementById("staffOpsUbo")
+    const elBuscar = document.getElementById("staffOpsBuscar")
+
+    const rango = obtenerRangoMesActual()
+    if (elDesde) elDesde.value = rango.from
+    if (elHasta) elHasta.value = rango.to
+    if (elTipo) elTipo.value = ""
+    if (elUbo) elUbo.value = ""
+    if (elBuscar) elBuscar.value = ""
+
+    void cargarDashboardStaffOperativo()
+}
+
 async function cargarDashboardStaffOperativo() {
     const target = document.getElementById("staffOpsRecentTable")
     const rangeLabel = document.getElementById("staffOpsRangeLabel")
     const kPresentes = document.getElementById("staffOpsPresentesHoy")
     const kAdjuntos = document.getElementById("staffOpsAdjuntosHoy")
     const kApoyos = document.getElementById("staffOpsApoyosHoy")
+    const kInstructoresEsbas = document.getElementById("staffOpsInstructoresEsbasHoy")
     const kUltHora = document.getElementById("staffOpsUltimaHora")
     const kUltDetalle = document.getElementById("staffOpsUltimaDetalle")
     if (!target || !rangeLabel) return
 
-    const scope = resolverScopeStaff({ usarFiltrosDashboard: true })
+    inicializarFiltrosStaffOps()
+
+    const scope = resolverScopeStaffOps()
     const tenantScopeId = scope.tenantId
     rangeLabel.textContent = `${scope.from} → ${scope.to}`
 
@@ -10828,80 +10897,171 @@ async function cargarDashboardStaffOperativo() {
         return
     }
 
-    let presentesQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("curso_id", scope.cursoId).gte("fecha", scope.from).lte("fecha", scope.to))
-    let adjuntosQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("tipo_staff", "ADJUNTO").eq("curso_id", scope.cursoId).gte("fecha", scope.from).lte("fecha", scope.to))
-    let apoyosQ = withTenantScope(supabaseClient.from("staff_asistencias").select("id", { count: "exact", head: true }).eq("tipo_staff", "APOYO").eq("curso_id", scope.cursoId).gte("fecha", scope.from).lte("fecha", scope.to))
-    let ultimaQ = withTenantScope(
-        supabaseClient
-            .from("staff_asistencias")
-            .select("fecha,hora_ingreso,codigo_bombero,nombre,tipo_staff,ubo_origen,tenant_id,curso_id")
-            .eq("curso_id", scope.cursoId)
-            .gte("fecha", scope.from)
-            .lte("fecha", scope.to)
-            .order("fecha", { ascending: false })
-            .order("hora_ingreso", { ascending: false })
-            .limit(1)
-    )
-    let recientesQ = withTenantScope(
+    let q = withTenantScope(
         supabaseClient
             .from("staff_asistencias")
             .select("fecha,hora_ingreso,codigo_bombero,nombre,tipo_staff,jornada,ubo_origen,tenant_id,curso_id")
             .eq("curso_id", scope.cursoId)
             .gte("fecha", scope.from)
             .lte("fecha", scope.to)
-            .order("fecha", { ascending: false })
-            .order("hora_ingreso", { ascending: false })
-            .limit(10)
     )
 
-    if (scope.ubo) {
-        presentesQ = presentesQ.eq("ubo_origen", scope.ubo)
-        adjuntosQ = adjuntosQ.eq("ubo_origen", scope.ubo)
-        apoyosQ = apoyosQ.eq("ubo_origen", scope.ubo)
-        ultimaQ = ultimaQ.eq("ubo_origen", scope.ubo)
-        recientesQ = recientesQ.eq("ubo_origen", scope.ubo)
-    }
-
-    const [
-        { count: presentesCount },
-        { count: adjuntosCount },
-        { count: apoyosCount },
-        { data: ultimaData, error: ultimaError },
-        { data: recientesData, error: recientesError }
-    ] = await Promise.all([presentesQ, adjuntosQ, apoyosQ, ultimaQ, recientesQ])
-
-    if (kPresentes) kPresentes.textContent = String(presentesCount || 0)
-    if (kAdjuntos) kAdjuntos.textContent = String(adjuntosCount || 0)
-    if (kApoyos) kApoyos.textContent = String(apoyosCount || 0)
-
-    const ultima = filtrarDataTenantActivo(ultimaData || [])[0] || null
-    if (kUltHora) kUltHora.textContent = ultima?.hora_ingreso || "--:--"
-    if (kUltDetalle) kUltDetalle.textContent = ultima ? `${ultima.nombre || "Staff"} · ${ultima.codigo_bombero || "-"}` : "Sin registros recientes."
-
-    if (ultimaError || recientesError) {
+    let rawData = []
+    try {
+        const { data, error } = await q
+        if (error) {
+            console.error("Error al cargar asistencias staff:", error)
+            target.innerHTML = buildEmptyStateHTML("Sin datos staff", "No se pudo cargar el resumen operativo staff.", "⚠️", true)
+            cacheDashboardStaff = []
+            return
+        }
+        rawData = data || []
+    } catch (e) {
+        console.error("Error inesperado al cargar asistencias staff:", e)
         target.innerHTML = buildEmptyStateHTML("Sin datos staff", "No se pudo cargar el resumen operativo staff.", "⚠️", true)
         cacheDashboardStaff = []
         return
     }
 
-    const recientes = filtrarDataTenantActivo(recientesData || [])
+    const asistenciasUnfiltered = filtrarDataTenantActivo(rawData)
+
+    // Obtener UBOs dinámicas sin filtros aplicados
+    const ubosDisponibles = Array.from(new Set(
+        asistenciasUnfiltered.map(r => String(r.ubo_origen || "").trim()).filter(Boolean)
+    )).sort((a, b) => {
+        const numA = parseInt(a, 10)
+        const numB = parseInt(b, 10)
+        if (isNaN(numA) || isNaN(numB)) return a.localeCompare(b)
+        return numA - numB
+    })
+
+    const elUbo = document.getElementById("staffOpsUbo")
+    if (elUbo) {
+        const currentVal = elUbo.value || ""
+        let htmlUbos = '<option value="">Todas las UBO</option>'
+        ubosDisponibles.forEach(u => {
+            htmlUbos += `<option value="${u}">UBO ${u}</option>`
+        })
+        elUbo.innerHTML = htmlUbos
+        if (currentVal && ubosDisponibles.includes(currentVal)) {
+            elUbo.value = currentVal
+        } else {
+            elUbo.value = ""
+        }
+    }
+
+    // Obtener roster para resolver nombres y grados confiables
+    const codigosUnicos = Array.from(new Set(asistenciasUnfiltered.map(r => r.codigo_bombero).filter(Boolean)))
+    let rosterMap = {}
+    if (codigosUnicos.length > 0) {
+        try {
+            const { data: instData } = await withTenantScope(
+                supabaseClient
+                    .from("staff_instruccion")
+                    .select("codigo_bombero,nombres,apellidos,grado,dni")
+                    .in("codigo_bombero", codigosUnicos)
+            )
+            const roster = filtrarDataTenantActivo(instData || [])
+            roster.forEach(r => {
+                const cod = normalizarCodigoBombero(r.codigo_bombero)
+                if (cod) rosterMap[cod] = r
+            })
+        } catch (e) {
+            console.warn("No se pudo cargar el maestro de staff_instruccion:", e)
+        }
+    }
+
+    // Mapear resolved properties
+    let filtered = asistenciasUnfiltered.map(item => {
+        const codigo = normalizarCodigoBombero(item.codigo_bombero)
+        const master = rosterMap[codigo]
+        const nombre = master ? master.nombres : (item.nombre || "")
+        const apellido = master ? master.apellidos : ""
+        const grado = master?.grado || ""
+        const dni = master?.dni || item.dni || ""
+
+        return {
+            ...item,
+            resolvedNombre: nombre,
+            resolvedApellido: apellido,
+            resolvedGrado: grado,
+            resolvedTipo: item.tipo_staff || "",
+            resolvedUbo: item.ubo_origen || "",
+            resolvedDni: dni
+        }
+    })
+
+    // Filtros locales
+    if (scope.tipo) {
+        filtered = filtered.filter(item => item.resolvedTipo === scope.tipo)
+    }
+
+    const activeUbo = elUbo?.value || ""
+    if (activeUbo) {
+        filtered = filtered.filter(item => String(item.resolvedUbo).trim() === activeUbo)
+    }
+
+    if (scope.buscar) {
+        const term = normalizarBuscarTexto(scope.buscar)
+        filtered = filtered.filter(item => {
+            const n = normalizarBuscarTexto(item.resolvedNombre)
+            const a = normalizarBuscarTexto(item.resolvedApellido)
+            const c = normalizarBuscarTexto(item.codigo_bombero)
+            const g = normalizarBuscarTexto(item.resolvedGrado)
+            const d = normalizarBuscarTexto(item.resolvedDni)
+            return n.includes(term) || a.includes(term) || c.includes(term) || g.includes(term) || d.includes(term)
+        })
+    }
+
+    const presentesCount = filtered.length
+    const adjuntosCount = filtered.filter(item => item.resolvedTipo === "ADJUNTO").length
+    const apoyosCount = filtered.filter(item => item.resolvedTipo === "APOYO").length
+    const instructoresEsbasCount = filtered.filter(item => item.resolvedTipo === "INSTRUCTOR ESBAS").length
+
+    if (kPresentes) kPresentes.textContent = String(presentesCount)
+    if (kAdjuntos) kAdjuntos.textContent = String(adjuntosCount)
+    if (kApoyos) kApoyos.textContent = String(apoyosCount)
+    if (kInstructoresEsbas) kInstructoresEsbas.textContent = String(instructoresEsbasCount)
+
+    const ordenadas = filtered.slice().sort((a, b) => {
+        const cmpFecha = String(b.fecha || "").localeCompare(String(a.fecha || ""))
+        if (cmpFecha !== 0) return cmpFecha
+        return String(b.hora_ingreso || "").localeCompare(String(a.hora_ingreso || ""))
+    })
+
+    const ultima = ordenadas[0] || null
+    if (kUltHora) kUltHora.textContent = ultima?.hora_ingreso || "--:--"
+    if (kUltDetalle) {
+        const masterUltima = rosterMap[normalizarCodigoBombero(ultima?.codigo_bombero)]
+        const nombreMostrar = masterUltima ? `${masterUltima.nombres} ${masterUltima.apellidos}`.replace(/\s+/g, " ").trim() : (ultima?.nombre || "Staff")
+        kUltDetalle.textContent = ultima ? `${nombreMostrar} · ${ultima.codigo_bombero || "-"}` : "Sin registros recientes."
+    }
+
+    const recientes = ordenadas.slice(0, 10)
     cacheDashboardStaff = recientes
+
     if (!recientes.length) {
-        target.innerHTML = buildEmptyStateHTML("Sin asistencias recientes", "No hay asistencias staff en el rango operativo consultado.", "👨‍🚒", true)
+        target.innerHTML = buildEmptyStateHTML("Sin asistencias recientes", "No hay asistencias staff que coincidan con los filtros.", "👨‍🚒", true)
         return
     }
 
     const fotoMap = await cargarFotosStaffPorCodigos(recientes.map(r => r.codigo_bombero))
     let html = `<div class="staff-ops-list">`
     recientes.forEach(item => {
-        const meta = fotoMap[normalizarCodigoBombero(item.codigo_bombero)] || {}
+        const codigoNorm = normalizarCodigoBombero(item.codigo_bombero)
+        const meta = fotoMap[codigoNorm] || {}
+        
+        const gradoStr = item.resolvedGrado ? `${item.resolvedGrado} · ` : ""
+        const subcopy = `${gradoStr}CBP ${item.codigo_bombero || "-"} · ${item.resolvedTipo || "APOYO"}`
+        const nombreCompleto = `${item.resolvedNombre} ${item.resolvedApellido}`.replace(/\s+/g, " ").trim() || item.nombre || "Staff"
+
         html += `
           <div class="staff-ops-item">
             <div class="staff-ops-item-main">
-              ${renderStaffAvatarCompact({ ...item, ...meta })}
+              ${renderStaffAvatarCompact({ ...item, ...meta, nombre: nombreCompleto })}
               <div class="staff-ops-item-copy">
-                <strong>${escapeHtml(item.nombre || "Staff")}</strong>
-                <span>${escapeHtml(item.codigo_bombero || "-")} · ${escapeHtml(normalizarTextoSimple(item.tipo_staff) || "APOYO")}</span>
+                <strong>${escapeHtml(nombreCompleto)}</strong>
+                <span>${escapeHtml(subcopy)}</span>
               </div>
             </div>
             <div class="staff-ops-item-meta">
@@ -13686,12 +13846,32 @@ function actualizarCamposAplicaA() {
     cargarDetalleProgramacionModal();
 }
 
-// Hook al cambio de sección en el formulario modal
+// Hook al cambio de sección en el formulario modal e inicialización de filtros de Staff Operativo
 document.addEventListener("DOMContentLoaded", () => {
     const el = document.getElementById("calSeccion");
     if (el) {
         el.addEventListener("change", cargarDetalleProgramacionModal);
     }
+
+    // Filtros locales de Staff Operativo
+    document.getElementById("staffOpsDesde")?.addEventListener("change", () => {
+        void cargarDashboardStaffOperativo();
+    });
+    document.getElementById("staffOpsHasta")?.addEventListener("change", () => {
+        void cargarDashboardStaffOperativo();
+    });
+    document.getElementById("staffOpsTipo")?.addEventListener("change", () => {
+        void cargarDashboardStaffOperativo();
+    });
+    document.getElementById("staffOpsUbo")?.addEventListener("change", () => {
+        void cargarDashboardStaffOperativo();
+    });
+    document.getElementById("staffOpsBuscar")?.addEventListener("input", () => {
+        void cargarDashboardStaffOperativo();
+    });
+    document.getElementById("staffOpsLimpiar")?.addEventListener("click", () => {
+        limpiarFiltrosStaffOps();
+    });
 });
 
 async function guardarProgramacionDia() {

@@ -465,6 +465,26 @@
                   </div>
                 </div>
 
+                <div class="filtros staff-ops-filters" style="margin-top: 14px; margin-bottom: 14px;">
+                  <div class="input-date">
+                    <input type="date" id="staffOpsDesde">
+                  </div>
+                  <div class="input-date">
+                    <input type="date" id="staffOpsHasta">
+                  </div>
+                  <select id="staffOpsTipo" class="filter-select-md">
+                    <option value="">Todos los tipos</option>
+                    <option value="ADJUNTO">ADJUNTO</option>
+                    <option value="APOYO">APOYO</option>
+                    <option value="INSTRUCTOR ESBAS">INSTRUCTOR ESBAS</option>
+                  </select>
+                  <select id="staffOpsUbo" class="filter-select-md">
+                    <option value="">Todas las UBO</option>
+                  </select>
+                  <input type="text" id="staffOpsBuscar" placeholder="Buscar por nombre, código, grado..." autocomplete="off">
+                  <button type="button" class="secondary" id="staffOpsLimpiar">Limpiar</button>
+                </div>
+
                 <div class="dashboard-flex-row staff-ops-kpis">
                   <div class="card kpi-card">
                     <h3 id="staffOpsPresentesHoy">0</h3>
@@ -477,6 +497,10 @@
                   <div class="card kpi-card">
                     <h3 id="staffOpsApoyosHoy">0</h3>
                     <p>Apoyos en rango</p>
+                  </div>
+                  <div class="card kpi-card">
+                    <h3 id="staffOpsInstructoresEsbasHoy">0</h3>
+                    <p>Instructores ESBAS en rango</p>
                   </div>
                   <div class="card kpi-card">
                     <h3 id="staffOpsUltimaHora">--:--</h3>
