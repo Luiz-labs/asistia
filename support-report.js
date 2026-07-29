@@ -13,7 +13,7 @@ function obtenerVersionAsistIA() {
     if (match && match[1]) {
         return match[1].replace(/^v/i, "")
     }
-    return "v0.9.5-beta · 20260722.001"
+    return "v1.1.0-build10021"
 }
 
 function generarIdReporteComun(prefijo, idValor) {

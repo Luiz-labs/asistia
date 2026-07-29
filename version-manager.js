@@ -7,16 +7,16 @@
         return;
     }
 
-    const INSTALLED_BUILD = "20260728.001";
+    const INSTALLED_BUILD = "build10021";
 
     const FALLBACK_VERSION = Object.freeze({
         appName: "asistIA",
-        version: "0.9.6",
-        build: "20260728.001",
+        version: "1.1.0",
+        build: "build10021",
         installedBuild: INSTALLED_BUILD,
-        releasedAt: "2026-07-28T14:00:00-05:00",
-        minimumSupportedBuild: "20260722.001",
-        message: "Mejoras de consistencia en el Dashboard, KPIs de Calendario Global y unificación de alertas",
+        releasedAt: "2026-07-29T02:00:00-05:00",
+        minimumSupportedBuild: "build10021",
+        message: "feat(staff): nuevo dashboard operativo independiente con filtros locales, KPI Instructor ESBAS, grado dinámico y búsqueda en tiempo real",
         source: "fallback",
         loaded: false,
         error: null
