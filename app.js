@@ -10824,6 +10824,7 @@ function resolverScopeStaffOps() {
     const from = String(window.staffOpsDesde?.value || rangoDefault.from).trim()
     const to = String(window.staffOpsHasta?.value || rangoDefault.to).trim()
     const tipo = String(window.staffOpsTipo?.value || "").trim().toUpperCase()
+    const grado = String(window.staffOpsGrado?.value || "").trim()
     const ubo = String(window.staffOpsUbo?.value || "").trim()
     const buscar = String(window.staffOpsBuscar?.value || "").trim()
 
@@ -10833,6 +10834,7 @@ function resolverScopeStaffOps() {
         from,
         to,
         tipo,
+        grado,
         ubo,
         buscar
     }
@@ -10842,6 +10844,7 @@ function inicializarFiltrosStaffOps() {
     const elDesde = document.getElementById("staffOpsDesde")
     const elHasta = document.getElementById("staffOpsHasta")
     const elTipo = document.getElementById("staffOpsTipo")
+    const elGrado = document.getElementById("staffOpsGrado")
     const elUbo = document.getElementById("staffOpsUbo")
     const elBuscar = document.getElementById("staffOpsBuscar")
 
@@ -10854,6 +10857,7 @@ function inicializarFiltrosStaffOps() {
         elHasta.value = rango.to
     }
     if (elTipo && !elTipo.value) elTipo.value = ""
+    if (elGrado && !elGrado.value) elGrado.value = ""
     if (elBuscar && !elBuscar.value) elBuscar.value = ""
     if (elUbo && !elUbo.value) elUbo.value = ""
 }
@@ -10862,6 +10866,7 @@ function limpiarFiltrosStaffOps() {
     const elDesde = document.getElementById("staffOpsDesde")
     const elHasta = document.getElementById("staffOpsHasta")
     const elTipo = document.getElementById("staffOpsTipo")
+    const elGrado = document.getElementById("staffOpsGrado")
     const elUbo = document.getElementById("staffOpsUbo")
     const elBuscar = document.getElementById("staffOpsBuscar")
 
@@ -10869,6 +10874,7 @@ function limpiarFiltrosStaffOps() {
     if (elDesde) elDesde.value = rango.from
     if (elHasta) elHasta.value = rango.to
     if (elTipo) elTipo.value = ""
+    if (elGrado) elGrado.value = ""
     if (elUbo) elUbo.value = ""
     if (elBuscar) elBuscar.value = ""
 
@@ -10970,7 +10976,7 @@ async function cargarDashboardStaffOperativo() {
     }
 
     // Mapear resolved properties
-    let filtered = asistenciasUnfiltered.map(item => {
+    const mapped = asistenciasUnfiltered.map(item => {
         const codigo = normalizarCodigoBombero(item.codigo_bombero)
         const master = rosterMap[codigo]
         const nombre = master ? master.nombres : (item.nombre || "")
@@ -10987,9 +10993,47 @@ async function cargarDashboardStaffOperativo() {
         }
     })
 
+    // Generar grados dinámicos a partir de los grados reales presentes
+    const gradosMap = {}
+    mapped.forEach(item => {
+        const original = String(item.resolvedGrado || "").trim()
+        if (!original) return
+        const normalizedKey = original.toLowerCase().replace(/\s+/g, " ")
+        if (!gradosMap[normalizedKey]) {
+            gradosMap[normalizedKey] = original
+        }
+    })
+    const gradosDisponibles = Object.values(gradosMap).sort((a, b) => a.localeCompare(b))
+
+    const elGrado = document.getElementById("staffOpsGrado")
+    if (elGrado) {
+        const currentVal = elGrado.value || ""
+        let htmlGrados = '<option value="">Todos los grados</option>'
+        gradosDisponibles.forEach(g => {
+            htmlGrados += `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`
+        })
+        elGrado.innerHTML = htmlGrados
+        if (currentVal && gradosDisponibles.includes(currentVal)) {
+            elGrado.value = currentVal
+        } else {
+            elGrado.value = ""
+        }
+    }
+
     // Filtros locales
+    let filtered = mapped
+
     if (scope.tipo) {
         filtered = filtered.filter(item => item.resolvedTipo === scope.tipo)
+    }
+
+    const activeGrado = elGrado?.value || ""
+    if (activeGrado) {
+        const normFilter = activeGrado.toLowerCase().replace(/\s+/g, " ")
+        filtered = filtered.filter(item => {
+            const normItem = String(item.resolvedGrado || "").trim().toLowerCase().replace(/\s+/g, " ")
+            return normItem === normFilter
+        })
     }
 
     const activeUbo = elUbo?.value || ""
@@ -13856,6 +13900,9 @@ document.addEventListener("DOMContentLoaded", () => {
         void cargarDashboardStaffOperativo();
     });
     document.getElementById("staffOpsTipo")?.addEventListener("change", () => {
+        void cargarDashboardStaffOperativo();
+    });
+    document.getElementById("staffOpsGrado")?.addEventListener("change", () => {
         void cargarDashboardStaffOperativo();
     });
     document.getElementById("staffOpsUbo")?.addEventListener("change", () => {
