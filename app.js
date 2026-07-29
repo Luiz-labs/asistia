@@ -10898,7 +10898,7 @@ async function cargarDashboardStaffOperativo() {
     let q = withTenantScope(
         supabaseClient
             .from("staff_asistencias")
-            .select("fecha,hora_ingreso,codigo_bombero,nombre,tipo_staff,jornada,ubo_origen,tenant_id,curso_id")
+            .select("fecha,hora_ingreso,codigo_bombero,nombre,tipo_staff,jornada,ubo_origen,tenant_id,curso_id,grado")
             .eq("curso_id", scope.cursoId)
             .gte("fecha", scope.from)
             .lte("fecha", scope.to)
@@ -10951,19 +10951,22 @@ async function cargarDashboardStaffOperativo() {
     // Obtener roster para resolver nombres y grados confiables
     let rosterMap = {}
     try {
-        const { data: instData } = await withTenantScope(
+        const { data: instData, error: instError } = await withTenantScope(
             supabaseClient
                 .from("staff_instruccion")
-                .select("codigo_bombero,nombres,apellidos,grado,dni")
+                .select("codigo_bombero,nombres,apellidos,grado")
                 .eq("curso_id", scope.cursoId)
         )
+        if (instError) {
+            console.error("Error roster staff_instruccion:", instError)
+        }
         const roster = filtrarDataTenantActivo(instData || [])
         roster.forEach(r => {
             const cod = normalizarCodigoBombero(r.codigo_bombero)
             if (cod) rosterMap[cod] = r
         })
     } catch (e) {
-        console.warn("No se pudo cargar el maestro de staff_instruccion:", e)
+        console.error("Error inesperado al cargar roster staff_instruccion:", e)
     }
 
     // Mapear resolved properties
@@ -10972,8 +10975,7 @@ async function cargarDashboardStaffOperativo() {
         const master = rosterMap[codigo]
         const nombre = master ? master.nombres : (item.nombre || "")
         const apellido = master ? master.apellidos : ""
-        const grado = master?.grado || ""
-        const dni = master?.dni || item.dni || ""
+        const grado = master?.grado || item.grado || ""
 
         return {
             ...item,
@@ -10981,8 +10983,7 @@ async function cargarDashboardStaffOperativo() {
             resolvedApellido: apellido,
             resolvedGrado: grado,
             resolvedTipo: item.tipo_staff || "",
-            resolvedUbo: item.ubo_origen || "",
-            resolvedDni: dni
+            resolvedUbo: item.ubo_origen || ""
         }
     })
 
@@ -11003,8 +11004,7 @@ async function cargarDashboardStaffOperativo() {
             const a = normalizarBuscarTexto(item.resolvedApellido)
             const c = normalizarBuscarTexto(item.codigo_bombero)
             const g = normalizarBuscarTexto(item.resolvedGrado)
-            const d = normalizarBuscarTexto(item.resolvedDni)
-            return n.includes(term) || a.includes(term) || c.includes(term) || g.includes(term) || d.includes(term)
+            return n.includes(term) || a.includes(term) || c.includes(term) || g.includes(term)
         })
     }
 
