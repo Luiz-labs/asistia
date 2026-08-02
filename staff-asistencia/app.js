@@ -22,6 +22,19 @@ let staffSuccessSection
 let mensaje
 let staffProfileModal
 
+// Variables de PWA e instalación
+let courseSelectorSection = null
+let courseListContainer = null
+let pwaInstallInviteModal = null
+let pwaIosGuideModal = null
+let deferredPrompt = null
+
+window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault()
+    deferredPrompt = e
+    console.log("[staff] beforeinstallprompt event captured")
+})
+
 function getBuscarStaffButton() {
     return document.getElementById("btnBuscarStaff")
 }
@@ -48,6 +61,7 @@ function setStaffView(view, detalle = {}) {
 
     if (view === "login") {
         setSectionVisible(staffLookupSection, true)
+        setSectionVisible(courseSelectorSection, false)
         setSectionVisible(staffCardSection, false)
         setSectionVisible(staffSuccessSection, false)
         setSectionVisible(staffProfileModal, false)
@@ -60,6 +74,7 @@ function setStaffView(view, detalle = {}) {
 
     if (view === "perfil") {
         setSectionVisible(staffLookupSection, false)
+        setSectionVisible(courseSelectorSection, false)
         setSectionVisible(staffCardSection, true)
         setSectionVisible(staffSuccessSection, false)
         setSectionVisible(staffProfileModal, false)
@@ -71,6 +86,7 @@ function setStaffView(view, detalle = {}) {
 
     if (view === "editar") {
         setSectionVisible(staffLookupSection, false)
+        setSectionVisible(courseSelectorSection, false)
         setSectionVisible(staffCardSection, false)
         setSectionVisible(staffSuccessSection, false)
         setSectionVisible(staffProfileModal, true, "flex")
@@ -79,6 +95,7 @@ function setStaffView(view, detalle = {}) {
 
     if (view === "exito") {
         setSectionVisible(staffLookupSection, false)
+        setSectionVisible(courseSelectorSection, false)
         setSectionVisible(staffCardSection, false)
         setSectionVisible(staffSuccessSection, true)
         setSectionVisible(staffProfileModal, false)
@@ -96,10 +113,95 @@ function setStaffView(view, detalle = {}) {
               </div>
             `
         }
-        staffSuccessResetTimer = setTimeout(() => {
-            resetStaffSeleccionado()
-        }, 3000)
+
+        if (deberiaOfrecerInstalacion()) {
+            abrirModalInstalacionPwa();
+        } else {
+            staffSuccessResetTimer = setTimeout(() => {
+                resetStaffSeleccionado()
+            }, 3000)
+        }
     }
+}
+
+function esStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function esIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function deberiaOfrecerInstalacion() {
+    if (esStandalone()) return false;
+    const dismissedAt = localStorage.getItem("asistia_staff_install_dismissed_at");
+    if (dismissedAt) {
+        const diff = Date.now() - Number(dismissedAt);
+        const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+        if (diff < sevenDaysMs) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function abrirModalInstalacionPwa() {
+    if (!pwaInstallInviteModal) return;
+    pwaInstallInviteModal.hidden = false;
+    pwaInstallInviteModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("staff-modal-open");
+}
+
+function cerrarModalInstalacionPwa() {
+    if (!pwaInstallInviteModal) return;
+    pwaInstallInviteModal.hidden = true;
+    pwaInstallInviteModal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("staff-modal-open");
+}
+
+function abrirGuiaManualInstalacion() {
+    if (!pwaIosGuideModal) return;
+
+    const titleEl = pwaIosGuideModal.querySelector("h3");
+    const copyEl = pwaIosGuideModal.querySelector(".ios-install-steps");
+
+    if (esIOS()) {
+        if (titleEl) titleEl.textContent = "Instalar Staff en tu iPhone";
+        if (copyEl) {
+            copyEl.innerHTML = `
+                <ol style="margin: 0; padding-left: 20px;">
+                  <li style="margin-bottom: 10px;">Asegúrate de estar usando el navegador <strong>Safari</strong>. Si abriste este enlace desde Chrome o Edge, cópialo y ábrelo en Safari.</li>
+                  <li style="margin-bottom: 10px;">Pulsa el botón <strong>Compartir</strong> en la barra inferior (el icono de la caja con una flecha hacia arriba <span style="font-size: 1.1rem;">⎋</span>).</li>
+                  <li style="margin-bottom: 10px;">Desplázate hacia abajo y selecciona <strong>Añadir a pantalla de inicio</strong> (el icono <span style="font-size: 1.1rem; font-weight: bold;">+</span>).</li>
+                  <li style="margin-bottom: 10px;">Confirma que el nombre es <strong>Staff</strong> y pulsa <strong>Añadir</strong> en la esquina superior derecha.</li>
+                </ol>
+            `;
+        }
+    } else {
+        if (titleEl) titleEl.textContent = "Instalar Staff en tu dispositivo";
+        if (copyEl) {
+            copyEl.innerHTML = `
+                <ol style="margin: 0; padding-left: 20px;">
+                  <li style="margin-bottom: 10px;">Pulsa el botón de menú del navegador (tres puntos verticales en la esquina superior o inferior).</li>
+                  <li style="margin-bottom: 10px;">Selecciona <strong>Instalar aplicación</strong> o <strong>Añadir a pantalla de inicio</strong>.</li>
+                  <li style="margin-bottom: 10px;">Confirma la instalación y busca el icono de <strong>Staff</strong> en la pantalla del dispositivo.</li>
+                </ol>
+            `;
+        }
+    }
+
+    cerrarModalInstalacionPwa();
+    pwaIosGuideModal.hidden = false;
+    pwaIosGuideModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("staff-modal-open");
+}
+
+function cerrarGuiaManualInstalacion() {
+    if (!pwaIosGuideModal) return;
+    pwaIosGuideModal.hidden = true;
+    pwaIosGuideModal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("staff-modal-open");
 }
 
 function haySupabase() {
@@ -114,6 +216,11 @@ function enlazarIds() {
     staffSuccessSection = document.getElementById("staffSuccessSection")
     mensaje = document.getElementById("mensaje")
     staffProfileModal = document.getElementById("staffProfileModal")
+    // Elementos PWA y cursos
+    courseSelectorSection = document.getElementById("courseSelectorSection")
+    courseListContainer = document.getElementById("courseListContainer")
+    pwaInstallInviteModal = document.getElementById("pwaInstallInviteModal")
+    pwaIosGuideModal = document.getElementById("pwaIosGuideModal")
 }
 
 function setMensaje(texto, tipo = "") {
@@ -558,36 +665,141 @@ function withTenantScope(query) {
     return query.eq("tenant_id", tenantActivoId)
 }
 
-async function resolverCursoDesdeURL() {
+async function resolverCursoContexto() {
     const token = obtenerCursoTokenDesdeURL()
     cursoActualId = null
     cursoContextoValido = false
 
-    if (!token || !haySupabase() || !tenantActivoId) return false
+    if (!tenantActivoId || !haySupabase()) return false
 
-    if (/^\d+$/.test(token)) {
-        return resolverCursoPorId(Number(token))
-    }
+    // 1. Si hay token en la URL (QR)
+    if (token) {
+        if (/^\d+$/.test(token)) {
+            return resolverCursoPorId(Number(token))
+        }
 
-    try {
-        const { data, error } = await supabaseClient.rpc("rpc_validar_curso_qr", {
-            p_qr_token: token,
-            p_tenant_id: tenantActivoId
-        })
+        try {
+            const { data, error } = await supabaseClient.rpc("rpc_validar_curso_qr", {
+                p_qr_token: token,
+                p_tenant_id: tenantActivoId
+            })
 
-        if (error || !data?.success) {
+            if (error || !data?.success) {
+                cursoContextoValido = false
+                cursoActualId = null
+                return false
+            }
+
+            cursoActualId = Number(data.curso_id || 0) || null
+            cursoContextoValido = !!cursoActualId
+
+            if (cursoActualId) {
+                localStorage.setItem("asistia_staff_pref_curso_id", String(cursoActualId))
+            }
+            return !!cursoActualId
+        } catch (e) {
             cursoContextoValido = false
             cursoActualId = null
             return false
         }
+    }
 
-        cursoActualId = Number(data.curso_id || 0) || null
-        cursoContextoValido = !!cursoActualId
-        return !!cursoActualId
+    // 2. Si se abre desde el icono (sin token en la URL)
+    try {
+        const { data, error } = await supabaseClient
+            .from("cursos")
+            .select("id, nombre, estado")
+            .eq("tenant_id", tenantActivoId)
+            .eq("estado", "activo")
+
+        if (error || !data || data.length === 0) {
+            cursoContextoValido = false
+            return false
+        }
+
+        if (data.length === 1) {
+            cursoActualId = Number(data[0].id) || null
+            cursoContextoValido = !!cursoActualId
+            return !!cursoActualId
+        } else {
+            const prefCursoId = Number(localStorage.getItem("asistia_staff_pref_curso_id"))
+            const cursoPrefValido = data.find(c => Number(c.id) === prefCursoId)
+
+            return { requiereSeleccion: true, cursos: data, sugerido: cursoPrefValido }
+        }
     } catch (e) {
+        console.error("Error al resolver cursos activos:", e)
         cursoContextoValido = false
-        cursoActualId = null
         return false
+    }
+}
+
+function mostrarSelectorDeCurso(cursos, sugerido) {
+    setStaffView("login")
+    setSectionVisible(staffLookupSection, false)
+    setSectionVisible(courseSelectorSection, true)
+
+    if (courseListContainer) {
+        courseListContainer.innerHTML = ""
+        cursos.forEach(curso => {
+            const btn = document.createElement("button")
+            btn.type = "button"
+            btn.className = "primary-btn"
+            btn.style.width = "100%"
+            btn.style.textAlign = "left"
+            btn.style.display = "flex"
+            btn.style.justifyContent = "space-between"
+            btn.style.alignItems = "center"
+            btn.style.padding = "14px 16px"
+            btn.style.background = "#ffffff"
+            btn.style.color = "#1e293b"
+            btn.style.border = "1px solid #cbd5e1"
+            btn.style.borderRadius = "12px"
+            btn.style.boxShadow = "none"
+            btn.style.cursor = "pointer"
+            btn.style.transition = "all 0.15s ease"
+            btn.style.marginBottom = "8px"
+
+            const esSugerido = sugerido && Number(sugerido.id) === Number(curso.id)
+            btn.innerHTML = `
+                <span style="font-weight: 500; font-family: Sora, sans-serif;">${escapeHtml(curso.nombre || "Curso")}</span>
+                ${esSugerido ? '<span style="font-size: 0.75rem; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 999px; font-weight: 600;">Sugerido</span>' : ''}
+            `
+
+            btn.addEventListener("mouseenter", () => {
+                btn.style.borderColor = "#2563eb"
+                btn.style.background = "#eff6ff"
+            })
+            btn.addEventListener("mouseleave", () => {
+                btn.style.borderColor = esSugerido ? "#2563eb" : "#cbd5e1"
+                btn.style.background = "#ffffff"
+            })
+
+            if (esSugerido) {
+                btn.style.borderColor = "#2563eb"
+                btn.style.background = "#f8fafc"
+            }
+
+            btn.addEventListener("click", () => {
+                seleccionarCursoDeSelector(curso.id)
+            })
+            courseListContainer.appendChild(btn)
+        })
+    }
+}
+
+function seleccionarCursoDeSelector(cursoId) {
+    cursoActualId = Number(cursoId) || null
+    cursoContextoValido = !!cursoActualId
+    localStorage.setItem("asistia_staff_pref_curso_id", String(cursoId))
+
+    setSectionVisible(courseSelectorSection, false)
+    setSectionVisible(staffLookupSection, true)
+    actualizarDisponibilidadIngresoStaff()
+    setMensaje("")
+
+    if (codigoBomberoInput) {
+        codigoBomberoInput.focus()
     }
 }
 
@@ -797,6 +1009,67 @@ function bindEventos() {
         const input = document.getElementById("staffPerfilCelular")
         if (input) input.value = normalizarCelular(input.value)
     })
+
+    // Eventos de PWA Invitación e Instalación
+    document.getElementById("btnRejectInstallInvite")?.addEventListener("click", () => {
+        localStorage.setItem("asistia_staff_install_dismissed_at", String(Date.now()));
+        cerrarModalInstalacionPwa();
+        resetStaffSeleccionado();
+    });
+
+    document.getElementById("btnDismissInstallInvite")?.addEventListener("click", () => {
+        localStorage.setItem("asistia_staff_install_dismissed_at", String(Date.now()));
+        cerrarModalInstalacionPwa();
+        resetStaffSeleccionado();
+    });
+
+    document.getElementById("btnAcceptInstallInvite")?.addEventListener("click", async () => {
+        if (deferredPrompt) {
+            cerrarModalInstalacionPwa();
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`[staff] Resultado del prompt de instalación: ${outcome}`);
+            deferredPrompt = null;
+            resetStaffSeleccionado();
+        } else {
+            abrirGuiaManualInstalacion();
+        }
+    });
+
+    // Eventos de Guía Manual iOS/Android
+    document.getElementById("btnDismissIosGuide")?.addEventListener("click", () => {
+        cerrarGuiaManualInstalacion();
+        resetStaffSeleccionado();
+    });
+
+    document.getElementById("btnCloseIosGuide")?.addEventListener("click", () => {
+        cerrarGuiaManualInstalacion();
+        resetStaffSeleccionado();
+    });
+
+    document.getElementById("btnCloseIosGuideX")?.addEventListener("click", () => {
+        cerrarGuiaManualInstalacion();
+        resetStaffSeleccionado();
+    });
+
+    // Evento de soporte WhatsApp
+    document.getElementById("btnSoporteWa")?.addEventListener("click", abrirWhatsAppSoporteStaff)
+
+    // Listener de teclado global (Escape)
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape") {
+            if (staffProfileModal && !staffProfileModal.hidden) {
+                cancelarEdicionPerfilStaff()
+            } else if (pwaInstallInviteModal && !pwaInstallInviteModal.hidden) {
+                cerrarModalInstalacionPwa()
+                resetStaffSeleccionado()
+            } else if (pwaIosGuideModal && !pwaIosGuideModal.hidden) {
+                cerrarGuiaManualInstalacion()
+                resetStaffSeleccionado()
+            }
+        }
+    })
+}
 // ----------------------------------------------------
 // SOPORTE Y REPORTE DE PROBLEMAS (WHATSAPP)
 // ----------------------------------------------------
@@ -883,12 +1156,6 @@ function abrirWhatsAppSoporteStaff() {
     abrirWhatsAppSoporteMensaje(text)
 }
 
-    document.addEventListener("keydown", event => {
-        if (event.key === "Escape" && !staffProfileModal?.hidden) cancelarEdicionPerfilStaff()
-    })
-    document.getElementById("btnSoporteWa")?.addEventListener("click", abrirWhatsAppSoporteStaff)
-}
-
 async function init() {
     enlazarIds()
     bindEventos()
@@ -906,7 +1173,12 @@ async function init() {
         return
     }
 
-    await resolverCursoDesdeURL()
+    const resCurso = await resolverCursoContexto()
+    if (resCurso && resCurso.requiereSeleccion) {
+        mostrarSelectorDeCurso(resCurso.cursos, resCurso.sugerido)
+        return
+    }
+
     actualizarDisponibilidadIngresoStaff()
 
     if (!cursoContextoValido) {

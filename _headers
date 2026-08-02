@@ -126,6 +126,11 @@
   ! Cache-Control
   Cache-Control: public, max-age=0, must-revalidate
 
+/staff-service-worker.js
+
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
 /pwa-register.js
 
   ! Cache-Control

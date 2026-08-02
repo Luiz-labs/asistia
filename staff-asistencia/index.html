@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#2563eb">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="asistIA">
+  <meta name="apple-mobile-web-app-title" content="Staff">
   <meta name="mobile-web-app-capable" content="yes">
   <title>asistIA Asistencia Staff</title>
-  <link rel="manifest" href="/manifest.webmanifest">
+  <link id="pwaManifestLink" rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,6 +33,11 @@
         <p class="step-copy">Ingresa tu código CBP para continuar.</p>
         <input id="codigoBomberoInput" class="text-input" placeholder="Código CBP · Ej. A17200" autocomplete="off">
         <button id="btnBuscarStaff" class="primary-btn" type="button">Continuar</button>
+      </section>
+
+      <section id="courseSelectorSection" class="step-block" hidden>
+        <p class="step-copy">Selecciona el curso para continuar:</p>
+        <div id="courseListContainer" class="course-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; margin-bottom: 12px;"></div>
       </section>
 
       <section id="staffCardSection" class="staff-card-shell" hidden></section>
@@ -96,6 +101,74 @@
   <script src="/diagnostics-panel.js"></script>
   <script src="/support-report.js?v=1.1.0-build10021"></script>
   <script src="/staff-asistencia/app.js?v=1.1.0-build10021"></script>
-  <script src="/pwa-register.js?v=1.1.0-build10021"></script>
+
+  <!-- Modal de Invitación a PWA -->
+  <div id="pwaInstallInviteModal" class="staff-modal" hidden aria-hidden="true">
+    <div class="staff-modal-backdrop" id="btnDismissInstallInvite"></div>
+    <section class="staff-modal-sheet" role="dialog" aria-modal="true" aria-label="Recibir actualizaciones">
+      <div class="staff-modal-handle" aria-hidden="true"></div>
+      <div class="staff-modal-head">
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #1e293b;">¿Quieres recibir actualizaciones de asistencia durante la jornada?</h3>
+          <p style="margin: 4px 0 0 0; font-size: 0.875rem; color: #64748b;">Instala Staff y activa las notificaciones.</p>
+        </div>
+      </div>
+      <div style="display: flex; gap: 10px; margin-top: 16px;">
+        <button id="btnAcceptInstallInvite" class="primary-btn" style="flex: 1; padding: 12px; font-weight: 600;" type="button">Instalar</button>
+        <button id="btnRejectInstallInvite" class="secondary-btn" style="flex: 1; padding: 12px; font-weight: 500;" type="button">Ahora no</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal de Guía de Instalación iOS -->
+  <div id="pwaIosGuideModal" class="staff-modal" hidden aria-hidden="true">
+    <div class="staff-modal-backdrop" id="btnCloseIosGuide"></div>
+    <section class="staff-modal-sheet" role="dialog" aria-modal="true" aria-label="Instrucciones para iPhone">
+      <div class="staff-modal-handle" aria-hidden="true"></div>
+      <div class="staff-modal-head">
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #1e293b;">Instalar Staff en tu iPhone</h3>
+          <p style="margin: 4px 0 0 0; font-size: 0.875rem; color: #64748b;">Sigue estos pasos manuales:</p>
+        </div>
+        <button id="btnCloseIosGuideX" class="staff-modal-close" type="button" aria-label="Cerrar">×</button>
+      </div>
+      <div class="ios-install-steps" style="margin-top: 12px; font-size: 0.9rem; color: #334155; line-height: 1.5;">
+        <ol style="margin: 0; padding-left: 20px;">
+          <li style="margin-bottom: 10px;">Asegúrate de estar usando el navegador <strong>Safari</strong>. Si abriste este enlace desde Chrome o Edge, cópialo y ábrelo en Safari.</li>
+          <li style="margin-bottom: 10px;">Pulsa el botón <strong>Compartir</strong> en la barra inferior (el icono de la caja con una flecha hacia arriba <span style="font-size: 1.1rem;">⎋</span>).</li>
+          <li style="margin-bottom: 10px;">Desplázate hacia abajo y selecciona <strong>Añadir a pantalla de inicio</strong> (el icono <span style="font-size: 1.1rem; font-weight: bold;">+</span>).</li>
+          <li style="margin-bottom: 10px;">Confirma que el nombre es <strong>Staff</strong> y pulsa <strong>Añadir</strong> en la esquina superior derecha.</li>
+        </ol>
+      </div>
+      <div style="margin-top: 18px;">
+        <button id="btnDismissIosGuide" class="primary-btn" style="width: 100%; padding: 12px;" type="button">Entendido</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Registro dinámico de Service Worker para Staff -->
+  <script>
+    (() => {
+      if (!("serviceWorker" in navigator)) return;
+      if (!window.isSecureContext && !/localhost|127\.0\.0\.1/.test(window.location.hostname)) return;
+
+      window.addEventListener("load", () => {
+        const path = window.location.pathname;
+        const segments = path.split("/").filter(Boolean);
+        const idx = segments.indexOf("staff-asistencia");
+        let scope = "/staff-asistencia/";
+        if (idx > 0) {
+          const tenant = segments[idx - 1];
+          scope = `/${tenant}/staff-asistencia/`;
+        }
+
+        navigator.serviceWorker.register("/staff-service-worker.js", { scope }).then(registration => {
+          console.log("[staff-sw] Registrado con scope:", registration.scope);
+        }).catch(error => {
+          console.warn("[staff-sw] Error al registrar service worker:", error);
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
