@@ -148,12 +148,14 @@ function setStaffView(view, detalle = {}) {
 
         if (deberiaOfrecerInstalacion()) {
             abrirModalInstalacionPwa();
-        } else if (deberiaOfrecerNotificaciones()) {
-            setSectionVisible(pwaNotificationCard, true);
         } else {
-            staffSuccessResetTimer = setTimeout(() => {
-                resetStaffSeleccionado()
-            }, 3000)
+            actualizarEstadoNotificacionesStaff().then(() => {
+                if (pwaNotificationCard && pwaNotificationCard.hidden) {
+                    staffSuccessResetTimer = setTimeout(() => {
+                        resetStaffSeleccionado()
+                    }, 3000)
+                }
+            })
         }
     }
 }
@@ -253,23 +255,119 @@ function urlBase64ToUint8Array(base64String) {
     return outputArray;
 }
 
-function deberiaOfrecerNotificaciones() {
-    if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.trim() === "") return false;
-    if (Notification.permission === "granted") return false;
+async function actualizarEstadoNotificacionesStaff() {
+    if (!pwaNotificationCard) return;
 
-    // Si es iOS, solo se puede activar notificaciones si está en pantalla de inicio (standalone)
-    if (esIOS() && !esStandalone()) return false;
+    // Ocultar inicialmente para evitar parpadeos
+    pwaNotificationCard.hidden = true;
 
-    // Cooldown de 7 días
-    const dismissedAt = localStorage.getItem("asistia_staff_push_dismissed_at");
-    if (dismissedAt) {
-        const diff = Date.now() - Number(dismissedAt);
-        const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-        if (diff < sevenDaysMs) {
-            return false;
-        }
+    // Resetear estilos y elementos
+    pwaNotificationCard.style.borderColor = "#cbd5e1";
+    pwaNotificationCard.style.background = "#f8fafc";
+
+    const btnEnable = document.getElementById("btnEnableNotifications");
+    const btnDismiss = document.getElementById("btnDismissNotifications");
+    const cardTitle = pwaNotificationCard.querySelector("h4");
+    const cardText = pwaNotificationCard.querySelector("p");
+
+    if (btnEnable) {
+        btnEnable.style.display = "";
+        btnEnable.disabled = false;
+        btnEnable.textContent = "Activar notificaciones";
     }
-    return true;
+    if (btnDismiss) {
+        btnDismiss.style.display = "";
+        btnDismiss.disabled = false;
+        btnDismiss.textContent = "Ahora no";
+    }
+    if (cardTitle) cardTitle.textContent = "Activa las notificaciones";
+    if (cardText) cardText.textContent = "Recibe el resumen de asistencia y actualizaciones de la jornada.";
+
+    // 1. Comprobar compatibilidad
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        return;
+    }
+
+    // 2. iPhone sin modo standalone
+    if (esIOS() && !esStandalone()) {
+        pwaNotificationCard.style.borderColor = "#cbd5e1";
+        pwaNotificationCard.style.background = "#f1f5f9";
+        if (cardTitle) cardTitle.textContent = "Notificaciones Web Push";
+        if (cardText) cardText.textContent = "Para recibir actualizaciones de asistencia, abre esta aplicación desde la pantalla de inicio.";
+        if (btnEnable) btnEnable.style.display = "none";
+        if (btnDismiss) {
+            btnDismiss.style.display = "";
+            btnDismiss.textContent = "Cerrar";
+        }
+        pwaNotificationCard.hidden = false;
+        return;
+    }
+
+    // 3. Validar VAPID
+    if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.trim() === "") {
+        return;
+    }
+
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        const permission = Notification.permission;
+
+        if (permission === "granted" && subscription) {
+            // ESTADO B: Concedido y existe PushSubscription
+            pwaNotificationCard.style.borderColor = "#22c55e";
+            pwaNotificationCard.style.background = "#f0fdf4";
+            if (cardTitle) cardTitle.innerHTML = "✓ Notificaciones activadas";
+            if (cardText) cardText.textContent = "Tu dispositivo está listo para recibir las actualizaciones de asistencia.";
+            if (btnEnable) btnEnable.style.display = "none";
+            if (btnDismiss) btnDismiss.style.display = "none";
+            pwaNotificationCard.hidden = false;
+        }
+        else if (permission === "granted" && !subscription) {
+            // ESTADO C: Concedido pero sin PushSubscription
+            pwaNotificationCard.style.borderColor = "#f59e0b";
+            pwaNotificationCard.style.background = "#fffbeb";
+            if (cardTitle) cardTitle.textContent = "Completa la activación";
+            if (cardText) cardText.textContent = "Tu permiso está concedido. Completa el registro para recibir alertas.";
+            if (btnEnable) {
+                btnEnable.textContent = "Completar activación";
+                btnEnable.style.display = "";
+            }
+            if (btnDismiss) {
+                btnDismiss.style.display = "";
+                btnDismiss.textContent = "Ahora no";
+            }
+            pwaNotificationCard.hidden = false;
+        }
+        else if (permission === "denied") {
+            // ESTADO D: Denegado
+            pwaNotificationCard.style.borderColor = "#f87171";
+            pwaNotificationCard.style.background = "#fef2f2";
+            if (cardTitle) cardTitle.textContent = "Notificaciones bloqueadas";
+            if (cardText) cardText.textContent = "Las notificaciones están bloqueadas en este dispositivo. Puedes activarlas desde Configuración > Notificaciones > Staff.";
+            if (btnEnable) btnEnable.style.display = "none";
+            if (btnDismiss) {
+                btnDismiss.style.display = "";
+                btnDismiss.textContent = "Cerrar";
+            }
+            pwaNotificationCard.hidden = false;
+        }
+        else {
+            // ESTADO A: default y sin suscripción
+            // Cooldown de 7 días
+            const dismissedAt = localStorage.getItem("asistia_staff_push_dismissed_at");
+            if (dismissedAt) {
+                const diff = Date.now() - Number(dismissedAt);
+                const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+                if (diff < sevenDaysMs) {
+                    return; // Dentro del cooldown, no se muestra
+                }
+            }
+            pwaNotificationCard.hidden = false;
+        }
+    } catch (e) {
+        console.warn("[push] Error al actualizar estado de notificaciones:", e);
+    }
 }
 
 async function registrarSuscripcionPushEnServidor(subscription) {
@@ -349,10 +447,17 @@ async function activarFlujoNotificacionesPush() {
         if (btnEnable) btnEnable.style.display = "none";
         if (btnDismiss) btnDismiss.style.display = "none";
 
-        // Programar el reset final de la asistencia
-        setTimeout(() => {
-            resetStaffSeleccionado();
-        }, 2500);
+        // Programar el reset final de la asistencia si estamos en la vista de éxito
+        if (staffCurrentView === "exito") {
+            setTimeout(() => {
+                resetStaffSeleccionado();
+            }, 2500);
+        } else {
+            // Si estamos en perfil, refrescamos el estado visual de la tarjeta
+            setTimeout(() => {
+                actualizarEstadoNotificacionesStaff();
+            }, 2500);
+        }
 
     } catch (err) {
         console.error("[push] Error al activar notificaciones:", err);
@@ -371,9 +476,14 @@ async function activarFlujoNotificacionesPush() {
 }
 
 function descartarNotificacionesPush() {
-    localStorage.setItem("asistia_staff_push_dismissed_at", String(Date.now()));
+    if (Notification.permission === "default") {
+        localStorage.setItem("asistia_staff_push_dismissed_at", String(Date.now()));
+    }
     if (pwaNotificationCard) pwaNotificationCard.hidden = true;
-    resetStaffSeleccionado();
+
+    if (staffCurrentView === "exito") {
+        resetStaffSeleccionado();
+    }
 }
 
 function haySupabase() {
@@ -1084,6 +1194,27 @@ async function buscarStaffPorCodigo() {
     renderStaffCard(data)
     setStaffView("perfil")
     setMensaje("")
+
+    // Verificar si ya registró asistencia hoy para habilitar el flujo de notificaciones
+    const lima = obtenerFechaHoraLima(new Date())
+    try {
+        const { data: existente, error: errorConsulta } = await supabaseClient
+            .from("staff_asistencias")
+            .select("id")
+            .eq("tenant_id", tenantActivoId)
+            .eq("staff_id", data.id)
+            .eq("fecha", lima.fecha)
+            .maybeSingle()
+
+        if (!errorConsulta && existente?.id) {
+            setMensaje("Ya registraste asistencia staff hoy.", "warning")
+            void actualizarEstadoNotificacionesStaff()
+        } else {
+            if (pwaNotificationCard) pwaNotificationCard.hidden = true;
+        }
+    } catch (e) {
+        console.error("Error al consultar asistencia del día:", e)
+    }
 }
 
 async function registrarAsistenciaStaff() {
@@ -1131,6 +1262,7 @@ async function registrarAsistenciaStaff() {
 
         if (existente?.id) {
             setMensaje("Ya registraste asistencia staff hoy.", "warning")
+            void actualizarEstadoNotificacionesStaff()
             return
         }
 
@@ -1141,6 +1273,7 @@ async function registrarAsistenciaStaff() {
         if (error) {
             if (/duplicate key|23505/i.test(String(error.message || ""))) {
                 setMensaje("Ya registraste asistencia staff hoy.", "warning")
+                void actualizarEstadoNotificacionesStaff()
                 return
             }
             console.error("Error registrando asistencia staff:", error)
