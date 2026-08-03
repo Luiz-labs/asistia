@@ -29,6 +29,14 @@ let pwaInstallInviteModal = null
 let pwaIosGuideModal = null
 let deferredPrompt = null
 
+// Variables de notificaciones push
+let pwaNotificationCard = null
+let btnEnableNotifications = null
+let btnDismissNotifications = null
+
+// Clave pública VAPID (debe ser configurada con la correspondiente al backend en producción)
+const VAPID_PUBLIC_KEY = "BGF_XF7POyYT3CuhJHeXxTuktu2sgbSmwR3j_wrMv9KBNjdsE3RRKSdMNuUhYd1f3xKQmQuA9R-GnDakGGIZIQo"
+
 window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault()
     deferredPrompt = e
@@ -64,6 +72,7 @@ function setStaffView(view, detalle = {}) {
         setSectionVisible(courseSelectorSection, false)
         setSectionVisible(staffCardSection, false)
         setSectionVisible(staffSuccessSection, false)
+        setSectionVisible(pwaNotificationCard, false)
         setSectionVisible(staffProfileModal, false)
         if (staffProfileModal) staffProfileModal.setAttribute("aria-hidden", "true")
         document.body.classList.remove("staff-modal-open")
@@ -77,6 +86,7 @@ function setStaffView(view, detalle = {}) {
         setSectionVisible(courseSelectorSection, false)
         setSectionVisible(staffCardSection, true)
         setSectionVisible(staffSuccessSection, false)
+        setSectionVisible(pwaNotificationCard, false)
         setSectionVisible(staffProfileModal, false)
         if (staffProfileModal) staffProfileModal.setAttribute("aria-hidden", "true")
         document.body.classList.remove("staff-modal-open")
@@ -89,6 +99,7 @@ function setStaffView(view, detalle = {}) {
         setSectionVisible(courseSelectorSection, false)
         setSectionVisible(staffCardSection, false)
         setSectionVisible(staffSuccessSection, false)
+        setSectionVisible(pwaNotificationCard, false)
         setSectionVisible(staffProfileModal, true, "flex")
         return
     }
@@ -98,6 +109,7 @@ function setStaffView(view, detalle = {}) {
         setSectionVisible(courseSelectorSection, false)
         setSectionVisible(staffCardSection, false)
         setSectionVisible(staffSuccessSection, true)
+        setSectionVisible(pwaNotificationCard, false)
         setSectionVisible(staffProfileModal, false)
         if (staffProfileModal) staffProfileModal.setAttribute("aria-hidden", "true")
         document.body.classList.remove("staff-modal-open")
@@ -114,8 +126,30 @@ function setStaffView(view, detalle = {}) {
             `
         }
 
+        if (pwaNotificationCard) {
+            pwaNotificationCard.style.borderColor = "#cbd5e1";
+            pwaNotificationCard.style.background = "#f8fafc";
+            const btnEnable = document.getElementById("btnEnableNotifications");
+            const btnDismiss = document.getElementById("btnDismissNotifications");
+            const cardTitle = pwaNotificationCard.querySelector("h4");
+            const cardText = pwaNotificationCard.querySelector("p");
+            if (btnEnable) {
+                btnEnable.style.display = "";
+                btnEnable.disabled = false;
+            }
+            if (btnDismiss) {
+                btnDismiss.style.display = "";
+                btnDismiss.disabled = false;
+                btnDismiss.textContent = "Ahora no";
+            }
+            if (cardTitle) cardTitle.textContent = "Activa las notificaciones";
+            if (cardText) cardText.textContent = "Recibe el resumen de asistencia y actualizaciones de la jornada.";
+        }
+
         if (deberiaOfrecerInstalacion()) {
             abrirModalInstalacionPwa();
+        } else if (deberiaOfrecerNotificaciones()) {
+            setSectionVisible(pwaNotificationCard, true);
         } else {
             staffSuccessResetTimer = setTimeout(() => {
                 resetStaffSeleccionado()
@@ -204,6 +238,144 @@ function cerrarGuiaManualInstalacion() {
     document.body.classList.remove("staff-modal-open");
 }
 
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+function deberiaOfrecerNotificaciones() {
+    if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.trim() === "") return false;
+    if (Notification.permission === "granted") return false;
+
+    // Si es iOS, solo se puede activar notificaciones si está en pantalla de inicio (standalone)
+    if (esIOS() && !esStandalone()) return false;
+
+    // Cooldown de 7 días
+    const dismissedAt = localStorage.getItem("asistia_staff_push_dismissed_at");
+    if (dismissedAt) {
+        const diff = Date.now() - Number(dismissedAt);
+        const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+        if (diff < sevenDaysMs) {
+            return false;
+        }
+    }
+    return true;
+}
+
+async function registrarSuscripcionPushEnServidor(subscription) {
+    if (!supabaseClient) throw new Error("Cliente de base de datos no inicializado.");
+
+    const rawKey = subscription.getKey ? subscription.getKey('p256dh') : null;
+    const rawAuth = subscription.getKey ? subscription.getKey('auth') : null;
+
+    const p256dh = rawKey ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawKey))) : "";
+    const auth = rawAuth ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawAuth))) : "";
+
+    const { data, error } = await supabaseClient.rpc("rpc_registrar_suscripcion_push", {
+        p_tenant_id: tenantActivoId,
+        p_staff_id: staffSeleccionado.id,
+        p_device_id: getDeviceId(),
+        p_endpoint: subscription.endpoint,
+        p_p256dh: p256dh,
+        p_auth: auth
+    });
+
+    if (error || !data?.success) {
+        throw new Error(data?.error || error?.message || "Error al registrar suscripción.");
+    }
+    return data;
+}
+
+async function activarFlujoNotificacionesPush() {
+    if (!pwaNotificationCard) return;
+
+    const btnEnable = document.getElementById("btnEnableNotifications");
+    const btnDismiss = document.getElementById("btnDismissNotifications");
+    const cardTitle = pwaNotificationCard.querySelector("h4");
+    const cardText = pwaNotificationCard.querySelector("p");
+
+    if (btnEnable) btnEnable.disabled = true;
+    if (btnDismiss) btnDismiss.disabled = true;
+    if (cardText) cardText.textContent = "Solicitando permisos al sistema...";
+
+    try {
+        if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.trim() === "") {
+            throw new Error("Las notificaciones todavía no están configuradas en el servidor.");
+        }
+
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            throw new Error("Este navegador o dispositivo no soporta notificaciones Web Push.");
+        }
+
+        // 1. Solicitar permisos de notificación
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") {
+            throw new Error("Permiso de notificaciones denegado.");
+        }
+
+        if (cardText) cardText.textContent = "Generando suscripción segura...";
+
+        // 2. Obtener el Service Worker listo
+        const registration = await navigator.serviceWorker.ready;
+
+        // 3. Suscribirse
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+
+        if (cardText) cardText.textContent = "Registrando en el servidor...";
+
+        // 4. Registrar en Supabase
+        await registrarSuscripcionPushEnServidor(subscription);
+
+        // 5. Éxito
+        if (pwaNotificationCard) {
+            pwaNotificationCard.style.borderColor = "#22c55e";
+            pwaNotificationCard.style.background = "#f0fdf4";
+        }
+        if (cardTitle) cardTitle.innerHTML = "✓ Notificaciones activadas";
+        if (cardText) cardText.textContent = "Tu dispositivo está listo para recibir las actualizaciones de asistencia.";
+        if (btnEnable) btnEnable.style.display = "none";
+        if (btnDismiss) btnDismiss.style.display = "none";
+
+        // Programar el reset final de la asistencia
+        setTimeout(() => {
+            resetStaffSeleccionado();
+        }, 2500);
+
+    } catch (err) {
+        console.error("[push] Error al activar notificaciones:", err);
+        if (pwaNotificationCard) {
+            pwaNotificationCard.style.borderColor = "#ef4444";
+            pwaNotificationCard.style.background = "#fef2f2";
+        }
+        if (cardTitle) cardTitle.textContent = "No se pudieron activar las notificaciones";
+        if (cardText) cardText.textContent = err.message || "Ocurrió un error inesperado.";
+        if (btnEnable) btnEnable.style.display = "none";
+        if (btnDismiss) {
+            btnDismiss.disabled = false;
+            btnDismiss.textContent = "Cerrar";
+        }
+    }
+}
+
+function descartarNotificacionesPush() {
+    localStorage.setItem("asistia_staff_push_dismissed_at", String(Date.now()));
+    if (pwaNotificationCard) pwaNotificationCard.hidden = true;
+    resetStaffSeleccionado();
+}
+
 function haySupabase() {
     return !!supabaseClient
 }
@@ -221,6 +393,10 @@ function enlazarIds() {
     courseListContainer = document.getElementById("courseListContainer")
     pwaInstallInviteModal = document.getElementById("pwaInstallInviteModal")
     pwaIosGuideModal = document.getElementById("pwaIosGuideModal")
+    // Elementos Push
+    pwaNotificationCard = document.getElementById("pwaNotificationCard")
+    btnEnableNotifications = document.getElementById("btnEnableNotifications")
+    btnDismissNotifications = document.getElementById("btnDismissNotifications")
 }
 
 function setMensaje(texto, tipo = "") {
@@ -1055,6 +1231,10 @@ function bindEventos() {
     // Evento de soporte WhatsApp
     document.getElementById("btnSoporteWa")?.addEventListener("click", abrirWhatsAppSoporteStaff)
 
+    // Eventos de activación de notificaciones Push
+    document.getElementById("btnEnableNotifications")?.addEventListener("click", activarFlujoNotificacionesPush)
+    document.getElementById("btnDismissNotifications")?.addEventListener("click", descartarNotificacionesPush)
+
     // Listener de teclado global (Escape)
     document.addEventListener("keydown", event => {
         if (event.key === "Escape") {
@@ -1066,6 +1246,8 @@ function bindEventos() {
             } else if (pwaIosGuideModal && !pwaIosGuideModal.hidden) {
                 cerrarGuiaManualInstalacion()
                 resetStaffSeleccionado()
+            } else if (pwaNotificationCard && !pwaNotificationCard.hidden) {
+                descartarNotificacionesPush()
             }
         }
     })
