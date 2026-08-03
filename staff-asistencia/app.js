@@ -1476,6 +1476,7 @@ async function init() {
     bindEventos()
 
     tenantActivoId = detectarTenantDesdeRuta()
+    window.tenantActivoId = tenantActivoId
     aplicarTenantEnUI()
 
     if (!tenantActivoId) {
