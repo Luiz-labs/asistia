@@ -338,6 +338,28 @@
         const offlineStatus = consultarColaOfflinePasiva();
         const pwaStatus = consultarPwaPasiva();
 
+        let pushPermission = "No soportado";
+        let pushSubscribed = "No";
+        let pushScope = "N/A";
+        let pushController = "Ninguno";
+        const isPushSupported = ("serviceWorker" in navigator) && ("PushManager" in window);
+        if (isPushSupported) {
+            pushPermission = Notification.permission;
+            try {
+                const reg = await navigator.serviceWorker.getRegistration();
+                if (reg) {
+                    pushScope = reg.scope || "N/A";
+                    const sub = await reg.pushManager.getSubscription();
+                    pushSubscribed = sub ? "Sí" : "No";
+                }
+                if (navigator.serviceWorker.controller) {
+                    pushController = navigator.serviceWorker.controller.scriptURL || "Ninguno";
+                }
+            } catch (e) {
+                pushSubscribed = "Error";
+            }
+        }
+
         const ahora = new Date();
         const fechaHoraLocal = `${ahora.toLocaleDateString("es-PE")} ${ahora.toLocaleTimeString("es-PE")}`;
 
@@ -359,7 +381,15 @@
             pwa: pwaStatus,
             serviceWorker: swStatus,
             gpsPermiso,
-            offline: offlineStatus
+            offline: offlineStatus,
+            push: {
+                soportado: isPushSupported ? "Sí" : "No",
+                permiso: pushPermission,
+                suscrito: pushSubscribed,
+                scope: pushScope,
+                controlador: pushController,
+                urlActual: window.location.origin + window.location.pathname
+            }
         };
 
         const reportText = `DIAGNÓSTICO asistIA
@@ -386,7 +416,15 @@ Service Worker: ${swStatus.soportado === "Sí" ? (swStatus.activo === "Sí" ? "A
 GPS (Permiso pasivo): ${gpsPermiso}
 IndexedDB: ${offlineStatus.indexedDB}
 Cola offline pendiente: ${offlineStatus.pendientes}
-URL: ${reportObject.urlSegura}`;
+URL: ${reportObject.urlSegura}
+
+WEB PUSH
+Soportado: ${reportObject.push.soportado}
+Permiso: ${reportObject.push.permiso}
+Suscrito: ${reportObject.push.suscrito}
+Scope: ${reportObject.push.scope}
+Controlador: ${reportObject.push.controlador}
+URL actual: ${reportObject.push.urlActual}`;
 
         diagnosticoCache = {
             object: reportObject,
@@ -550,6 +588,17 @@ URL: ${reportObject.urlSegura}`;
                         <div class="asistia-diagnostics-item"><span class="asistia-diagnostics-label">Service Worker:</span><span class="asistia-diagnostics-val">${obj.serviceWorker.activo === "Sí" ? "Activo" : "Inactivo"}</span></div>
                         <div class="asistia-diagnostics-item"><span class="asistia-diagnostics-label">Permiso GPS:</span><span class="asistia-diagnostics-val">${obj.gpsPermiso}</span></div>
                         <div class="asistia-diagnostics-item"><span class="asistia-diagnostics-label">Cola Offline:</span><span class="asistia-diagnostics-val">${obj.offline.pendientes} pendientes</span></div>
+                    </div>
+                </div>
+
+                <div class="asistia-diagnostics-section">
+                    <div class="asistia-diagnostics-sec-title">🔔 Notificaciones Web Push</div>
+                    <div class="asistia-diagnostics-grid">
+                        <div class="asistia-diagnostics-item"><span class="asistia-diagnostics-label">URL actual:</span><span class="asistia-diagnostics-val">${obj.push.urlActual}</span></div>
+                        <div class="asistia-diagnostics-item"><span class="asistia-diagnostics-label">Permiso Push:</span><span class="asistia-diagnostics-val">${obj.push.permiso}</span></div>
+                        <div class="asistia-diagnostics-item"><span class="asistia-diagnostics-val" style="grid-column: span 2;"><strong>Suscrito:</strong> ${obj.push.suscrito}</span></div>
+                        <div class="asistia-diagnostics-item"><span class="asistia-diagnostics-val" style="grid-column: span 2;"><strong>Scope:</strong> ${obj.push.scope}</span></div>
+                        <div class="asistia-diagnostics-item"><span class="asistia-diagnostics-val" style="grid-column: span 2; word-break: break-all;"><strong>Controlador:</strong> ${obj.push.controlador}</span></div>
                     </div>
                 </div>
 
