@@ -7,15 +7,15 @@
         return;
     }
 
-    const INSTALLED_BUILD = "build10021";
+    const INSTALLED_BUILD = "build10022";
 
     const FALLBACK_VERSION = Object.freeze({
         appName: "asistIA",
         version: "1.1.0",
-        build: "build10021",
+        build: "build10022",
         installedBuild: INSTALLED_BUILD,
         releasedAt: "2026-07-29T02:00:00-05:00",
-        minimumSupportedBuild: "build10021",
+        minimumSupportedBuild: "build10022",
         message: "feat(staff): nuevo dashboard operativo independiente con filtros locales, KPI Instructor ESBAS, grado dinámico y búsqueda en tiempo real",
         source: "fallback",
         loaded: false,

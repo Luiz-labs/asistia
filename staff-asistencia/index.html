@@ -196,6 +196,42 @@
       if (!window.isSecureContext && !/localhost|127\.0\.0\.1/.test(window.location.hostname)) return;
 
       window.addEventListener("load", () => {
+        // Migración única y segura del SW global y eliminación del caché obsoleto
+        const migrationKey = "asistia_staff_global_sw_migration_10022";
+        if (localStorage.getItem(migrationKey) !== "1") {
+          // 1. Localizar y actualizar el Service Worker global
+          navigator.serviceWorker.getRegistrations().then(registrations => {
+            for (const reg of registrations) {
+              if (reg.scope === window.location.origin + "/") {
+                console.log("[staff-sw] Forzando actualización del Service Worker global...");
+                reg.update().catch(err => console.warn("Error al actualizar SW global:", err));
+              }
+            }
+          }).catch(err => console.warn("Error consultando registraciones de SW:", err));
+
+          // 2. Eliminar el caché global antiguo
+          if ("caches" in window) {
+            caches.delete("asistia-pwa-v1.1.0-build10021").then(deleted => {
+              if (deleted) {
+                console.log("[staff-sw] Caché global obsoleto asistia-pwa-v1.1.0-build10021 eliminado.");
+              }
+            }).catch(err => console.warn("Error eliminando caché global antiguo:", err));
+          }
+
+          // Guardar marca para evitar repeticiones
+          localStorage.setItem(migrationKey, "1");
+
+          // Forzar una única recarga controlada mediante sessionStorage
+          const reloadSessionKey = "asistia_staff_did_reload_for_migration_10022";
+          if (!sessionStorage.getItem(reloadSessionKey)) {
+            sessionStorage.setItem(reloadSessionKey, "true");
+            console.log("[staff-sw] Recargando página una sola vez para activar los cambios...");
+            window.location.reload();
+            return;
+          }
+        }
+
+        // Registro del SW de Staff
         const scope = "/staff-asistencia/";
         navigator.serviceWorker.register("/staff-service-worker.js", { scope }).then(registration => {
           console.log("[staff-sw] Registrado con scope:", registration.scope);
