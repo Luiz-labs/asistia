@@ -9,7 +9,35 @@
   <meta name="apple-mobile-web-app-title" content="Staff">
   <meta name="mobile-web-app-capable" content="yes">
   <title>asistIA Asistencia Staff</title>
-  <link id="pwaManifestLink" rel="manifest" href="manifest.json">
+  <!-- Selección dinámica y temprana del manifest según el tenant -->
+  <script>
+    (() => {
+      const params = new URLSearchParams(window.location.search);
+      let tenant = params.get("tenant");
+      if (!tenant) {
+        const segments = window.location.pathname.split("/").filter(Boolean);
+        const idx = segments.indexOf("staff-asistencia");
+        if (idx > 0) {
+          tenant = segments[idx - 1];
+        } else if (segments[0] && segments[0] !== "staff-asistencia") {
+          tenant = segments[0];
+        }
+      }
+      if (tenant) {
+        tenant = String(tenant).trim().toLowerCase().replace(/[^a-z0-9\-]/g, "");
+      }
+      if (tenant) {
+        const link = document.createElement("link");
+        link.id = "pwaManifestLink";
+        link.rel = "manifest";
+        link.href = `/${tenant}/staff-asistencia/manifest.json`;
+        document.head.appendChild(link);
+        console.log("[manifest-loader] Manifest dinámico inyectado:", link.href);
+      } else {
+        console.warn("[manifest-loader] No se pudo determinar un tenant válido para el manifest.");
+      }
+    })();
+  </script>
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

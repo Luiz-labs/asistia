@@ -1,6 +1,6 @@
 # staff público multi-tenant
-/*/staff-asistencia/      /staff-asistencia/index.html   200!
-/*/staff-asistencia       /staff-asistencia/index.html   200!
+/:tenant/staff-asistencia/      /staff-asistencia/index.html   200!
+/:tenant/staff-asistencia       /staff-asistencia/index.html   200!
 
 # asistencia pública multi-tenant
 /*/asistencia/*           /asistencia/index.html         200!
