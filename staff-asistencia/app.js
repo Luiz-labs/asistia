@@ -258,9 +258,6 @@ function urlBase64ToUint8Array(base64String) {
 async function actualizarEstadoNotificacionesStaff() {
     if (!pwaNotificationCard) return;
 
-    // Ocultar inicialmente para evitar parpadeos
-    pwaNotificationCard.hidden = true;
-
     // Resetear estilos y elementos
     pwaNotificationCard.style.borderColor = "#cbd5e1";
     pwaNotificationCard.style.background = "#f8fafc";
@@ -270,21 +267,9 @@ async function actualizarEstadoNotificacionesStaff() {
     const cardTitle = pwaNotificationCard.querySelector("h4");
     const cardText = pwaNotificationCard.querySelector("p");
 
-    if (btnEnable) {
-        btnEnable.style.display = "";
-        btnEnable.disabled = false;
-        btnEnable.textContent = "Activar notificaciones";
-    }
-    if (btnDismiss) {
-        btnDismiss.style.display = "";
-        btnDismiss.disabled = false;
-        btnDismiss.textContent = "Ahora no";
-    }
-    if (cardTitle) cardTitle.textContent = "Activa las notificaciones";
-    if (cardText) cardText.textContent = "Recibe el resumen de asistencia y actualizaciones de la jornada.";
-
-    // 1. Comprobar compatibilidad
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    // 1. Comprobar compatibilidad y disponibilidad de Notification
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof Notification === 'undefined') {
+        pwaNotificationCard.hidden = true;
         return;
     }
 
@@ -305,86 +290,116 @@ async function actualizarEstadoNotificacionesStaff() {
 
     // 3. Validar VAPID
     if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.trim() === "") {
+        pwaNotificationCard.hidden = true;
         return;
     }
 
-    try {
-        const swReadyPromise = navigator.serviceWorker.ready;
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Tiempo de espera agotado esperando al Service Worker.")), 5000)
-        );
-        const registration = await Promise.race([swReadyPromise, timeoutPromise]);
-        const subscription = await registration.pushManager.getSubscription();
-        const permission = Notification.permission;
+    // 4. Obtener permiso de forma inmediata
+    const permission = Notification.permission;
 
-        if (permission === "granted" && subscription) {
-            // ESTADO B: Concedido y existe PushSubscription
-            pwaNotificationCard.style.borderColor = "#22c55e";
-            pwaNotificationCard.style.background = "#f0fdf4";
-            if (cardTitle) cardTitle.innerHTML = "✓ Notificaciones activadas";
-            if (cardText) cardText.textContent = "Tu dispositivo está listo para recibir las actualizaciones de asistencia.";
-            if (btnEnable) btnEnable.style.display = "none";
-            if (btnDismiss) btnDismiss.style.display = "none";
-            pwaNotificationCard.hidden = false;
-        }
-        else if (permission === "granted" && !subscription) {
-            // ESTADO C: Concedido pero sin PushSubscription
-            pwaNotificationCard.style.borderColor = "#f59e0b";
-            pwaNotificationCard.style.background = "#fffbeb";
-            if (cardTitle) cardTitle.textContent = "Completa la activación";
-            if (cardText) cardText.textContent = "Tu permiso está concedido. Completa el registro para recibir alertas.";
-            if (btnEnable) {
-                btnEnable.textContent = "Completar activación";
-                btnEnable.style.display = "";
+    // ESTADO A: Default y sin suscripción (Se ejecuta de forma síncrona sin awaits)
+    if (permission === "default") {
+        // Cooldown de 7 días
+        const dismissedAt = localStorage.getItem("asistia_staff_push_dismissed_at");
+        if (dismissedAt) {
+            const diff = Date.now() - Number(dismissedAt);
+            const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+            if (diff < sevenDaysMs) {
+                pwaNotificationCard.hidden = true;
+                return;
             }
-            if (btnDismiss) {
-                btnDismiss.style.display = "";
-                btnDismiss.textContent = "Ahora no";
-            }
-            pwaNotificationCard.hidden = false;
         }
-        else if (permission === "denied") {
-            // ESTADO D: Denegado
-            pwaNotificationCard.style.borderColor = "#f87171";
-            pwaNotificationCard.style.background = "#fef2f2";
-            if (cardTitle) cardTitle.textContent = "Notificaciones bloqueadas";
-            if (cardText) cardText.textContent = "Las notificaciones están bloqueadas en este dispositivo. Puedes activarlas desde Configuración > Notificaciones > Staff.";
-            if (btnEnable) btnEnable.style.display = "none";
-            if (btnDismiss) {
-                btnDismiss.style.display = "";
-                btnDismiss.textContent = "Cerrar";
-            }
-            pwaNotificationCard.hidden = false;
+
+        if (cardTitle) cardTitle.textContent = "Activa las notificaciones";
+        if (cardText) cardText.textContent = "Recibe el resumen de asistencia y actualizaciones de la jornada.";
+        if (btnEnable) {
+            btnEnable.textContent = "Activar notificaciones";
+            btnEnable.style.display = "";
+            btnEnable.disabled = false;
         }
-        else {
-            // ESTADO A: default y sin suscripción
-            // Cooldown de 7 días
-            const dismissedAt = localStorage.getItem("asistia_staff_push_dismissed_at");
-            if (dismissedAt) {
-                const diff = Date.now() - Number(dismissedAt);
-                const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-                if (diff < sevenDaysMs) {
-                    return; // Dentro del cooldown, no se muestra
+        if (btnDismiss) {
+            btnDismiss.textContent = "Ahora no";
+            btnDismiss.style.display = "";
+            btnDismiss.disabled = false;
+        }
+        pwaNotificationCard.hidden = false;
+        return;
+    }
+
+    // ESTADO D: Denegado (Se ejecuta de forma síncrona sin awaits)
+    if (permission === "denied") {
+        pwaNotificationCard.style.borderColor = "#f87171";
+        pwaNotificationCard.style.background = "#fef2f2";
+        if (cardTitle) cardTitle.textContent = "Notificaciones bloqueadas";
+        if (cardText) cardText.textContent = "Las notificaciones están bloqueadas en este dispositivo. Puedes activarlas desde Configuración > Notificaciones > Staff.";
+        if (btnEnable) btnEnable.style.display = "none";
+        if (btnDismiss) {
+            btnDismiss.style.display = "";
+            btnDismiss.textContent = "Cerrar";
+            btnDismiss.disabled = false;
+        }
+        pwaNotificationCard.hidden = false;
+        return;
+    }
+
+    // ESTADO B/C: Concedido (Requiere consultar el Service Worker de forma asíncrona)
+    if (permission === "granted") {
+        pwaNotificationCard.hidden = true; // Ocultar preventivamente para evitar parpadeos de carga
+
+        try {
+            const swReadyPromise = navigator.serviceWorker.ready;
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Tiempo de espera agotado esperando al Service Worker.")), 5000)
+            );
+            const registration = await Promise.race([swReadyPromise, timeoutPromise]);
+            const subscription = await registration.pushManager.getSubscription();
+
+            if (subscription) {
+                // ESTADO B: Concedido y existe PushSubscription
+                pwaNotificationCard.style.borderColor = "#22c55e";
+                pwaNotificationCard.style.background = "#f0fdf4";
+                if (cardTitle) cardTitle.innerHTML = "✓ Notificaciones activadas";
+                if (cardText) cardText.textContent = "Tu dispositivo está listo para recibir las actualizaciones de asistencia.";
+                if (btnEnable) btnEnable.style.display = "none";
+                if (btnDismiss) btnDismiss.style.display = "none";
+                pwaNotificationCard.hidden = false;
+            } else {
+                // ESTADO C: Concedido pero sin PushSubscription
+                pwaNotificationCard.style.borderColor = "#f59e0b";
+                pwaNotificationCard.style.background = "#fffbeb";
+                if (cardTitle) cardTitle.textContent = "Completa la activación";
+                if (cardText) cardText.textContent = "Tu permiso está concedido. Completa el registro para recibir alertas.";
+                if (btnEnable) {
+                    btnEnable.textContent = "Completar activación";
+                    btnEnable.style.display = "";
+                    btnEnable.disabled = false;
                 }
+                if (btnDismiss) {
+                    btnDismiss.style.display = "";
+                    btnDismiss.textContent = "Ahora no";
+                    btnDismiss.disabled = false;
+                }
+                pwaNotificationCard.hidden = false;
             }
-            pwaNotificationCard.hidden = false;
-        }
-    } catch (e) {
-        console.warn("[push] Error al actualizar estado de notificaciones:", e);
-        if (pwaNotificationCard) {
-            pwaNotificationCard.style.borderColor = "#ef4444";
-            pwaNotificationCard.style.background = "#fef2f2";
-            if (cardTitle) cardTitle.textContent = "No se pudo verificar el estado de las notificaciones.";
-            if (cardText) cardText.textContent = "Intenta nuevamente.";
-            if (btnEnable) {
-                btnEnable.textContent = "Reintentar";
-                btnEnable.style.display = "";
+        } catch (e) {
+            console.warn("[push] Error al actualizar estado de notificaciones (granted):", e);
+            if (pwaNotificationCard) {
+                pwaNotificationCard.style.borderColor = "#ef4444";
+                pwaNotificationCard.style.background = "#fef2f2";
+                if (cardTitle) cardTitle.textContent = "No se pudo verificar el estado de las notificaciones.";
+                if (cardText) cardText.textContent = "Intenta nuevamente.";
+                if (btnEnable) {
+                    btnEnable.textContent = "Reintentar";
+                    btnEnable.style.display = "";
+                    btnEnable.disabled = false;
+                }
+                if (btnDismiss) {
+                    btnDismiss.textContent = "Cerrar";
+                    btnDismiss.style.display = "";
+                    btnDismiss.disabled = false;
+                }
+                pwaNotificationCard.hidden = false;
             }
-            if (btnDismiss) {
-                btnDismiss.textContent = "Cerrar";
-                btnDismiss.style.display = "";
-            }
-            pwaNotificationCard.hidden = false;
         }
     }
 }
