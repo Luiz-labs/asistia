@@ -26,16 +26,17 @@
       if (tenant) {
         tenant = String(tenant).trim().toLowerCase().replace(/[^a-z0-9\-]/g, "");
       }
+      const link = document.createElement("link");
+      link.id = "pwaManifestLink";
+      link.rel = "manifest";
       if (tenant) {
-        const link = document.createElement("link");
-        link.id = "pwaManifestLink";
-        link.rel = "manifest";
-        link.href = `/${tenant}/staff-asistencia/manifest.json`;
-        document.head.appendChild(link);
+        link.href = `/staff-asistencia/manifest.json?tenant=${tenant}`;
         console.log("[manifest-loader] Manifest dinámico inyectado:", link.href);
       } else {
-        console.warn("[manifest-loader] No se pudo determinar un tenant válido para el manifest.");
+        link.href = `/staff-asistencia/manifest.json`;
+        console.log("[manifest-loader] Manifest genérico inyectado:", link.href);
       }
+      document.head.appendChild(link);
     })();
   </script>
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -195,15 +196,7 @@
       if (!window.isSecureContext && !/localhost|127\.0\.0\.1/.test(window.location.hostname)) return;
 
       window.addEventListener("load", () => {
-        const path = window.location.pathname;
-        const segments = path.split("/").filter(Boolean);
-        const idx = segments.indexOf("staff-asistencia");
-        let scope = "/staff-asistencia/";
-        if (idx > 0) {
-          const tenant = segments[idx - 1];
-          scope = `/${tenant}/staff-asistencia/`;
-        }
-
+        const scope = "/staff-asistencia/";
         navigator.serviceWorker.register("/staff-service-worker.js", { scope }).then(registration => {
           console.log("[staff-sw] Registrado con scope:", registration.scope);
         }).catch(error => {

@@ -1,20 +1,21 @@
 export async function onRequest(context) {
-  const { tenant } = context.params;
+  const { request } = context;
+  const url = new URL(request.url);
+  let tenant = url.searchParams.get("tenant");
 
-  if (!tenant) {
-    return new Response(JSON.stringify({ error: "Tenant is required" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" }
-    });
+  if (tenant) {
+    tenant = String(tenant).trim().toLowerCase().replace(/[^a-z0-9\-]/g, "");
   }
+
+  const tenantSlug = tenant || "asistia";
 
   const manifest = {
     name: "Staff",
     short_name: "Staff",
     description: "Módulo Staff de asistencia asistIA.",
-    id: `/pwa/${tenant}/staff`,
-    start_url: `/${tenant}/staff-asistencia/`,
-    scope: `/${tenant}/staff-asistencia/`,
+    id: `/pwa/${tenantSlug}/staff`,
+    start_url: tenant ? `/staff-asistencia/?tenant=${tenant}` : `/staff-asistencia/`,
+    scope: "/staff-asistencia/",
     display: "standalone",
     orientation: "portrait",
     background_color: "#f7f9fc",

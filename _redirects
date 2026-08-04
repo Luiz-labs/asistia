@@ -1,6 +1,4 @@
-# staff público multi-tenant
-/:tenant/staff-asistencia/      /staff-asistencia/index.html   200!
-/:tenant/staff-asistencia       /staff-asistencia/index.html   200!
+# staff público multi-tenant (servido directamente desde archivos físicos sin redirección)
 
 # asistencia pública multi-tenant
 /*/asistencia/*           /asistencia/index.html         200!
