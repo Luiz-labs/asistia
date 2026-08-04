@@ -121,6 +121,16 @@
   ! Cache-Control
   Cache-Control: public, max-age=0, must-revalidate
 
+/staff-asistencia/app.js
+
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
+/staff-asistencia/style.css
+
+  ! Cache-Control
+  Cache-Control: public, max-age=0, must-revalidate
+
 /service-worker.js
 
   ! Cache-Control

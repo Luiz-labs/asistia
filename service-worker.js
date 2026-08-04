@@ -1,4 +1,4 @@
-const CACHE_NAME = "asistia-pwa-v1.1.0-build10021"
+const CACHE_NAME = "asistia-pwa-v1.1.0-build10022"
 
 const PRECACHE_URLS = [
   "/",
@@ -16,9 +16,6 @@ const PRECACHE_URLS = [
   "/asistencia/index.html",
   "/asistencia/style.css",
   "/asistencia/app.js",
-  "/staff-asistencia/index.html",
-  "/staff-asistencia/style.css",
-  "/staff-asistencia/app.js",
   "/justificaciones/index.html",
   "/justificaciones/style.css",
   "/justificaciones/app.js"
@@ -30,7 +27,6 @@ const CRITICAL_ASSETS = [
   "/update-notifier.js",
   "/app-version.json",
   "/asistencia/app.js",
-  "/staff-asistencia/app.js",
   "/justificaciones/app.js"
 ]
 
@@ -65,6 +61,11 @@ self.addEventListener("fetch", event => {
 
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) return
+
+  // Excluir solicitudes al módulo Staff y a su SW para delegarlas a su SW específico
+  if (url.pathname.includes("/staff-asistencia") || url.pathname === "/staff-service-worker.js") {
+    return
+  }
 
   // 1. Estrategia Network-First para navegación (HTML)
   if (request.mode === "navigate") {
