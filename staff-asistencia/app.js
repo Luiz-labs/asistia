@@ -309,7 +309,11 @@ async function actualizarEstadoNotificacionesStaff() {
     }
 
     try {
-        const registration = await navigator.serviceWorker.ready;
+        const swReadyPromise = navigator.serviceWorker.ready;
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Tiempo de espera agotado esperando al Service Worker.")), 5000)
+        );
+        const registration = await Promise.race([swReadyPromise, timeoutPromise]);
         const subscription = await registration.pushManager.getSubscription();
         const permission = Notification.permission;
 
@@ -367,6 +371,21 @@ async function actualizarEstadoNotificacionesStaff() {
         }
     } catch (e) {
         console.warn("[push] Error al actualizar estado de notificaciones:", e);
+        if (pwaNotificationCard) {
+            pwaNotificationCard.style.borderColor = "#ef4444";
+            pwaNotificationCard.style.background = "#fef2f2";
+            if (cardTitle) cardTitle.textContent = "No se pudo verificar el estado de las notificaciones.";
+            if (cardText) cardText.textContent = "Intenta nuevamente.";
+            if (btnEnable) {
+                btnEnable.textContent = "Reintentar";
+                btnEnable.style.display = "";
+            }
+            if (btnDismiss) {
+                btnDismiss.textContent = "Cerrar";
+                btnDismiss.style.display = "";
+            }
+            pwaNotificationCard.hidden = false;
+        }
     }
 }
 
@@ -401,6 +420,21 @@ async function activarFlujoNotificacionesPush() {
     const btnDismiss = document.getElementById("btnDismissNotifications");
     const cardTitle = pwaNotificationCard.querySelector("h4");
     const cardText = pwaNotificationCard.querySelector("p");
+
+    if (btnEnable && btnEnable.textContent === "Reintentar") {
+        if (btnEnable) btnEnable.disabled = true;
+        if (btnDismiss) btnDismiss.disabled = true;
+        if (cardText) cardText.textContent = "Verificando estado de notificaciones...";
+        try {
+            await actualizarEstadoNotificacionesStaff();
+        } catch (e) {
+            console.warn(e);
+        } finally {
+            if (btnEnable) btnEnable.disabled = false;
+            if (btnDismiss) btnDismiss.disabled = false;
+        }
+        return;
+    }
 
     if (btnEnable) btnEnable.disabled = true;
     if (btnDismiss) btnDismiss.disabled = true;
@@ -1472,6 +1506,9 @@ function abrirWhatsAppSoporteStaff() {
 }
 
 async function init() {
+    // Neutralizar temporalmente el cooldown de notificaciones para validación en etapa de pruebas
+    localStorage.removeItem("asistia_staff_push_dismissed_at");
+
     enlazarIds()
     bindEventos()
 
