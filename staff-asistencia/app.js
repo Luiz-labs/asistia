@@ -269,7 +269,7 @@ async function actualizarEstadoNotificacionesStaff() {
 
     // 1. Comprobar compatibilidad y disponibilidad de Notification
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof Notification === 'undefined') {
-        pwaNotificationCard.hidden = true;
+        setSectionVisible(pwaNotificationCard, false);
         return;
     }
 
@@ -284,13 +284,13 @@ async function actualizarEstadoNotificacionesStaff() {
             btnDismiss.style.display = "";
             btnDismiss.textContent = "Cerrar";
         }
-        pwaNotificationCard.hidden = false;
+        setSectionVisible(pwaNotificationCard, true);
         return;
     }
 
     // 3. Validar VAPID
     if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.trim() === "") {
-        pwaNotificationCard.hidden = true;
+        setSectionVisible(pwaNotificationCard, false);
         return;
     }
 
@@ -305,7 +305,7 @@ async function actualizarEstadoNotificacionesStaff() {
             const diff = Date.now() - Number(dismissedAt);
             const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
             if (diff < sevenDaysMs) {
-                pwaNotificationCard.hidden = true;
+                setSectionVisible(pwaNotificationCard, false);
                 return;
             }
         }
@@ -322,7 +322,7 @@ async function actualizarEstadoNotificacionesStaff() {
             btnDismiss.style.display = "";
             btnDismiss.disabled = false;
         }
-        pwaNotificationCard.hidden = false;
+        setSectionVisible(pwaNotificationCard, true);
         return;
     }
 
@@ -338,13 +338,13 @@ async function actualizarEstadoNotificacionesStaff() {
             btnDismiss.textContent = "Cerrar";
             btnDismiss.disabled = false;
         }
-        pwaNotificationCard.hidden = false;
+        setSectionVisible(pwaNotificationCard, true);
         return;
     }
 
     // ESTADO B/C: Concedido (Requiere consultar el Service Worker de forma asíncrona)
     if (permission === "granted") {
-        pwaNotificationCard.hidden = true; // Ocultar preventivamente para evitar parpadeos de carga
+        setSectionVisible(pwaNotificationCard, false); // Ocultar preventivamente para evitar parpadeos de carga
 
         try {
             const swReadyPromise = navigator.serviceWorker.ready;
@@ -362,7 +362,7 @@ async function actualizarEstadoNotificacionesStaff() {
                 if (cardText) cardText.textContent = "Tu dispositivo está listo para recibir las actualizaciones de asistencia.";
                 if (btnEnable) btnEnable.style.display = "none";
                 if (btnDismiss) btnDismiss.style.display = "none";
-                pwaNotificationCard.hidden = false;
+                setSectionVisible(pwaNotificationCard, true);
             } else {
                 // ESTADO C: Concedido pero sin PushSubscription
                 pwaNotificationCard.style.borderColor = "#f59e0b";
@@ -379,7 +379,7 @@ async function actualizarEstadoNotificacionesStaff() {
                     btnDismiss.textContent = "Ahora no";
                     btnDismiss.disabled = false;
                 }
-                pwaNotificationCard.hidden = false;
+                setSectionVisible(pwaNotificationCard, true);
             }
         } catch (e) {
             console.warn("[push] Error al actualizar estado de notificaciones (granted):", e);
@@ -398,7 +398,7 @@ async function actualizarEstadoNotificacionesStaff() {
                     btnDismiss.style.display = "";
                     btnDismiss.disabled = false;
                 }
-                pwaNotificationCard.hidden = false;
+                setSectionVisible(pwaNotificationCard, true);
             }
         }
     }
@@ -528,7 +528,7 @@ function descartarNotificacionesPush() {
     if (Notification.permission === "default") {
         localStorage.setItem("asistia_staff_push_dismissed_at", String(Date.now()));
     }
-    if (pwaNotificationCard) pwaNotificationCard.hidden = true;
+    setSectionVisible(pwaNotificationCard, false);
 
     if (staffCurrentView === "exito") {
         resetStaffSeleccionado();
@@ -1259,7 +1259,7 @@ async function buscarStaffPorCodigo() {
             setMensaje("Ya registraste asistencia staff hoy.", "warning")
             void actualizarEstadoNotificacionesStaff()
         } else {
-            if (pwaNotificationCard) pwaNotificationCard.hidden = true;
+            setSectionVisible(pwaNotificationCard, false);
         }
     } catch (e) {
         console.error("Error al consultar asistencia del día:", e)
