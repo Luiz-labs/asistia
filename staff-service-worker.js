@@ -133,7 +133,7 @@ self.addEventListener("push", event => {
 
 self.addEventListener("notificationclick", event => {
   event.notification.close()
-  const targetUrl = event.notification.data?.url || "/"
+  const targetUrl = event.notification.data?.url || "/staff-asistencia/"
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true })

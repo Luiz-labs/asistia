@@ -69,7 +69,7 @@ serve(async (req) => {
       const payload = JSON.stringify({
         title: title || "asistIA Staff",
         body: body || "Notificación de prueba",
-        url: `/${tenant_id}/staff-asistencia/`
+        url: `/staff-asistencia/?tenant=${encodeURIComponent(tenant_id)}`
       })
 
       try {
