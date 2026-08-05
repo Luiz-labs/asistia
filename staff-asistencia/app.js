@@ -1521,9 +1521,6 @@ function abrirWhatsAppSoporteStaff() {
 }
 
 async function init() {
-    // Neutralizar temporalmente el cooldown de notificaciones para validación en etapa de pruebas
-    localStorage.removeItem("asistia_staff_push_dismissed_at");
-
     enlazarIds()
     bindEventos()
 
