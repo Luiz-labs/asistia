@@ -254,6 +254,8 @@ let cacheDashboard = []
 let cacheCalendarioGlobal = []
 let cacheRiesgoUbo = []
 let staffInstruccionCache = []
+let staffCurrentPage = 1
+let staffPageSize = 10
 let cacheDashboardStaff = []
 let staffReportExpandedKey = ""
 let editStaffInstruccionId = null
@@ -8387,14 +8389,18 @@ function editarStaffInstruccion(id) {
     mostrarMsgCursoModulo("msgStaffInstruccion", "", "")
 }
 
-function renderStaffInstruccion() {
+function renderStaffInstruccion(keepPage = false) {
     if (!tablaStaffInstruccion) return
+
+    if (!keepPage) {
+        staffCurrentPage = 1
+    }
 
     const filtroTexto = String(staffFiltroTexto?.value || "").trim().toLowerCase()
     const filtroTipo = String(staffFiltroTipo?.value || "").trim().toUpperCase()
     const filtroEstado = String(staffFiltroEstado?.value || "").trim().toLowerCase()
 
-    const rows = staffInstruccionCache
+    const filteredRows = staffInstruccionCache
         .filter(item => {
             if (filtroTipo && item.tipo_staff !== filtroTipo) return false
             if (filtroEstado === "activo" && item.activo !== true) return false
@@ -8416,7 +8422,53 @@ function renderStaffInstruccion() {
             return `${a.apellidos} ${a.nombres}`.localeCompare(`${b.apellidos} ${b.nombres}`, "es", { sensitivity: "base" })
         })
 
-    if (!rows.length) {
+    const totalRecords = filteredRows.length
+    const totalPages = Math.ceil(totalRecords / staffPageSize)
+
+    if (staffCurrentPage > totalPages) {
+        staffCurrentPage = Math.max(1, totalPages)
+    }
+
+    const startIndex = (staffCurrentPage - 1) * staffPageSize
+    const endIndex = Math.min(startIndex + staffPageSize, totalRecords)
+    const paginatedRows = filteredRows.slice(startIndex, endIndex)
+
+    // Renderizar controles de paginación
+    let textoMostrando = "Mostrando 0–0 de 0 registros"
+    if (totalRecords === 1) {
+        textoMostrando = "Mostrando 1–1 de 1 registro"
+    } else if (totalRecords > 1) {
+        textoMostrando = `Mostrando ${startIndex + 1}–${endIndex} de ${totalRecords} registros`
+    }
+
+    const paginationEl = document.getElementById("staffPaginationControls")
+    if (paginationEl) {
+        paginationEl.innerHTML = `
+          <div class="staff-pagination-wrapper" style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 13px; color: #627590;">Filas por página:</span>
+              <select id="staffPageSizeSelect" onchange="cambiarPageSizeStaff(this.value)" class="filter-select-sm" style="width: auto; padding: 4px 8px;">
+                <option value="10" ${staffPageSize === 10 ? "selected" : ""}>10</option>
+                <option value="20" ${staffPageSize === 20 ? "selected" : ""}>20</option>
+                <option value="50" ${staffPageSize === 50 ? "selected" : ""}>50</option>
+                <option value="100" ${staffPageSize === 100 ? "selected" : ""}>100</option>
+              </select>
+            </div>
+
+            <div style="font-size: 13px; color: #627590; font-weight: 500;">
+              ${textoMostrando}
+            </div>
+
+            <div style="display: ${totalRecords === 0 ? "flex" : (totalRecords <= staffPageSize ? "none" : "flex")}; align-items: center; gap: 10px;">
+              <button onclick="cambiarPaginaStaff(${staffCurrentPage - 1})" ${staffCurrentPage <= 1 || totalRecords === 0 ? "disabled style='opacity:0.5; cursor:not-allowed;'" : ""} class="secondary" style="padding: 4px 10px;">Anterior</button>
+              <span style="font-weight: 600; font-size: 13px; color: #14284f;">Página ${totalPages === 0 ? 1 : staffCurrentPage} de ${totalPages || 1}</span>
+              <button onclick="cambiarPaginaStaff(${staffCurrentPage + 1})" ${staffCurrentPage >= totalPages || totalRecords === 0 ? "disabled style='opacity:0.5; cursor:not-allowed;'" : ""} class="secondary" style="padding: 4px 10px;">Siguiente</button>
+            </div>
+          </div>
+        `
+    }
+
+    if (!paginatedRows.length) {
         tablaStaffInstruccion.innerHTML = buildEmptyTableRow(
             10,
             "Sin staff registrado",
@@ -8427,7 +8479,7 @@ function renderStaffInstruccion() {
     }
 
     let html = ""
-    rows.forEach(item => {
+    paginatedRows.forEach(item => {
         html += `
           <tr>
             <td>
@@ -8630,13 +8682,34 @@ function exportarExcelStaffInstruccion() {
     }
 
     const cursoIdNum = Number(cursoActualId || 1);
+    const filtroTexto = String(staffFiltroTexto?.value || "").trim().toLowerCase();
+    const filtroTipo = String(staffFiltroTipo?.value || "").trim().toUpperCase();
+    const filtroEstado = String(staffFiltroEstado?.value || "").trim().toLowerCase();
 
-    // Filtrar para incluir solo integrantes de staff del tenant y curso activos (o curso_id null)
-    const rows = staffInstruccionCache.filter(item => {
-        if (item.tenant_id !== tenantActivoId) return false;
-        if (item.curso_id !== null && item.curso_id !== cursoIdNum) return false;
-        return true;
-    });
+    // Filtrar para incluir solo integrantes de staff del tenant y curso activos que coincidan con los filtros de búsqueda
+    const rows = staffInstruccionCache
+        .filter(item => {
+            if (item.tenant_id !== tenantActivoId) return false;
+            if (item.curso_id !== null && item.curso_id !== cursoIdNum) return false;
+            if (filtroTipo && item.tipo_staff !== filtroTipo) return false;
+            if (filtroEstado === "activo" && item.activo !== true) return false;
+            if (filtroEstado === "inactivo" && item.activo !== false) return false;
+            if (!filtroTexto) return true;
+            const blob = [
+                item.codigo_bombero,
+                item.nombres,
+                item.apellidos,
+                item.grado,
+                item.ubo_origen,
+                item.celular,
+                item.correo
+            ].join(" ").toLowerCase();
+            return blob.includes(filtroTexto);
+        })
+        .sort((a, b) => {
+            if (a.activo !== b.activo) return a.activo ? -1 : 1;
+            return `${a.apellidos} ${a.nombres}`.localeCompare(`${b.apellidos} ${b.nombres}`, "es", { sensitivity: "base" });
+        });
 
     if (rows.length === 0) {
         alert("No hay integrantes de staff para exportar.");
@@ -8715,6 +8788,46 @@ function exportarExcelStaffInstruccion() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Staff de instrucción");
     XLSX.writeFile(wb, nombreArchivo);
+}
+
+function cambiarPaginaStaff(page) {
+    const filtroTexto = String(staffFiltroTexto?.value || "").trim().toLowerCase();
+    const filtroTipo = String(staffFiltroTipo?.value || "").trim().toUpperCase();
+    const filtroEstado = String(staffFiltroEstado?.value || "").trim().toLowerCase();
+    const cursoIdNum = Number(cursoActualId || 1);
+
+    const totalRecords = staffInstruccionCache.filter(item => {
+        if (item.tenant_id !== tenantActivoId) return false;
+        if (item.curso_id !== null && item.curso_id !== cursoIdNum) return false;
+        if (filtroTipo && item.tipo_staff !== filtroTipo) return false;
+        if (filtroEstado === "activo" && item.activo !== true) return false;
+        if (filtroEstado === "inactivo" && item.activo !== false) return false;
+        if (!filtroTexto) return true;
+        const blob = [
+            item.codigo_bombero,
+            item.nombres,
+            item.apellidos,
+            item.grado,
+            item.ubo_origen,
+            item.celular,
+            item.correo
+        ].join(" ").toLowerCase();
+        return blob.includes(filtroTexto);
+    }).length;
+
+    const totalPages = Math.ceil(totalRecords / staffPageSize) || 1;
+    let targetPage = page;
+    if (targetPage < 1) targetPage = 1;
+    if (targetPage > totalPages) targetPage = totalPages;
+
+    staffCurrentPage = targetPage;
+    renderStaffInstruccion(true);
+}
+
+function cambiarPageSizeStaff(size) {
+    staffPageSize = Number(size);
+    staffCurrentPage = 1;
+    renderStaffInstruccion(true);
 }
 
 async function toggleActivoStaffInstruccion(id, siguienteEstado) {
