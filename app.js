@@ -3989,14 +3989,19 @@ function resolverRutaPublicaModerna() {
     const subruta = String(segments[1] || "").trim().toLowerCase()
 
     if (!slug || !esSlugTenantRuteable(slug)) return null
-    if (subruta !== "asistencia" && subruta !== "justificaciones") return null
+    if (subruta !== "asistencia" && subruta !== "justificaciones" && subruta !== "staff-asistencia") return null
 
     const params = new URLSearchParams(window.location.search || "")
     if (!params.get("tenant")) {
         params.set("tenant", slug)
     }
 
-    const destinoBase = subruta === "justificaciones" ? "/justificaciones/index.html" : "/asistencia/index.html"
+    let destinoBase = "/asistencia/index.html"
+    if (subruta === "justificaciones") {
+        destinoBase = "/justificaciones/index.html"
+    } else if (subruta === "staff-asistencia") {
+        destinoBase = "/staff-asistencia/index.html"
+    }
     const qs = params.toString()
     return qs ? `${destinoBase}?${qs}` : destinoBase
 }
