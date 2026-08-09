@@ -1015,7 +1015,7 @@
             <div class="staff-config-head">
               <div>
                 <h4>Registro de staff</h4>
-                <p class="hint course-module-hint">Usa Código de Bombero como identificador único institucional. No se usa DNI.</p>
+                <p class="hint course-module-hint">Usa Código de Bombero como identificador único institucional e ingresa su DNI de 8 dígitos.</p>
               </div>
               <div id="staffPreviewMini" class="staff-preview-mini" hidden></div>
             </div>
@@ -1028,6 +1028,10 @@
               <div>
                 <label for="staffCodigoBombero">Código de Bombero</label>
                 <input id="staffCodigoBombero" placeholder="Ejemplo: A17200" autocomplete="off">
+              </div>
+              <div>
+                <label for="staffDni">DNI</label>
+                <input id="staffDni" placeholder="DNI (8 dígitos)" inputmode="numeric" maxlength="8" autocomplete="off">
               </div>
               <div>
                 <label for="staffNombres">Nombres</label>
@@ -1091,7 +1095,10 @@
                 <h4>Listado de staff</h4>
                 <p class="hint course-module-hint">Solo integra APOYO, ADJUNTO e INSTRUCTOR ESBAS. El campo foto se muestra solo si ya existe en <code>foto_url</code>.</p>
               </div>
-              <button type="button" class="secondary" onclick="cargarStaffInstruccion()">Refrescar</button>
+              <div class="staff-toolbar-actions" style="display: flex; gap: 8px;">
+                <button type="button" class="secondary" onclick="cargarStaffInstruccion()">Refrescar</button>
+                <button type="button" class="secondary" onclick="exportarExcelStaffInstruccion()">Exportar Excel</button>
+              </div>
             </div>
             <div class="config-row">
               <input id="staffFiltroTexto" placeholder="Buscar por código, nombre, grado o UBO" oninput="renderStaffInstruccion()">
@@ -1113,6 +1120,7 @@
                   <tr>
                     <th>Staff</th>
                     <th>Código</th>
+                    <th>DNI</th>
                     <th>Grado</th>
                     <th>UBO</th>
                     <th>Tipo</th>

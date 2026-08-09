@@ -8164,6 +8164,7 @@ function normalizarStaffRow(row) {
         tenant_id: String(row?.tenant_id || "").trim().toLowerCase(),
         curso_id: row?.curso_id == null ? null : Number(row.curso_id),
         codigo_bombero: normalizarCodigoBombero(row?.codigo_bombero),
+        dni: row?.dni == null ? null : String(row.dni).trim(),
         nombres: normalizarTextoTitulo(row?.nombres),
         apellidos: normalizarTextoTitulo(row?.apellidos),
         grado: normalizarGradoStaff(row?.grado),
@@ -8341,6 +8342,8 @@ function actualizarUIModoEdicionStaffInstruccion() {
 
 function limpiarFormStaffInstruccion() {
     if (staffCodigoBombero) staffCodigoBombero.value = ""
+    const staffDni = document.getElementById("staffDni")
+    if (staffDni) staffDni.value = ""
     if (staffNombres) staffNombres.value = ""
     if (staffApellidos) staffApellidos.value = ""
     if (staffGrado) staffGrado.value = ""
@@ -8362,6 +8365,8 @@ function cancelarEdicionStaffInstruccion() {
 function poblarFormularioStaffInstruccion(item) {
     if (!item) return
     if (staffCodigoBombero) staffCodigoBombero.value = item.codigo_bombero || ""
+    const staffDni = document.getElementById("staffDni")
+    if (staffDni) staffDni.value = item.dni || ""
     if (staffNombres) staffNombres.value = item.nombres || ""
     if (staffApellidos) staffApellidos.value = item.apellidos || ""
     if (staffGrado) staffGrado.value = normalizarGradoStaff(item.grado)
@@ -8413,7 +8418,7 @@ function renderStaffInstruccion() {
 
     if (!rows.length) {
         tablaStaffInstruccion.innerHTML = buildEmptyTableRow(
-            9,
+            10,
             "Sin staff registrado",
             "No hay resultados para el filtro aplicado o aun no se ha cargado personal de instruccion.",
             "🧑‍🚒"
@@ -8435,6 +8440,7 @@ function renderStaffInstruccion() {
               </div>
             </td>
             <td>${escapeHtml(item.codigo_bombero || "-")}</td>
+            <td>${escapeHtml(item.dni || "-")}</td>
             <td>${escapeHtml(item.grado || "-")}</td>
             <td>${escapeHtml(item.ubo_origen || "-")}</td>
             <td>${renderBadgeTipoStaff(item.tipo_staff)}</td>
@@ -8461,7 +8467,7 @@ async function cargarStaffInstruccion(force = true) {
     if (staffInstruccionHidratado && !force) return
     if (!haySupabase() || !tenantActivoId) {
         tablaStaffInstruccion.innerHTML = buildEmptyTableRow(
-            9,
+            10,
             "Sin conexión disponible",
             "No se pudo preparar el módulo staff porque falta Supabase o el tenant activo.",
             "⚠️"
@@ -8481,7 +8487,7 @@ async function cargarStaffInstruccion(force = true) {
     if (error) {
         staffInstruccionCache = []
         tablaStaffInstruccion.innerHTML = buildEmptyTableRow(
-            9,
+            10,
             "Tabla staff_instruccion no disponible",
             esTablaNoExiste(error)
                 ? "Aplica primero el SQL sugerido para habilitar este módulo."
@@ -8504,6 +8510,8 @@ async function guardarStaffInstruccion() {
     }
 
     const codigo = normalizarCodigoBombero(staffCodigoBombero?.value)
+    const dniInput = document.getElementById("staffDni")
+    const dniValor = dniInput ? String(dniInput.value || "").trim() : ""
     const nombresValor = normalizarCampoStaffTitulo(staffNombres)
     const apellidosValor = normalizarCampoStaffTitulo(staffApellidos)
     const gradoValor = normalizarGradoStaff(staffGrado?.value)
@@ -8512,10 +8520,23 @@ async function guardarStaffInstruccion() {
     const fueEdicion = !!editStaffInstruccionId
 
     if (staffCodigoBombero) staffCodigoBombero.value = codigo
+    if (dniInput) dniInput.value = dniValor
     if (staffGrado) staffGrado.value = gradoValor
 
     if (!codigo) {
         mostrarMsgCursoModulo("msgStaffInstruccion", "Ingresa el Código de Bombero.", "error")
+        return
+    }
+    if (!dniValor) {
+        mostrarMsgCursoModulo("msgStaffInstruccion", "Ingresa el DNI del integrante.", "error")
+        return
+    }
+    if (!/^\d+$/.test(dniValor)) {
+        mostrarMsgCursoModulo("msgStaffInstruccion", "El DNI debe contener solo números.", "error")
+        return
+    }
+    if (dniValor.length !== 8) {
+        mostrarMsgCursoModulo("msgStaffInstruccion", "El DNI debe tener exactamente 8 dígitos.", "error")
         return
     }
     if (!nombresValor || !apellidosValor) {
@@ -8546,6 +8567,7 @@ async function guardarStaffInstruccion() {
     const payload = withTenantPayload({
         curso_id: Number(cursoActualId || 1) || null,
         codigo_bombero: codigo,
+        dni: dniValor,
         nombres: nombresValor,
         apellidos: apellidosValor,
         grado: gradoValor || null,
@@ -8595,6 +8617,104 @@ async function guardarStaffInstruccion() {
         { codigoBombero: codigo, tipoStaff },
         { tenantId: tenantActivoId }
     )
+}
+
+function exportarExcelStaffInstruccion() {
+    if (!window.XLSX) {
+        alert("Librería XLSX no disponible.");
+        return;
+    }
+    if (!tenantActivoId) {
+        alert("No hay institución seleccionada.");
+        return;
+    }
+
+    const cursoIdNum = Number(cursoActualId || 1);
+
+    // Filtrar para incluir solo integrantes de staff del tenant y curso activos (o curso_id null)
+    const rows = staffInstruccionCache.filter(item => {
+        if (item.tenant_id !== tenantActivoId) return false;
+        if (item.curso_id !== null && item.curso_id !== cursoIdNum) return false;
+        return true;
+    });
+
+    if (rows.length === 0) {
+        alert("No hay integrantes de staff para exportar.");
+        return;
+    }
+
+    const headers = ["N°", "Nombres", "Apellidos", "DNI", "Código", "Grado", "UBO", "Celular", "Correo", "Estado"];
+    const ws = XLSX.utils.aoa_to_sheet([headers]);
+
+    rows.forEach((item, index) => {
+        const dataRow = [
+            index + 1,
+            item.nombres || "",
+            item.apellidos || "",
+            item.dni ? String(item.dni) : "",
+            item.codigo_bombero || "",
+            item.grado || "",
+            item.ubo_origen ? String(item.ubo_origen) : "",
+            item.celular || "",
+            item.correo || "",
+            item.activo !== false ? "Activo" : "Inactivo"
+        ];
+        XLSX.utils.sheet_add_aoa(ws, [dataRow], { origin: -1 });
+    });
+
+    // Configurar explícitamente los formatos de celda para evitar pérdida de formato
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let r = 1; r <= range.e.r; r++) {
+        // DNI (columna D, índice 3)
+        const cellDni = ws[XLSX.utils.encode_cell({r: r, c: 3})];
+        if (cellDni) { cellDni.t = 's'; cellDni.z = '@'; }
+
+        // Código (columna E, índice 4)
+        const cellCod = ws[XLSX.utils.encode_cell({r: r, c: 4})];
+        if (cellCod) { cellCod.t = 's'; cellCod.z = '@'; }
+
+        // UBO (columna G, índice 6)
+        const cellUbo = ws[XLSX.utils.encode_cell({r: r, c: 6})];
+        if (cellUbo) { cellUbo.t = 's'; cellUbo.z = '@'; }
+
+        // Celular (columna H, índice 7)
+        const cellCel = ws[XLSX.utils.encode_cell({r: r, c: 7})];
+        if (cellCel) { cellCel.t = 's'; cellCel.z = '@'; }
+    }
+
+    // Configurar anchos de columna razonables
+    ws['!cols'] = [
+        { wch: 6 },  // N°
+        { wch: 20 }, // Nombres
+        { wch: 20 }, // Apellidos
+        { wch: 15 }, // DNI
+        { wch: 12 }, // Código
+        { wch: 18 }, // Grado
+        { wch: 10 }, // UBO
+        { wch: 15 }, // Celular
+        { wch: 25 }, // Correo
+        { wch: 12 }  // Estado
+    ];
+
+    // Activar autofiltros
+    ws['!autofilter'] = { ref: `A1:J${rows.length + 1}` };
+
+    // Congelar la primera fila
+    ws['!views'] = [ { state: 'frozen', ySplit: 1 } ];
+
+    // Nombre de archivo dinámico con fecha local (YYYY-MM-DD)
+    const hoy = new Date();
+    const anio = hoy.getFullYear();
+    const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoy.getDate()).padStart(2, '0');
+    const fechaStr = `${anio}-${mes}-${dia}`;
+
+    const tenantUpper = String(tenantActivoId).toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const nombreArchivo = `asistIA_Staff_${tenantUpper}_${fechaStr}.xlsx`;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Staff de instrucción");
+    XLSX.writeFile(wb, nombreArchivo);
 }
 
 async function toggleActivoStaffInstruccion(id, siguienteEstado) {
