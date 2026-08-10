@@ -11932,6 +11932,7 @@ async function retirarAspirante(dni) {
 }
 
 function mostrarVista(vista) {
+    const vistaAnterior = vistaAdminActual
     vista = aplicarPermisosVistasPorPerfil(vista)
     if (esModoAdminMovilLimitado() && !esVistaPermitidaEnAdminMovil(vista)) {
         vista = "dashboard"
@@ -11976,8 +11977,12 @@ function mostrarVista(vista) {
 
     if (vista === "config") {
         document.getElementById("vistaConfig").style.display = "block"
+        const configCursoYaCargada = configCursoCargada
         cargarUbos()
         cargarConfigCurso()
+        if (vistaAnterior !== "config" && configCursoYaCargada) {
+            cargarCalendarioGps()
+        }
         cargarAspirantesCargados(false)
         cargarStaffInstruccion(false)
         void registrarActividadBackofficeSegura("vista_config_abierta", {
