@@ -1512,7 +1512,9 @@ ${obtenerDatosDispositivoReporte()}
 
 Texto editable para el usuario:
 "Descripción del problema:
-"`
+"
+
+Desarrollado por Labs Projects`
 }
 
 function abrirWhatsAppSoporteStaff() {

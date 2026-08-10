@@ -4111,7 +4111,7 @@ function aplicarAccesoDesdeRuta() {
         const tenant = obtenerTenantActivo()
         if (tenant && !tenant.habilitado) {
             limpiarSesionAdminActiva()
-            alert("Esta institución está inactiva. Contacta a Luiz Labs.")
+            alert("Esta institución está inactiva. Contacta a Labs Projects.")
             window.location.href = "/"
             return
         }
@@ -9995,7 +9995,7 @@ async function loginAccesoAdminInstitucional() {
         if (resultado.motivo === "usuario_inactivo") {
             setMensajeAccesoAdminInstitucional("Usuario inactivo.")
         } else if (resultado.motivo === "perfil_inactivo") {
-            setMensajeAccesoAdminInstitucional("Perfil inactivo. Contacta a Luiz Labs.")
+            setMensajeAccesoAdminInstitucional("Perfil inactivo. Contacta a Labs Projects.")
         } else {
             setMensajeAccesoAdminInstitucional("Credenciales inválidas.")
         }
@@ -10056,7 +10056,7 @@ async function login() {
                 return
             }
             if (!tenant.habilitado) {
-                loginMsg.innerText = "Institución inactiva. Contacta a Luiz Labs."
+                loginMsg.innerText = "Institución inactiva. Contacta a Labs Projects."
                 return
             }
             if (resultado.valido && resultado.tenantId && resultado.tenantId !== tenant.id) {
@@ -10129,7 +10129,7 @@ async function login() {
             await bootstrapAuthorizedApp();
         } else {
             loginMsg.innerText = resultado.motivo === "perfil_inactivo"
-                ? "Perfil inactivo. Contacta a Luiz Labs."
+                ? "Perfil inactivo. Contacta a Labs Projects."
                 : "Usuario o clave incorrecta"
         }
     } catch (error) {

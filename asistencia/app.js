@@ -492,7 +492,9 @@ Datos automáticos del dispositivo:
 
 Texto editable para el usuario:
 "Descripción del problema:
-"`
+"
+
+Desarrollado por Labs Projects`
     
     return msg
 }
