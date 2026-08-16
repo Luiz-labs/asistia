@@ -13,6 +13,9 @@ const supabaseClient = window.supabase?.createClient
     })
     : null
 
+// Clave pública VAPID (misma usada en staff-asistencia/app.js)
+const VAPID_PUBLIC_KEY = "BGF_XF7POyYT3CuhJHeXxTuktu2sgbSmwR3j_wrMv9KBNjdsE3RRKSdMNuUhYd1f3xKQmQuA9R-GnDakGGIZIQo"
+
 window.currentProfile = null;
 
 const ROLE_PERMISSIONS = {
@@ -1951,6 +1954,20 @@ function renderCuentaModalDetalle() {
       <span class="cuenta-value">${tenantUI}</span>
     </div>
 
+    <div id="cuentaPushCard" style="border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 12px; padding: 14px; margin-top: 12px; text-align: left; display: none;">
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+            <span style="font-size: 1.3rem;">🔔</span>
+            <div style="flex: 1;">
+                <h4 id="cuentaPushTitle" style="margin: 0; font-size: 0.9rem; font-weight: 700; color: #1e293b;">Activa las notificaciones</h4>
+                <p id="cuentaPushText" style="margin: 4px 0 0 0; font-size: 0.8rem; color: #475569; line-height: 1.4;">Recibe el resumen de asistencia de tu institución en este dispositivo.</p>
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button id="btnEnableNotificationsBackoffice" class="primary-btn" style="flex: 1; padding: 8px 12px; font-size: 0.8rem; font-weight: 600;" type="button" onclick="activarFlujoNotificacionesPushBackoffice()">Activar notificaciones</button>
+            <button id="btnDismissNotificationsBackoffice" class="secondary-btn" style="flex: 1; padding: 8px 12px; font-size: 0.8rem; font-weight: 500;" type="button" onclick="document.getElementById('cuentaPushCard').style.display='none'">Ahora no</button>
+        </div>
+    </div>
+
     <div class="cuenta-separator"></div>
 
     <button id="btnCuentaLogout" class="cuenta-logout-btn" onclick="logout()">
@@ -1959,6 +1976,7 @@ function renderCuentaModalDetalle() {
     </button>
   `
     enlazarAccionesCuentaHeader()
+    actualizarEstadoNotificacionesPushBackoffice()
 }
 
 function abrirCuentaModal() {
@@ -1978,6 +1996,195 @@ function cerrarCuentaModal() {
 function cerrarCuentaModalPorBackdrop(e) {
     if (e?.target?.id === "cuentaModal") {
         cerrarCuentaModal()
+    }
+}
+
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+function getDeviceIdBackoffice() {
+    const key = "asistia_backoffice_device_id_v1"
+    let id = localStorage.getItem(key)
+    if (!id) {
+        id = `backoffice-dev-${Math.random().toString(36).slice(2, 12)}`
+        localStorage.setItem(key, id)
+    }
+    return id
+}
+
+async function registrarSuscripcionPushBackoffice(subscription) {
+    if (!supabaseClient) throw new Error("Cliente de base de datos no inicializado.")
+
+    const sesion = obtenerSesionAdminActiva()
+    const usuario = String(sesion?.usuario || "").trim().toLowerCase()
+    if (!usuario) throw new Error("No hay una sesión de backoffice activa.")
+
+    const { data: usuarioAdminId, error: uaErr } = await supabaseClient.rpc("rpc_resolver_usuario_admin_id_por_usuario", {
+        p_usuario: usuario
+    })
+
+    if (uaErr) throw new Error(uaErr.message || "No se pudo verificar tu usuario para activar notificaciones.")
+    if (!usuarioAdminId) throw new Error("No se encontró tu usuario de backoffice activo. Contacta al administrador.")
+
+    const rawKey = subscription.getKey ? subscription.getKey('p256dh') : null
+    const rawAuth = subscription.getKey ? subscription.getKey('auth') : null
+
+    const p256dh = rawKey ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawKey))) : ""
+    const auth = rawAuth ? btoa(String.fromCharCode.apply(null, new Uint8Array(rawAuth))) : ""
+
+    const { data, error } = await supabaseClient.rpc("rpc_registrar_suscripcion_push_backoffice", {
+        p_usuario_admin_id: usuarioAdminId,
+        p_device_id: getDeviceIdBackoffice(),
+        p_endpoint: subscription.endpoint,
+        p_p256dh: p256dh,
+        p_auth: auth
+    })
+
+    if (error || !data?.success) {
+        throw new Error(data?.error || error?.message || "Error al registrar suscripción.")
+    }
+    return data
+}
+
+async function activarFlujoNotificacionesPushBackoffice() {
+    const btnEnable = document.getElementById("btnEnableNotificationsBackoffice")
+    const btnDismiss = document.getElementById("btnDismissNotificationsBackoffice")
+    const cardTitle = document.getElementById("cuentaPushTitle")
+    const cardText = document.getElementById("cuentaPushText")
+
+    if (btnEnable) btnEnable.disabled = true
+    if (btnDismiss) btnDismiss.disabled = true
+    if (cardText) cardText.textContent = "Solicitando permisos al sistema..."
+
+    try {
+        if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.trim() === "") {
+            throw new Error("Las notificaciones todavía no están configuradas en el servidor.")
+        }
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            throw new Error("Este navegador o dispositivo no soporta notificaciones Web Push.")
+        }
+
+        const permission = await Notification.requestPermission()
+        if (permission !== "granted") {
+            throw new Error("Permiso de notificaciones denegado.")
+        }
+
+        if (cardText) cardText.textContent = "Generando suscripción segura..."
+        const registration = await navigator.serviceWorker.ready
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        })
+
+        if (cardText) cardText.textContent = "Registrando en el servidor..."
+        await registrarSuscripcionPushBackoffice(subscription)
+
+        if (cardTitle) cardTitle.innerHTML = "✓ Notificaciones activadas"
+        if (cardText) cardText.textContent = "Este dispositivo está listo para recibir alertas de asistencia."
+        if (btnEnable) btnEnable.style.display = "none"
+        if (btnDismiss) btnDismiss.style.display = "none"
+    } catch (err) {
+        console.error("[push-backoffice] Error al activar notificaciones:", err)
+        if (cardTitle) cardTitle.textContent = "No se pudieron activar las notificaciones"
+        if (cardText) cardText.textContent = err.message || "Ocurrió un error inesperado."
+        if (btnEnable) {
+            btnEnable.style.display = ""
+            btnEnable.disabled = false
+            btnEnable.textContent = "Reintentar"
+        }
+        if (btnDismiss) {
+            btnDismiss.style.display = ""
+            btnDismiss.disabled = false
+        }
+    }
+}
+
+async function actualizarEstadoNotificacionesPushBackoffice() {
+    const card = document.getElementById("cuentaPushCard")
+    if (!card) return
+
+    const btnEnable = document.getElementById("btnEnableNotificationsBackoffice")
+    const btnDismiss = document.getElementById("btnDismissNotificationsBackoffice")
+    const cardTitle = document.getElementById("cuentaPushTitle")
+    const cardText = document.getElementById("cuentaPushText")
+
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof Notification === 'undefined') {
+        card.style.display = "none"
+        return
+    }
+    if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.trim() === "") {
+        card.style.display = "none"
+        return
+    }
+
+    card.style.display = ""
+    const permission = Notification.permission
+
+    if (permission === "denied") {
+        card.style.borderColor = "#f87171"
+        card.style.background = "#fef2f2"
+        if (cardTitle) cardTitle.textContent = "Notificaciones bloqueadas"
+        if (cardText) cardText.textContent = "Las notificaciones están bloqueadas en este dispositivo. Actívalas desde la configuración del navegador."
+        if (btnEnable) btnEnable.style.display = "none"
+        if (btnDismiss) btnDismiss.style.display = "none"
+        return
+    }
+
+    if (permission === "default") {
+        if (cardTitle) cardTitle.textContent = "Activa las notificaciones"
+        if (cardText) cardText.textContent = "Recibe el resumen de asistencia de tu institución en este dispositivo."
+        if (btnEnable) {
+            btnEnable.textContent = "Activar notificaciones"
+            btnEnable.style.display = ""
+            btnEnable.disabled = false
+        }
+        if (btnDismiss) btnDismiss.style.display = ""
+        return
+    }
+
+    // permission === "granted"
+    try {
+        const registration = await navigator.serviceWorker.ready
+        const subscription = await registration.pushManager.getSubscription()
+        if (subscription) {
+            card.style.borderColor = "#22c55e"
+            card.style.background = "#f0fdf4"
+            if (cardTitle) cardTitle.innerHTML = "✓ Notificaciones activadas"
+            if (cardText) cardText.textContent = "Este dispositivo está listo para recibir alertas de asistencia."
+            if (btnEnable) btnEnable.style.display = "none"
+            if (btnDismiss) btnDismiss.style.display = "none"
+        } else {
+            if (cardTitle) cardTitle.textContent = "Completa la activación"
+            if (cardText) cardText.textContent = "Tu permiso está concedido. Completa el registro para recibir alertas."
+            if (btnEnable) {
+                btnEnable.textContent = "Completar activación"
+                btnEnable.style.display = ""
+                btnEnable.disabled = false
+            }
+            if (btnDismiss) btnDismiss.style.display = "none"
+        }
+    } catch (e) {
+        console.warn("[push-backoffice] Error al verificar suscripción:", e)
+        if (cardTitle) cardTitle.textContent = "No se pudo verificar el estado de las notificaciones."
+        if (cardText) cardText.textContent = "Intenta nuevamente."
+        if (btnEnable) {
+            btnEnable.textContent = "Reintentar"
+            btnEnable.style.display = ""
+            btnEnable.disabled = false
+        }
+        if (btnDismiss) btnDismiss.style.display = "none"
     }
 }
 

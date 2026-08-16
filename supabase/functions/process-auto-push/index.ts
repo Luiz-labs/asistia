@@ -42,6 +42,8 @@ function getLimaDateTime(date = new Date()) {
   return { fecha, hora };
 }
 
+const ANTICIPACION_MAX_MINS = 120
+
 serve(async (req) => {
   // Manejo de preflight CORS
   if (req.method === "OPTIONS") {
@@ -65,26 +67,82 @@ serve(async (req) => {
     const { data: rules, error: ruleErr } = await supabase
       .from("curso_jornada_reglas")
       .select("*, j:jornada_id(codigo, nombre_visible)")
-      .eq("tenant_id", "esbas-24")
-      .eq("curso_id", 1)
       .eq("activa", true);
 
     if (ruleErr) throw ruleErr;
     if (!rules || rules.length === 0) {
-      return new Response(JSON.stringify({ message: "No se encontraron reglas de jornada activas hoy para esbas-24." }), {
+      return new Response(JSON.stringify({ message: "No se encontraron reglas de jornada activas hoy." }), {
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
       });
+    }
+
+    // Mapa de instituciones (nombre + flag de push) -- una sola query para
+    // todos los tenants presentes en las reglas, en vez de una por regla.
+    const tenantIds = Array.from(new Set(rules.map(r => r.tenant_id)));
+    const institucionesMap = new Map();
+    if (tenantIds.length > 0) {
+      const { data: instituciones, error: instErr } = await supabase
+        .from("instituciones_luiz")
+        .select("slug, nombre, push_habilitado")
+        .in("slug", tenantIds);
+
+      if (instErr) throw instErr;
+
+      for (const inst of (instituciones || [])) {
+        institucionesMap.set(inst.slug, inst);
+      }
+    }
+
+    // Suscripciones push de backoffice -- una sola query para todo el
+    // ciclo del cron (no una por regla), igual que institucionesMap. Un
+    // fallo aquí no debe abortar el aviso a staff_instruccion de ningún
+    // tenant, así que se aísla con su propio try/catch y degrada a lista
+    // vacía (el canal de backoffice simplemente no notifica ese ciclo).
+    let backofficeSubs = [];
+    try {
+      const { data: boSubs, error: boSubsErr } = await supabase
+        .from("backoffice_push_subscriptions")
+        .select("*, ua:usuario_admin_id(rol, tenant_id, activo)")
+        .eq("estado", "activo");
+
+      if (boSubsErr) throw boSubsErr;
+      backofficeSubs = boSubs || [];
+    } catch (error: any) {
+      console.warn("[cron-push] Error al cargar suscripciones de backoffice:", error.message);
     }
 
     const resultados = [];
 
     for (const rule of rules) {
+      // C. Feature flag por institución: saltar por completo (sin tracker
+      // ni queries pesadas) si no está habilitado. Si la institución no
+      // aparece en el mapa (fila borrada, error de join, etc.) el optional
+      // chaining resuelve a undefined y !undefined es true -> se salta.
+      // Ante la duda, NO se notifica.
+      if (!institucionesMap.get(rule.tenant_id)?.push_habilitado) {
+        resultados.push({
+          jornada: rule.j?.codigo || "SECCION_REGULAR",
+          status: "skip_push_deshabilitado"
+        });
+        continue;
+      }
+
       const jornadaCodigo = rule.j?.codigo || "SECCION_REGULAR";
       const horaInicioStr = rule.hora_inicio; // Formato HH:MM:SS
       
       // Crear el objeto Date de inicio de jornada en huso GMT-5 (Lima)
       const jornadaInicioAt = new Date(`${fecha}T${horaInicioStr}-05:00`);
       const diffMinutes = (now.getTime() - jornadaInicioAt.getTime()) / (1000 * 60);
+
+      // A. Filtro barato de anticipación: si aún faltan más de
+      // ANTICIPACION_MAX_MINS para el inicio de la jornada, no vale la pena
+      // evaluar esta regla en este ciclo -- evita tocar el tracker y las
+      // queries pesadas (count de aspirantes, fetch de asistencias) de
+      // madrugada, muy fuera de ventana.
+      if (diffMinutes < -ANTICIPACION_MAX_MINS) {
+        resultados.push({ jornada: jornadaCodigo, status: "skip_anticipado" });
+        continue;
+      }
 
       // Aislamiento completo de la prueba acelerada
       const isTest = rule.tenant_id === "esbas-24" && 
@@ -264,6 +322,59 @@ serve(async (req) => {
               }
             }
           }
+        }
+
+        // D. Nuevo canal de destinatarios: usuarios de backoffice
+        // (Superusuario y Administrador, incluyendo el perfil "Staff", que
+        // es un sub-nivel de permisos dentro de rol='administrador'). Va
+        // dentro del mismo if (enviarNotificacion) que el bloque de staff,
+        // por lo que comparte su misma protección de idempotencia del
+        // tracker -- no se reenvía en ciclos sucesivos del cron mientras la
+        // condición no vuelva a cumplirse. Envuelto en su propio try/catch
+        // para que un fallo aquí no aborte el procesamiento de esta regla
+        // ni el de las siguientes.
+        try {
+          const destinatariosBackoffice = backofficeSubs.filter(sub => {
+            const ua = sub.ua;
+            if (!ua || ua.activo !== true) return false;
+            if (ua.rol === "super_admin") return true;
+            return ua.rol === "administrador" && ua.tenant_id === rule.tenant_id;
+          });
+
+          if (destinatariosBackoffice.length > 0) {
+            const nombreInstitucion = institucionesMap.get(rule.tenant_id)?.nombre || rule.tenant_id;
+
+            for (const sub of destinatariosBackoffice) {
+              const esSuperAdmin = sub.ua.rol === "super_admin";
+              const payloadBackoffice = JSON.stringify({
+                title: "asistIA Backoffice",
+                body: esSuperAdmin ? `${nombreInstitucion}: ${bodyText}` : bodyText,
+                url: `/index.html?tenant=${encodeURIComponent(rule.tenant_id)}`
+              });
+
+              const pushSubscription = {
+                endpoint: sub.endpoint,
+                keys: {
+                  p256dh: sub.p256dh,
+                  auth: sub.auth
+                }
+              };
+
+              try {
+                await webpush.sendNotification(pushSubscription, payloadBackoffice);
+              } catch (error: any) {
+                console.warn(`[cron-push] Error al notificar suscripción backoffice ${sub.id}:`, error.message);
+                if (error.statusCode === 404 || error.statusCode === 410) {
+                  await supabase
+                    .from("backoffice_push_subscriptions")
+                    .update({ estado: "inactivo", updated_at: new Date().toISOString() })
+                    .eq("id", sub.id);
+                }
+              }
+            }
+          }
+        } catch (error: any) {
+          console.warn(`[cron-push] Error en despacho de backoffice para ${rule.tenant_id}:`, error.message);
         }
       }
 
