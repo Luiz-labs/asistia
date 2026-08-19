@@ -1,1 +1,5 @@
 supabase/.temp/
+supabase/config.toml
+supabase/.gitignore
+.wrangler/
+.DS_Store
