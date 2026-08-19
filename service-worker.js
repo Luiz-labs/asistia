@@ -124,3 +124,51 @@ self.addEventListener("fetch", event => {
     })
   )
 })
+
+// =====================================================================
+// EVENTOS DE NOTIFICACIONES PUSH
+// =====================================================================
+
+self.addEventListener("push", event => {
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch (e) {
+    console.error("[backoffice-sw] Error al parsear JSON de push:", e)
+  }
+
+  const title = data.title || "asistIA Backoffice"
+  const options = {
+    body: data.body || "Actualización de asistencia",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    vibrate: [100, 50, 100],
+    data: {
+      url: data.url || "/index.html"
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  )
+})
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close()
+  const targetUrl = event.notification.data?.url || "/index.html"
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true })
+      .then(clientList => {
+        for (const client of clientList) {
+          const clientUrl = new URL(client.url)
+          if ((clientUrl.pathname === "/" || clientUrl.pathname.includes("index.html")) && "focus" in client) {
+            return client.focus()
+          }
+        }
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(targetUrl)
+        }
+      })
+  )
+})

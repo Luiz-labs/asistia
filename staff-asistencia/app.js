@@ -1240,6 +1240,7 @@ async function buscarStaffPorCodigo() {
     staffSeleccionado = data
     staffPerfilEditando = false
     staffPerfilGuardando = false
+    localStorage.setItem("asistia_staff_last_codigo_bombero", codigo)
     renderStaffCard(data)
     setStaffView("perfil")
     setMensaje("")
@@ -1550,8 +1551,19 @@ async function init() {
 
     if (!cursoContextoValido) {
         setMensaje("El curso indicado no es válido para esta institución.", "error")
+        setStaffView("login", { preserveMessage: true })
+        return
     }
-    setStaffView("login", { preserveMessage: !cursoContextoValido })
+
+    const ultimoCodigo = localStorage.getItem("asistia_staff_last_codigo_bombero")
+    if (ultimoCodigo && codigoBomberoInput) {
+        codigoBomberoInput.value = ultimoCodigo
+        setStaffView("login")
+        await buscarStaffPorCodigo()
+        return
+    }
+
+    setStaffView("login")
 }
 
 window.addEventListener("load", () => {
