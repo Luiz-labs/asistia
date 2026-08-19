@@ -13,7 +13,24 @@
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, proxy-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="manifest" href="/manifest.webmanifest">
+  <!-- Selección dinámica y temprana del manifest según el tenant (mismo patrón que staff-asistencia/) -->
+  <script>
+    (() => {
+      let path = window.location.pathname || "/";
+      path = path.replace(/\/index\.html$/i, "/");
+      const segments = path.replace(/^\/|\/$/g, "").split("/").filter(Boolean);
+      const subruta = String(segments[1] || "").trim().toLowerCase();
+      let tenant = null;
+      if (segments[0] && (!subruta || subruta === "backoffice")) {
+        tenant = String(segments[0]).trim().toLowerCase().replace(/[^a-z0-9\-]/g, "");
+      }
+      const link = document.createElement("link");
+      link.id = "pwaManifestLink";
+      link.rel = "manifest";
+      link.href = tenant ? `/backoffice/manifest.json?tenant=${tenant}` : `/backoffice/manifest.json`;
+      document.head.appendChild(link);
+    })();
+  </script>
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
