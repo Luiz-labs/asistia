@@ -208,7 +208,7 @@ serve(async (req) => {
     // textos que correspondan. Puede haber 0, 1, 2 o 3 avisos en el mismo
     // tick.
     const updatesTracker: Record<string, unknown> = {}
-    const avisosAEnviar: string[] = []
+    const avisosAEnviar: { staff: string; backoffice: string }[] = []
 
     // --- Corte 1 / Aviso 1 ---
     let corte1Presentes = tracker.corte1_presentes
@@ -232,12 +232,12 @@ serve(async (req) => {
       }
       const corte1Tardanza = corte1Presentes - (corte1Puntual ?? 0)
       const lineaCorte1 = `Puntual: ${corte1Puntual ?? 0} | Tardanza: ${corte1Tardanza}`
+      const lineaFechaCorte1 = `${formatFechaCorta(jornadaInicioAt)}, corte ${formatHoraCorta(new Date(tracker.corte1_en))}`
 
-      avisosAEnviar.push(
-        `asistIA -- ${nombreInstitucion}\n` +
-        `${formatFechaCorta(jornadaInicioAt)}, corte ${formatHoraCorta(new Date(tracker.corte1_en))}\n` +
-        lineaCorte1
-      )
+      avisosAEnviar.push({
+        staff: `${lineaFechaCorte1}\n${lineaCorte1}`,
+        backoffice: `asistIA -- ${nombreInstitucion}\n${lineaFechaCorte1}\n${lineaCorte1}`
+      })
       updatesTracker.aviso1_enviado_at = now.toISOString()
     }
 
@@ -273,12 +273,14 @@ serve(async (req) => {
 
       const corte1Tardanza = corte1Presentes - (corte1Puntual ?? 0)
       const corte2Tardanza = corte2Presentes - (corte2Puntual ?? 0)
-
-      avisosAEnviar.push(
-        `asistIA -- ${nombreInstitucion}\n` +
+      const lineasCortes =
         `Corte ${formatHoraCorta(new Date(tracker.corte1_en))} -- Puntual: ${corte1Puntual ?? 0} | Tardanza: ${corte1Tardanza}\n` +
         `Corte ${formatHoraCorta(new Date(tracker.corte2_en))} -- Puntual: ${corte2Puntual ?? 0} | Tardanza: ${corte2Tardanza}`
-      )
+
+      avisosAEnviar.push({
+        staff: lineasCortes,
+        backoffice: `asistIA -- ${nombreInstitucion}\n${lineasCortes}`
+      })
       updatesTracker.aviso2_enviado_at = now.toISOString()
     }
 
@@ -303,10 +305,10 @@ serve(async (req) => {
         updatesTracker.corte3_puntual = puntual
       }
 
-      avisosAEnviar.push(
-        `asistIA -- ${nombreInstitucion}\n` +
-        `Total registrados: ${corte3Presentes}`
-      )
+      avisosAEnviar.push({
+        staff: `Total registrados: ${corte3Presentes}`,
+        backoffice: `asistIA -- ${nombreInstitucion}\nTotal registrados: ${corte3Presentes}`
+      })
       updatesTracker.aviso3_enviado_at = now.toISOString()
       updatesTracker.finalizado = true
     }
@@ -360,12 +362,12 @@ serve(async (req) => {
         return ua.rol === "administrador" && ua.tenant_id === tenant_id
       })
 
-      for (const bodyText of avisosAEnviar) {
+      for (const { staff: bodyStaff, backoffice: bodyBackoffice } of avisosAEnviar) {
         // Staff de instrucción
         if (subs.length > 0) {
           const payload = JSON.stringify({
             title: "asistIA Staff",
-            body: bodyText,
+            body: bodyStaff,
             url: `/staff-asistencia/?tenant=${encodeURIComponent(tenant_id)}`
           })
 
@@ -389,14 +391,14 @@ serve(async (req) => {
           }
         }
 
-        // Backoffice -- mismo bodyText para todos: ya incluye el nombre de
-        // la institución en la primera línea, así que el prefijo que antes
-        // solo se agregaba para super_admin queda redundante.
+        // Backoffice -- texto propio (con línea de institución, a
+        // diferencia de Staff): el Superusuario ve varias instituciones a
+        // la vez, así que ahí sí hace falta identificarla en cada aviso.
         try {
           if (destinatariosBackoffice.length > 0) {
             const payloadBackoffice = JSON.stringify({
               title: "asistIA Backoffice",
-              body: bodyText,
+              body: bodyBackoffice,
               url: `/index.html?tenant=${encodeURIComponent(tenant_id)}`
             })
 
