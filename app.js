@@ -4139,7 +4139,7 @@ function aplicarRestriccionesPanelPorContexto() {
     if (navUsuarios) navUsuarios.style.display = permisosResueltos && (!limitado && puedeUsuarios) ? "" : "none"
     if (navActividad) navActividad.style.display = permisosResueltos && (!limitado && puedeActividad) ? "" : "none"
     const navJustificaciones = document.getElementById("navJustificaciones")
-    if (navJustificaciones) navJustificaciones.style.display = permisosResueltos && puedeReportes ? "" : "none"
+    if (navJustificaciones) navJustificaciones.style.display = permisosResueltos && puedeReportes && !limitado ? "" : "none"
     if (adminMobileNotice) adminMobileNotice.style.display = limitado ? "block" : "none"
 
     if (btnInstitucion) {
