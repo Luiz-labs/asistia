@@ -4384,7 +4384,9 @@ select {
   }
 
   #vistaDesktop .header-actions button,
-  #vistaLuizLabs .header-actions button {
+  #vistaDesktop .header-actions .support-link-pill,
+  #vistaLuizLabs .header-actions button,
+  #vistaLuizLabs .header-actions .support-link-pill {
     min-width: 0;
     /* 2 columnas “limpias” en móvil; evita botones ultra angostos */
     flex: 1 1 calc(50% - 6px);
