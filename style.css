@@ -4304,6 +4304,63 @@ select {
   }
 }
 
+/* Calendario GPS (Configuración Operativa): header de mes + grid de días.
+   Antes eran estilos inline en index.html; el ajuste móvil vive en el
+   @media (max-width: 600px) de abajo. */
+.calgps-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 15px;
+  margin-bottom: 12px;
+}
+
+.calgps-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.calgps-mes-titulo {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+  text-align: center;
+}
+
+.calgps-weekday-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.calgps-weekday-cell {
+  padding: 8px 0;
+  border-radius: 6px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.calgps-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
 /* Solo teléfonos: sidebar apilado. Tablets (≥601px) mantienen layout tipo escritorio. */
 @media (max-width: 600px) {
 
@@ -4422,6 +4479,35 @@ select {
     transform: none;
     filter: none;
     background: rgba(235, 235, 240, 0.95);
+  }
+
+  /* Calendario GPS (Configuración Operativa): header y grid más compactos
+     para que "Anterior"/mes/"Siguiente" no compitan por espacio. */
+  .calgps-header {
+    gap: 6px;
+  }
+
+  .calgps-nav-btn {
+    padding: 0 10px;
+    min-height: 34px;
+    font-size: 12px;
+  }
+
+  .calgps-mes-titulo {
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .calgps-weekday-row,
+  .calgps-days-grid {
+    gap: 4px;
+  }
+
+  .calgps-weekday-cell {
+    padding: 6px 0;
+    font-size: 0.7rem;
   }
 
   #tenantPanelTitulo,

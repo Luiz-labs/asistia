@@ -4139,6 +4139,8 @@ function aplicarRestriccionesPanelPorContexto() {
     const operBloqueCargaGpsExcel = document.getElementById("operBloqueCargaGpsExcel")
     const accordionCargaAspirantes = document.getElementById("accordionCargaAspirantes")
     const accordionRetirarAspirante = document.getElementById("accordionRetirarAspirante")
+    const courseModuleSedeUbo = document.getElementById("courseModuleSedeUbo")
+    const dashboardCardRiesgoUbo = document.getElementById("dashboardCardRiesgoUbo")
 
     if (navReportes) navReportes.style.display = permisosResueltos && puedeReportes ? "" : "none"
     if (navDashboard) navDashboard.style.display = permisosResueltos && puedeDashboard ? "" : "none"
@@ -4160,6 +4162,10 @@ function aplicarRestriccionesPanelPorContexto() {
     if (operBloqueCargaGpsExcel) operBloqueCargaGpsExcel.style.display = limitado ? "none" : ""
     if (accordionCargaAspirantes) accordionCargaAspirantes.style.display = limitado ? "none" : ""
     if (accordionRetirarAspirante) accordionRetirarAspirante.style.display = limitado ? "none" : ""
+    if (courseModuleSedeUbo) courseModuleSedeUbo.style.display = limitado ? "none" : ""
+
+    // Dashboard móvil: oculta bloques que no aportan en pantalla chica.
+    if (dashboardCardRiesgoUbo) dashboardCardRiesgoUbo.style.display = limitado ? "none" : ""
 
     if (btnInstitucion) {
         if (limitado) {
@@ -14188,9 +14194,11 @@ async function cargarCalendarioGps() {
     const year = calGpsFechaControl.getFullYear();
     const month = calGpsFechaControl.getMonth();
 
-    // Actualizar título (capitalizando mes)
+    // Actualizar título -- solo la primera letra en mayúscula (evita que
+    // text-transform: capitalize convierta "de" en "De").
     const nombreMes = calGpsFechaControl.toLocaleDateString("es-PE", { month: "long", year: "numeric" });
-    if (mesTituloEl) mesTituloEl.innerText = nombreMes;
+    const nombreMesCapitalizado = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
+    if (mesTituloEl) mesTituloEl.innerText = nombreMesCapitalizado;
 
     gridBodyEl.innerHTML = '<div style="grid-column: span 7; text-align: center; padding: 20px; font-weight: 500; color: #64748b;">Cargando programación...</div>';
 
