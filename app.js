@@ -4107,7 +4107,7 @@ function esModoAdminMovilLimitado() {
 }
 
 function esVistaPermitidaEnAdminMovil(vista) {
-    return vista === "dashboard" || vista === "reportes"
+    return vista === "dashboard" || vista === "reportes" || vista === "config" || vista === "landingMovil"
 }
 
 function marcarNavActiva(vista) {
@@ -4132,6 +4132,12 @@ function aplicarRestriccionesPanelPorContexto() {
     const adminMobileNotice = document.getElementById("adminMobileNotice")
     const btnInstitucion = document.getElementById("btnInstitucion")
     const btnVolverLuizLabs = document.getElementById("btnVolverLuizLabs")
+    const sidebarEl = document.querySelector(".sidebar")
+    const courseModuleAccionesPeligrosas = document.getElementById("courseModuleAccionesPeligrosas")
+    const operBloqueCargaUbosExcel = document.getElementById("operBloqueCargaUbosExcel")
+    const operBloqueCargaGpsExcel = document.getElementById("operBloqueCargaGpsExcel")
+    const accordionCargaAspirantes = document.getElementById("accordionCargaAspirantes")
+    const accordionRetirarAspirante = document.getElementById("accordionRetirarAspirante")
 
     if (navReportes) navReportes.style.display = permisosResueltos && puedeReportes ? "" : "none"
     if (navDashboard) navDashboard.style.display = permisosResueltos && puedeDashboard ? "" : "none"
@@ -4141,6 +4147,18 @@ function aplicarRestriccionesPanelPorContexto() {
     const navJustificaciones = document.getElementById("navJustificaciones")
     if (navJustificaciones) navJustificaciones.style.display = permisosResueltos && puedeReportes && !limitado ? "" : "none"
     if (adminMobileNotice) adminMobileNotice.style.display = limitado ? "block" : "none"
+
+    // Las 3 cards de landing reemplazan la sidebar en móvil (no conviven).
+    if (sidebarEl) sidebarEl.style.display = limitado ? "none" : ""
+
+    // Subconjunto móvil de Configuración: sin acciones peligrosas ni cargas
+    // masivas por Excel/CSV, y sin los 2 accordions no expuestos en el
+    // submenú móvil (Carga de Aspirantes, Retirar Aspirante).
+    if (courseModuleAccionesPeligrosas) courseModuleAccionesPeligrosas.style.display = limitado ? "none" : ""
+    if (operBloqueCargaUbosExcel) operBloqueCargaUbosExcel.style.display = limitado ? "none" : ""
+    if (operBloqueCargaGpsExcel) operBloqueCargaGpsExcel.style.display = limitado ? "none" : ""
+    if (accordionCargaAspirantes) accordionCargaAspirantes.style.display = limitado ? "none" : ""
+    if (accordionRetirarAspirante) accordionRetirarAspirante.style.display = limitado ? "none" : ""
 
     if (btnInstitucion) {
         if (limitado) {
@@ -4164,6 +4182,61 @@ function aplicarRestriccionesPanelPorContexto() {
     }
     if ((limitado && !esVistaPermitidaEnAdminMovil(vistaAdminActual)) || !vistaPermitidaPorPerfil) {
         mostrarVista("dashboard")
+    }
+}
+
+// Landing móvil (3 cards: Dashboard/Reportes/Configuración) -- reemplaza la
+// sidebar en modo admin móvil limitado. vistaAdminActual queda en
+// "landingMovil" (pseudo-vista permitida en esVistaPermitidaEnAdminMovil)
+// para que aplicarRestriccionesPanelPorContexto no la considere inválida.
+function volverALandingMovil() {
+    document.getElementById("vistaDashboard").style.display = "none"
+    vistaReportes.style.display = "none"
+    document.getElementById("vistaConfig").style.display = "none"
+    document.getElementById("vistaUsuarios").style.display = "none"
+    document.getElementById("vistaActividad").style.display = "none"
+    const vistaJustif = document.getElementById("vistaJustificaciones")
+    if (vistaJustif) vistaJustif.style.display = "none"
+
+    const submenu = document.getElementById("adminMobileConfigSubmenu")
+    if (submenu) submenu.style.display = "none"
+    const backBar = document.getElementById("adminMobileBackBar")
+    if (backBar) backBar.style.display = "none"
+    const landing = document.getElementById("adminMobileLanding")
+    if (landing) landing.style.display = "grid"
+
+    vistaAdminActual = "landingMovil"
+    aplicarRestriccionesPanelPorContexto()
+}
+
+// Tap en la card "Configuración" del landing móvil: muestra el submenú de
+// 3 accesos (Staff / Curso / Operativa) sin entrar todavía a #vistaConfig.
+function abrirSubmenuConfigMovil() {
+    const landing = document.getElementById("adminMobileLanding")
+    if (landing) landing.style.display = "none"
+    const submenu = document.getElementById("adminMobileConfigSubmenu")
+    if (submenu) submenu.style.display = "flex"
+    const backBar = document.getElementById("adminMobileBackBar")
+    if (backBar) backBar.style.display = "flex"
+    vistaAdminActual = "landingMovil"
+}
+
+// Tap en un acceso del submenú móvil de Configuración: entra a
+// #vistaConfig (mostrarVista ya sabe recortar las cargas en móvil) y abre
+// + hace scroll al accordion correspondiente.
+function abrirAccordionConfigMovil(seccion) {
+    const idsPorSeccion = {
+        staff: "accordionStaffInstruccion",
+        curso: "accordionConfigCurso",
+        operativa: "accordionConfigOperativa"
+    }
+    const id = idsPorSeccion[seccion]
+    mostrarVista("config")
+    if (!id) return
+    const el = document.getElementById(id)
+    if (el) {
+        el.open = true
+        el.scrollIntoView({ behavior: "smooth", block: "start" })
     }
 }
 
@@ -9723,7 +9796,11 @@ function aplicarLayout() {
             if (elDesktop) elDesktop.style.display = "block"
             aplicarRestriccionesPanelPorContexto()
             if (!vistaAdminActual) {
-                mostrarVista("reportes")
+                if (esModoAdminMovilLimitado()) {
+                    volverALandingMovil()
+                } else {
+                    mostrarVista("reportes")
+                }
             }
         } else {
             if (!esModoStaff) {
@@ -12156,6 +12233,18 @@ function mostrarVista(vista) {
         .forEach(el => el.classList.remove("active"))
     marcarNavActiva(vista)
 
+    const movil = esModoAdminMovilLimitado()
+    const adminMobileLanding = document.getElementById("adminMobileLanding")
+    const adminMobileConfigSubmenu = document.getElementById("adminMobileConfigSubmenu")
+    const adminMobileBackBar = document.getElementById("adminMobileBackBar")
+    if (movil) {
+        if (adminMobileLanding) adminMobileLanding.style.display = "none"
+        if (adminMobileConfigSubmenu) adminMobileConfigSubmenu.style.display = "none"
+        if (adminMobileBackBar) adminMobileBackBar.style.display = "flex"
+    } else if (adminMobileBackBar) {
+        adminMobileBackBar.style.display = "none"
+    }
+
     if (vista === "justificaciones") {
         const vistaJustifObj = document.getElementById("vistaJustificaciones");
         if (vistaJustifObj) vistaJustifObj.style.display = "block";
@@ -12185,13 +12274,20 @@ function mostrarVista(vista) {
     if (vista === "config") {
         document.getElementById("vistaConfig").style.display = "block"
         const configCursoYaCargada = configCursoCargada
-        cargarUbos()
+        // Móvil solo expone Staff / Config. de Curso / Config. Operativa --
+        // cargarConfigCurso() ya cubre las 3 (incluye internamente el
+        // refresco de puntos GPS y, si corresponde, el calendario GPS).
+        // cargarUbos() y cargarAspirantesCargados() solo alimentan Carga de
+        // Aspirantes / Retirar Aspirante, no expuestos en móvil.
         cargarConfigCurso()
         if (vistaAnterior !== "config" && configCursoYaCargada) {
             cargarCalendarioGps()
         }
-        cargarAspirantesCargados(false)
         cargarStaffInstruccion(false)
+        if (!movil) {
+            cargarUbos()
+            cargarAspirantesCargados(false)
+        }
         void registrarActividadBackofficeSegura("vista_config_abierta", {
             modulo: "configuracion"
         }, { tenantId: tenantActivoId })

@@ -924,6 +924,75 @@ h2 {
   transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
 }
 
+/* Landing móvil del backoffice: 3 cards (Dashboard/Reportes/Configuración)
+   que reemplazan la sidebar en modo admin móvil limitado. */
+.mobile-landing-grid {
+  display: grid;
+  gap: 14px;
+  padding: 4px 0 20px;
+}
+
+.mobile-landing-card,
+.mobile-config-submenu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mobile-landing-card-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.mobile-landing-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.mobile-landing-card-hint {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.mobile-config-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0 20px;
+}
+
+.mobile-back-bar {
+  display: none;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.mobile-back-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
 select {
   appearance: none;
   -webkit-appearance: none;

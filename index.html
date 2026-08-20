@@ -318,6 +318,40 @@
           Para una mejor experiencia, el panel completo se muestra en la vista preparada para administración.
         </div>
 
+        <div id="adminMobileBackBar" class="mobile-back-bar">
+          <button type="button" class="mobile-back-bar-btn" onclick="volverALandingMovil()">← Inicio</button>
+        </div>
+
+        <div id="adminMobileLanding" class="mobile-landing-grid" style="display:none;">
+          <button type="button" class="mobile-landing-card" onclick="mostrarVista('dashboard')">
+            <span class="mobile-landing-card-icon" aria-hidden="true">📊</span>
+            <span class="mobile-landing-card-title">Dashboard</span>
+            <span class="mobile-landing-card-hint">Resumen de asistencia del curso activo.</span>
+          </button>
+          <button type="button" class="mobile-landing-card" onclick="mostrarVista('reportes')">
+            <span class="mobile-landing-card-icon" aria-hidden="true">📄</span>
+            <span class="mobile-landing-card-title">Reportes</span>
+            <span class="mobile-landing-card-hint">Consulta y exporta registros de asistencia.</span>
+          </button>
+          <button type="button" class="mobile-landing-card" onclick="abrirSubmenuConfigMovil()">
+            <span class="mobile-landing-card-icon" aria-hidden="true">⚙️</span>
+            <span class="mobile-landing-card-title">Configuración</span>
+            <span class="mobile-landing-card-hint">Staff, curso y parámetros operativos.</span>
+          </button>
+        </div>
+
+        <div id="adminMobileConfigSubmenu" class="mobile-config-submenu" style="display:none;">
+          <button type="button" class="mobile-config-submenu-item" onclick="abrirAccordionConfigMovil('staff')">
+            <span class="mobile-landing-card-title">Staff de instrucción</span>
+          </button>
+          <button type="button" class="mobile-config-submenu-item" onclick="abrirAccordionConfigMovil('curso')">
+            <span class="mobile-landing-card-title">Configuración de Curso</span>
+          </button>
+          <button type="button" class="mobile-config-submenu-item" onclick="abrirAccordionConfigMovil('operativa')">
+            <span class="mobile-landing-card-title">Configuración Operativa</span>
+          </button>
+        </div>
+
         <div id="vistaDashboard" class="app-section" style="display:none;">
 
           <h2>Dashboard</h2>
@@ -792,7 +826,7 @@
           <p class="section-subtitle">Organiza parámetros institucionales, carga de aspirantes y estructura del curso.</p>
         </div>
 
-        <details class="module-accordion">
+        <details class="module-accordion" id="accordionCargaAspirantes">
           <summary class="module-accordion-summary">
             <div class="module-accordion-copy">
               <h3>Carga de Aspirantes</h3>
@@ -1015,7 +1049,7 @@
           </div>
         </details>
 
-        <details class="module-accordion">
+        <details class="module-accordion" id="accordionStaffInstruccion">
           <summary class="module-accordion-summary">
             <div class="module-accordion-copy">
               <h3>Staff de instrucción</h3>
@@ -1156,7 +1190,7 @@
           </div>
         </details>
 
-        <details class="module-accordion">
+        <details class="module-accordion" id="accordionRetirarAspirante">
           <summary class="module-accordion-summary">
             <div class="module-accordion-copy">
               <h3>Retirar Aspirante</h3>
@@ -1200,7 +1234,7 @@
           </div>
         </details>
 
-        <details class="module-accordion">
+        <details class="module-accordion" id="accordionConfigCurso">
           <summary class="module-accordion-summary">
             <div class="module-accordion-copy">
               <h3>Configuración de Curso</h3>
@@ -1315,7 +1349,7 @@
               </div>
             </div>
 
-            <div class="course-module course-module-danger">
+            <div class="course-module course-module-danger" id="courseModuleAccionesPeligrosas">
               <div class="course-module-head">
                 <div>
                   <h4>Acciones peligrosas</h4>
@@ -1537,13 +1571,15 @@
                     </div>
                   </div>
 
-                  <div class="hint gps-upload-hint">Carga masiva de coordenadas UBO (columnas: <strong>UBO, LATITUD, LONGITUD</strong>. Opcional: <strong>NOMBRE</strong>).</div>
-                  <div class="config-row file-upload-row config-row-topspaced">
-                    <input type="file" id="archivoUbosSedes" accept=".xlsx,.xls,.csv">
-                    <button type="button" onclick="cargarExcelUbosSedes()">Subir Coordenadas</button>
-                    <button type="button" class="secondary" onclick="cargarUbos()">Refrescar UBOs</button>
+                  <div id="operBloqueCargaUbosExcel">
+                    <div class="hint gps-upload-hint">Carga masiva de coordenadas UBO (columnas: <strong>UBO, LATITUD, LONGITUD</strong>. Opcional: <strong>NOMBRE</strong>).</div>
+                    <div class="config-row file-upload-row config-row-topspaced">
+                      <input type="file" id="archivoUbosSedes" accept=".xlsx,.xls,.csv">
+                      <button type="button" onclick="cargarExcelUbosSedes()">Subir Coordenadas</button>
+                      <button type="button" class="secondary" onclick="cargarUbos()">Refrescar UBOs</button>
+                    </div>
+                    <p id="msgCargaUbosSedes" class="hint"></p>
                   </div>
-                  <p id="msgCargaUbosSedes" class="hint"></p>
                 </div>
 
                 <!-- GPS / Geocerca Section -->
@@ -1617,22 +1653,24 @@
                   <p id="msgGpsStatus" class="hint" style="margin-top: 0px; margin-bottom: 25px; font-weight: 500; min-height: 18px;"></p>
 
                   <!-- 3. Carga masiva por Excel -->
-                  <h5 class="course-subsection-title" style="margin-top: 15px; font-weight: 600; color: #1e293b;">Carga masiva de puntos GPS</h5>
-                  <p class="hint course-module-hint">Carga masiva de puntos GPS mediante archivo Excel/CSV (Columnas requeridas: <strong>TIPO, CODIGO, NOMBRE, LATITUD, LONGITUD</strong>. Opcionales: <strong>RADIO_METROS, ACTIVO</strong>).</p>
-                  
-                  <div id="gpsDropzone" class="historical-dropzone" tabindex="0" role="button" aria-label="Zona para soltar archivos GPS" style="margin-bottom: 15px; border: 2px dashed #ccc; padding: 20px; text-align: center; border-radius: 8px; cursor: pointer;">
-                    <div class="historical-dropzone-icon" aria-hidden="true" style="font-size: 24px; margin-bottom: 8px;">⇪</div>
-                    <div class="historical-dropzone-copy">
-                      <strong>Arrastra y suelta tu archivo de puntos GPS aquí</strong>
-                      <span>Acepta `.xlsx`, `.xls` y `.csv`</span>
+                  <div id="operBloqueCargaGpsExcel">
+                    <h5 class="course-subsection-title" style="margin-top: 15px; font-weight: 600; color: #1e293b;">Carga masiva de puntos GPS</h5>
+                    <p class="hint course-module-hint">Carga masiva de puntos GPS mediante archivo Excel/CSV (Columnas requeridas: <strong>TIPO, CODIGO, NOMBRE, LATITUD, LONGITUD</strong>. Opcionales: <strong>RADIO_METROS, ACTIVO</strong>).</p>
+
+                    <div id="gpsDropzone" class="historical-dropzone" tabindex="0" role="button" aria-label="Zona para soltar archivos GPS" style="margin-bottom: 15px; border: 2px dashed #ccc; padding: 20px; text-align: center; border-radius: 8px; cursor: pointer;">
+                      <div class="historical-dropzone-icon" aria-hidden="true" style="font-size: 24px; margin-bottom: 8px;">⇪</div>
+                      <div class="historical-dropzone-copy">
+                        <strong>Arrastra y suelta tu archivo de puntos GPS aquí</strong>
+                        <span>Acepta `.xlsx`, `.xls` y `.csv`</span>
+                      </div>
                     </div>
+                    <div class="config-row file-upload-row">
+                      <input type="file" id="archivoPuntosGps" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarPuntosGpsDesdeArchivoInput(this)">
+                      <button type="button" onclick="document.getElementById('archivoPuntosGps').click()">Seleccionar archivo</button>
+                      <button type="button" class="secondary" onclick="refrescarPuntosGps()">Refrescar listado</button>
+                    </div>
+                    <p id="msgCargaGps" class="hint" style="margin-top: 8px;"></p>
                   </div>
-                  <div class="config-row file-upload-row">
-                    <input type="file" id="archivoPuntosGps" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importarPuntosGpsDesdeArchivoInput(this)">
-                    <button type="button" onclick="document.getElementById('archivoPuntosGps').click()">Seleccionar archivo</button>
-                    <button type="button" class="secondary" onclick="refrescarPuntosGps()">Refrescar listado</button>
-                  </div>
-                  <p id="msgCargaGps" class="hint" style="margin-top: 8px;"></p>
 
                   <!-- 4. Listado (Tabla) -->
                   <h5 class="course-subsection-title" style="margin-top: 25px; margin-bottom: 10px; font-weight: 600; color: #1e293b;">Listado de puntos GPS autorizados</h5>
