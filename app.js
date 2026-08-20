@@ -10318,7 +10318,9 @@ async function loginAccesoAdminInstitucional() {
 
     cerrarAccesoAdminInstitucional()
     aplicarLayout()
-    mostrarVista("reportes")
+    if (!esModoAdminMovilLimitado()) {
+        mostrarVista("reportes")
+    }
     await cargarDatosDeSesionAutorizada()
     await bootstrapAuthorizedApp();
 }
@@ -10410,7 +10412,9 @@ async function login() {
                 rol: resultado.rol
             }, { usuario: resultado.usuario, rol: resultado.rol, tenantId: tenantActivoId })
             aplicarLayout()
-            mostrarVista("reportes")
+            if (!esModoAdminMovilLimitado()) {
+                mostrarVista("reportes")
+            }
             await cargarDatosDeSesionAutorizada()
             await bootstrapAuthorizedApp();
         } else {
