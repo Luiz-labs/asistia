@@ -4141,6 +4141,9 @@ function aplicarRestriccionesPanelPorContexto() {
     const accordionRetirarAspirante = document.getElementById("accordionRetirarAspirante")
     const courseModuleSedeUbo = document.getElementById("courseModuleSedeUbo")
     const dashboardCardRiesgoUbo = document.getElementById("dashboardCardRiesgoUbo")
+    const courseModuleSecciones = document.getElementById("courseModuleSecciones")
+    const courseModuleOperJustificacion = document.getElementById("courseModuleOperJustificacion")
+    const courseModuleOperFasesFuturas = document.getElementById("courseModuleOperFasesFuturas")
 
     if (navReportes) navReportes.style.display = permisosResueltos && puedeReportes ? "" : "none"
     if (navDashboard) navDashboard.style.display = permisosResueltos && puedeDashboard ? "" : "none"
@@ -4163,6 +4166,12 @@ function aplicarRestriccionesPanelPorContexto() {
     if (accordionCargaAspirantes) accordionCargaAspirantes.style.display = limitado ? "none" : ""
     if (accordionRetirarAspirante) accordionRetirarAspirante.style.display = limitado ? "none" : ""
     if (courseModuleSedeUbo) courseModuleSedeUbo.style.display = limitado ? "none" : ""
+    // Secciones del curso: se maneja mejor desde PC/laptop; se oculta en
+    // móvil aunque sea funcional. Políticas de Justificación y de
+    // Asistencia (Fases Futuras) también se ocultan en el subconjunto móvil.
+    if (courseModuleSecciones) courseModuleSecciones.style.display = limitado ? "none" : ""
+    if (courseModuleOperJustificacion) courseModuleOperJustificacion.style.display = limitado ? "none" : ""
+    if (courseModuleOperFasesFuturas) courseModuleOperFasesFuturas.style.display = limitado ? "none" : ""
 
     // Dashboard móvil: oculta bloques que no aportan en pantalla chica.
     if (dashboardCardRiesgoUbo) dashboardCardRiesgoUbo.style.display = limitado ? "none" : ""

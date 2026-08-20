@@ -37,7 +37,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=1.1.0-build10025">
+  <link rel="stylesheet" href="/style.css?v=1.1.0-build10026">
 
   <style>
     /* Estilos del Calendario GPS (GPS Fase 1A.2) */
@@ -1515,7 +1515,7 @@
               <div class="config-module-stack">
                 
                 <!-- Justificaciones Section -->
-                <div class="course-module">
+                <div class="course-module" id="courseModuleOperJustificacion">
                   <div class="course-module-head">
                     <div>
                       <h4>Políticas de Justificación</h4>
@@ -1696,9 +1696,9 @@
                   <p class="hint course-module-hint">Asigna qué punto GPS/Geocerca será válido para cada fecha de clase.</p>
                   
                   <div class="calgps-header">
-                    <button type="button" class="secondary calgps-nav-btn" onclick="cambiarMesCalendarioGps(-1)">◀ Anterior</button>
+                    <button type="button" class="secondary calgps-nav-btn" onclick="cambiarMesCalendarioGps(-1)">◀ <span class="calgps-nav-text">Anterior</span></button>
                     <h4 id="calGpsMesTitulo" class="calgps-mes-titulo">Cargando mes...</h4>
-                    <button type="button" class="secondary calgps-nav-btn" onclick="cambiarMesCalendarioGps(1)">Siguiente ▶</button>
+                    <button type="button" class="secondary calgps-nav-btn" onclick="cambiarMesCalendarioGps(1)"><span class="calgps-nav-text">Siguiente</span> ▶</button>
                   </div>
 
                   <div class="calendar-grid-container" style="margin-bottom: 25px;">
@@ -1718,7 +1718,7 @@
                 </div>
 
                 <!-- Futuros Parámetros Preparados (Deshabilitados visualmente) -->
-                <div class="course-module" style="opacity: 0.65; border-top: 1px solid rgba(0,0,0,0.06); padding-top: 16px;">
+                <div class="course-module" id="courseModuleOperFasesFuturas" style="opacity: 0.65; border-top: 1px solid rgba(0,0,0,0.06); padding-top: 16px;">
                   <div class="course-module-head">
                     <div>
                       <h4>Políticas de Asistencia (Fases Futuras)</h4>
@@ -1857,7 +1857,7 @@
     </div>
 
     <div class="main-footer">
-      <span>asistIA v1.1.0-build10025 · Desarrollado por Labs Projects</span>
+      <span>asistIA v1.1.0-build10026 · Desarrollado por Labs Projects</span>
     </div>
 
   </div>
@@ -2318,7 +2318,7 @@
     </div>
 
     <div class="main-footer">
-      <span>asistIA v1.1.0-build10025 · Desarrollado por Labs Projects</span>
+      <span>asistIA v1.1.0-build10026 · Desarrollado por Labs Projects</span>
     </div>
   </div>
 
@@ -2330,8 +2330,8 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="/app.js?v=1.1.0-build10025"></script>
-  <script src="/pwa-register.js?v=1.1.0-build10025"></script>
+  <script src="/app.js?v=1.1.0-build10026"></script>
+  <script src="/pwa-register.js?v=1.1.0-build10026"></script>
 
 
   <div id="modal" onclick="cerrarModalPorBackdrop(event)" style="

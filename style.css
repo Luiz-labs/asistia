@@ -4493,6 +4493,10 @@ select {
     font-size: 12px;
   }
 
+  .calgps-nav-text {
+    display: none;
+  }
+
   .calgps-mes-titulo {
     font-size: 0.95rem;
     white-space: nowrap;
