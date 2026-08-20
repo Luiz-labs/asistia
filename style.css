@@ -939,6 +939,7 @@ h2 {
   align-items: flex-start;
   gap: 4px;
   width: 100%;
+  height: auto;
   padding: 20px;
   border-radius: 16px;
   border: 1px solid var(--line);

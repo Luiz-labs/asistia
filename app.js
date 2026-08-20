@@ -283,6 +283,7 @@ function resetCacheFlags() {
 }
 
 let vistaAdminActual = "reportes"
+let appBootstrapped = false
 let vistaLuizLabsActual = "instituciones"
 const HISTORICAL_IMPORT_FIELDS = Object.freeze([
     { key: "timestamp", label: "Timestamp", help: "Marca temporal o fecha y hora del registro." },
@@ -9795,7 +9796,8 @@ function aplicarLayout() {
             if (elLuizLabs) elLuizLabs.style.display = "none"
             if (elDesktop) elDesktop.style.display = "block"
             aplicarRestriccionesPanelPorContexto()
-            if (!vistaAdminActual) {
+            if (!appBootstrapped) {
+                appBootstrapped = true
                 if (esModoAdminMovilLimitado()) {
                     volverALandingMovil()
                 } else {
