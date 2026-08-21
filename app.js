@@ -4248,6 +4248,10 @@ function abrirAccordionConfigMovil(seccion) {
     }
     const id = idsPorSeccion[seccion]
     mostrarVista("config")
+    Object.values(idsPorSeccion).forEach(otroId => {
+        const otroEl = document.getElementById(otroId)
+        if (otroEl) otroEl.open = false
+    })
     if (!id) return
     const el = document.getElementById(id)
     if (el) {
@@ -14289,6 +14293,16 @@ function renderizarCalendarioGps() {
 
         // Filtrar programaciones para este día
         const progs = calGpsProgramacion.filter(x => x.fecha === dateStr);
+
+        // Indicador de punto (solo visible en móvil vía CSS): verde si hay
+        // clase programada, gris si el día está programado pero sin clase
+        // (feriado/suspensión).
+        if (progs.some(p => p.hay_clase)) {
+            cell.classList.add("cal-dot-clase");
+        } else if (progs.length > 0) {
+            cell.classList.add("cal-dot-programado");
+        }
+
         if (progs.length > 0) {
             progs.forEach(p => {
                 const badge = document.createElement("div");

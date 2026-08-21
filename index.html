@@ -37,8 +37,6 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=1.1.0-build10029">
-
   <style>
     /* Estilos del Calendario GPS (GPS Fase 1A.2) */
     .cal-day-cell {
@@ -55,6 +53,7 @@
       transition: all 0.2s ease-in-out;
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
       box-sizing: border-box;
+      position: relative;
     }
     .cal-day-cell:hover {
       background: #f8fafc;
@@ -117,6 +116,8 @@
       margin-top: 2px;
     }
   </style>
+
+  <link rel="stylesheet" href="/style.css?v=1.1.0-build10033">
 </head>
 
 <body>
@@ -333,7 +334,7 @@
             <span class="mobile-landing-card-title">Reportes</span>
             <span class="mobile-landing-card-hint">Consulta y exporta registros de asistencia.</span>
           </button>
-          <button type="button" class="mobile-landing-card" onclick="abrirSubmenuConfigMovil()">
+          <button type="button" class="mobile-landing-card" onclick="mostrarVista('config')">
             <span class="mobile-landing-card-icon" aria-hidden="true">⚙️</span>
             <span class="mobile-landing-card-title">Configuración</span>
             <span class="mobile-landing-card-hint">Staff, curso y parámetros operativos.</span>
@@ -1858,7 +1859,7 @@
     </div>
 
     <div class="main-footer">
-      <span>asistIA v1.1.0-build10029 · Desarrollado por Labs Projects</span>
+      <span class="footer-version-text">asistIA v1.1.0-build10033</span><span class="footer-sep"> · </span><span class="footer-credit">Desarrollado por Labs Projects</span>
     </div>
 
   </div>
@@ -2319,7 +2320,7 @@
     </div>
 
     <div class="main-footer">
-      <span>asistIA v1.1.0-build10029 · Desarrollado por Labs Projects</span>
+      <span class="footer-version-text">asistIA v1.1.0-build10033</span><span class="footer-sep"> · </span><span class="footer-credit">Desarrollado por Labs Projects</span>
     </div>
   </div>
 
@@ -2331,8 +2332,8 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="/app.js?v=1.1.0-build10029"></script>
-  <script src="/pwa-register.js?v=1.1.0-build10029"></script>
+  <script src="/app.js?v=1.1.0-build10033"></script>
+  <script src="/pwa-register.js?v=1.1.0-build10033"></script>
 
 
   <div id="modal" onclick="cerrarModalPorBackdrop(event)" style="
@@ -2383,6 +2384,7 @@
     justify-content: center;
     align-items: center;
     z-index: 9999;
+    overflow-y: auto;
   ">
     <div style="
       background: white;
@@ -2393,6 +2395,9 @@
       box-shadow: 0 30px 60px rgba(0,0,0,0.25), 0 10px 20px rgba(0,0,0,0.15);
       font-family: inherit;
       box-sizing: border-box;
+      max-height: calc(100dvh - 40px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     ">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
         <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #1e293b;">Programación de Clase</h3>

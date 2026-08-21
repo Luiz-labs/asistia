@@ -7,15 +7,15 @@
         return;
     }
 
-    const INSTALLED_BUILD = "build10029";
+    const INSTALLED_BUILD = "build10033";
 
     const FALLBACK_VERSION = Object.freeze({
         appName: "asistIA",
         version: "1.1.0",
-        build: "build10029",
+        build: "build10033",
         installedBuild: INSTALLED_BUILD,
         releasedAt: "2026-07-29T02:00:00-05:00",
-        minimumSupportedBuild: "build10029",
+        minimumSupportedBuild: "build10033",
         message: "feat(staff): nuevo dashboard operativo independiente con filtros locales, KPI Instructor ESBAS, grado dinámico y búsqueda en tiempo real",
         source: "fallback",
         loaded: false,
@@ -68,9 +68,9 @@
     }
 
     function actualizarFootersEnDOM() {
-        const footers = document.querySelectorAll(".public-footer, .main-footer");
+        const footers = document.querySelectorAll(".footer-version-text, .public-footer");
         if (!footers.length) return;
-        const etiquetaFull = `asistIA v${estadoVersion.version} · Build ${estadoVersion.build}`;
+        const etiquetaFull = `asistIA v${estadoVersion.version} · ${estadoVersion.build}`;
         footers.forEach(el => {
             if (!el.dataset.rawOriginalText) {
                 el.dataset.rawOriginalText = el.textContent || "";
@@ -138,7 +138,7 @@
         if (formato === "short") {
             return `v${estadoVersion.version} · ${estadoVersion.build}`;
         }
-        return `asistIA v${estadoVersion.version} · Build ${estadoVersion.build}`;
+        return `asistIA v${estadoVersion.version} · ${estadoVersion.build}`;
     }
 
     function obtenerInformacionVersionAsistia() {

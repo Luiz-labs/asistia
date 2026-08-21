@@ -4515,11 +4515,49 @@ select {
   }
 
   .cal-day-cell {
-    min-height: 60px;
+    min-height: 40px;
+    align-items: center;
+  }
+
+  .cal-day-cell .cal-programming-container {
+    display: none;
+  }
+
+  .cal-day-cell.cal-dot-clase::after,
+  .cal-day-cell.cal-dot-programado::after {
+    content: "";
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  .cal-day-cell.cal-dot-clase::after {
+    background: #22c55e;
+  }
+
+  .cal-day-cell.cal-dot-programado::after {
+    background: #94a3b8;
   }
 
   #calHoraGrupoCampos {
     flex-direction: column;
+  }
+
+  #formCalendarioGps > div:last-child {
+    flex-wrap: wrap;
+  }
+
+  #formCalendarioGps > div:last-child > div {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  #btnCalEliminar {
+    width: 100%;
   }
 
   #tenantPanelTitulo,
@@ -4570,24 +4608,29 @@ select {
     font-size: 18px;
   }
 
-  #vistaReportes .filtros {
+  #vistaReportes .filtros,
+  #vistaDashboard .filtros {
     gap: 10px;
   }
 
   #vistaReportes .filtros select,
-  #vistaReportes .filtros input {
+  #vistaReportes .filtros input,
+  #vistaDashboard .filtros select,
+  #vistaDashboard .filtros input {
     height: 38px;
     font-size: 13px;
   }
 
-  #vistaReportes .filtros button {
+  #vistaReportes .filtros button,
+  #vistaDashboard .filtros button {
     width: 100%;
     min-width: 0;
     height: 38px;
     font-size: 13px;
   }
 
-  #vistaReportes .filtros button.secondary {
+  #vistaReportes .filtros button.secondary,
+  #vistaDashboard .filtros button.secondary {
     font-size: 13px;
   }
 
@@ -5280,6 +5323,19 @@ body {
 .main-footer a:hover {
   color: #1d4ed8;
   text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  .main-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .main-footer .footer-sep {
+    display: none;
+  }
 }
 
 .icon-btn-with-text {
