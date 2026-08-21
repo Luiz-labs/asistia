@@ -37,13 +37,14 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=1.1.0-build10027">
+  <link rel="stylesheet" href="/style.css?v=1.1.0-build10028">
 
   <style>
     /* Estilos del Calendario GPS (GPS Fase 1A.2) */
     .cal-day-cell {
       background: #ffffff;
       min-height: 85px;
+      min-width: 0;
       border: 1px solid #e2e8f0;
       border-radius: 8px;
       padding: 8px;
@@ -1857,7 +1858,7 @@
     </div>
 
     <div class="main-footer">
-      <span>asistIA v1.1.0-build10027 · Desarrollado por Labs Projects</span>
+      <span>asistIA v1.1.0-build10028 · Desarrollado por Labs Projects</span>
     </div>
 
   </div>
@@ -2318,7 +2319,7 @@
     </div>
 
     <div class="main-footer">
-      <span>asistIA v1.1.0-build10027 · Desarrollado por Labs Projects</span>
+      <span>asistIA v1.1.0-build10028 · Desarrollado por Labs Projects</span>
     </div>
   </div>
 
@@ -2330,8 +2331,8 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="/app.js?v=1.1.0-build10027"></script>
-  <script src="/pwa-register.js?v=1.1.0-build10027"></script>
+  <script src="/app.js?v=1.1.0-build10028"></script>
+  <script src="/pwa-register.js?v=1.1.0-build10028"></script>
 
 
   <div id="modal" onclick="cerrarModalPorBackdrop(event)" style="
@@ -2421,11 +2422,11 @@
         </div>
 
         <div id="calHoraGrupoCampos" style="margin-bottom: 16px; display: flex; gap: 12px;">
-          <div style="flex: 1;">
+          <div style="flex: 1; min-width: 0;">
             <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 6px;">Hora de inicio</label>
             <input type="time" id="calHoraInicio" style="width: 100%; height: 42px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 12px; font-size: 0.9rem; background-color: white; font-family: inherit; box-sizing: border-box;">
           </div>
-          <div style="flex: 1;">
+          <div style="flex: 1; min-width: 0;">
             <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 6px;">Tolerancia (minutos)</label>
             <input type="number" id="calTolerancia" min="0" max="480" value="30" style="width: 100%; height: 42px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 12px; font-size: 0.9rem; background-color: white; font-family: inherit; box-sizing: border-box;">
           </div>

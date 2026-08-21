@@ -450,7 +450,7 @@ function generarMensajeWhatsApp() {
     
     const appVersion = (typeof window.obtenerEtiquetaVersionAsistia === "function") 
         ? window.obtenerEtiquetaVersionAsistia("short") 
-        : "v1.1.0-build10027"
+        : "v1.1.0-build10028"
     
     const msg = `ID reporte:
 ${idReporte}
