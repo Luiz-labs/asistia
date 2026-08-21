@@ -4514,6 +4514,14 @@ select {
     font-size: 0.7rem;
   }
 
+  .cal-day-cell {
+    min-height: 60px;
+  }
+
+  #calHoraGrupoCampos {
+    flex-direction: column;
+  }
+
   #tenantPanelTitulo,
   #vistaLuizLabs .header>div:first-child strong {
     white-space: normal;
