@@ -11811,37 +11811,53 @@ async function cargarDashboard() {
         });
         total = Object.keys(alumnos).length;
 
-        // Universo: DNI válidos acumulados históricos hasta scope.to
-        try {
-            const { data: dataUniv, error: univError } = await withTenantScope(supabaseClient
-                .from("asistencias")
-                .select("dni,estado,tipo_jornada,tenant_id") // Seleccionar campos para validación
-                .eq("curso_id", scope.cursoId)
-                .eq("tipo_jornada", "CALENDARIO_GLOBAL")
-                .lte("fecha", scope.to || new Date().toISOString().split("T")[0])
-            );
-            if (univError) {
-                console.error("Error al obtener universo acumulado de Calendario Global:", univError.message || univError);
-            }
-            const rawUniv = filtrarDataTenantActivo(dataUniv) || [];
-            const dnisUnivMap = new Set(
-                rawUniv
-                    .filter(r => esRegistroAsistenciaValido(r) && esMarcacionCalendarioGlobal(r))
-                    .map(r => String(r.dni || "").trim())
-            );
-            
-            // Cruzar contra el padrón activo filtrado por UBO
-            const univActivos = aspirantesActivos.filter(a => dnisUnivMap.has(String(a.dni || "").trim()));
-            let univFiltrados = univActivos;
+        // Universo: si TODOS los eventos activos del rango son TODOS_ASPIRANTES (curso actual,
+        // sin flujo de secciones todavía), usar el padrón de aspirantes activos directamente,
+        // igual que la rama regular. Evita depender de asistencia histórica como proxy de
+        // elegibilidad (ver backlog.md, sección D).
+        const hayEventoNoGlobal = (cacheCalendarioGlobal || []).some(c => c.aplica_a !== "TODOS_ASPIRANTES");
+
+        if (!hayEventoNoGlobal) {
+            let univFiltrados = aspirantesActivos;
             if (scope.ubo) {
                 univFiltrados = univFiltrados.filter(a => String(a.ubo || "").trim() === scope.ubo);
             }
             padronTotal = univFiltrados.length;
             rosterInasistencias = univFiltrados;
-        } catch (e) {
-            console.error("Error al calcular universo acumulado de Calendario Global:", e);
-            padronTotal = 0;
-            rosterInasistencias = [];
+        } else {
+            console.warn("Rango con aplica_a mixto, universo no recalculado - revisar cuando se implemente el flujo de secciones");
+            // Universo (fallback histórico): DNI válidos acumulados históricos hasta scope.to
+            try {
+                const { data: dataUniv, error: univError } = await withTenantScope(supabaseClient
+                    .from("asistencias")
+                    .select("dni,estado,tipo_jornada,tenant_id") // Seleccionar campos para validación
+                    .eq("curso_id", scope.cursoId)
+                    .eq("tipo_jornada", "CALENDARIO_GLOBAL")
+                    .lte("fecha", scope.to || new Date().toISOString().split("T")[0])
+                );
+                if (univError) {
+                    console.error("Error al obtener universo acumulado de Calendario Global:", univError.message || univError);
+                }
+                const rawUniv = filtrarDataTenantActivo(dataUniv) || [];
+                const dnisUnivMap = new Set(
+                    rawUniv
+                        .filter(r => esRegistroAsistenciaValido(r) && esMarcacionCalendarioGlobal(r))
+                        .map(r => String(r.dni || "").trim())
+                );
+
+                // Cruzar contra el padrón activo filtrado por UBO
+                const univActivos = aspirantesActivos.filter(a => dnisUnivMap.has(String(a.dni || "").trim()));
+                let univFiltrados = univActivos;
+                if (scope.ubo) {
+                    univFiltrados = univFiltrados.filter(a => String(a.ubo || "").trim() === scope.ubo);
+                }
+                padronTotal = univFiltrados.length;
+                rosterInasistencias = univFiltrados;
+            } catch (e) {
+                console.error("Error al calcular universo acumulado de Calendario Global:", e);
+                padronTotal = 0;
+                rosterInasistencias = [];
+            }
         }
     } else {
         // Caso Regular o Mixto
