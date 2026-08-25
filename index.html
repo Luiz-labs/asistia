@@ -117,7 +117,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="/style.css?v=1.1.0-build10037">
+  <link rel="stylesheet" href="/style.css?v=1.1.0-build10038">
 </head>
 
 <body>
@@ -604,6 +604,9 @@
                     <button onclick="cargarDatos()">Todos</button>
                     <button onclick="exportarReportesExcel()">Exportar Excel</button>
                   </div>
+                </div>
+                <div id="reportesAvisoSolapamiento" class="card" style="display:none;margin-bottom:16px;background:#fff8e8;border-color:#f2ddad;color:#8a5a00;">
+                  ⚠️ Una persona puede aparecer también en Asistencia si tiene justificación (aprobada, pendiente o rechazada). No sumes ambos reportes sin revisar duplicados por DNI+fecha.
                 </div>
                 <div id="reporteKpiGrid" style="margin-bottom: 16px; display: none;"></div>
                 <div id="tabla" class="card report-table-card"></div>
@@ -1863,7 +1866,7 @@
     </div>
 
     <div class="main-footer">
-      <span class="footer-version-text">asistIA v1.1.0-build10037</span><span class="footer-sep"> · </span><span class="footer-credit">Desarrollado por Labs Projects</span>
+      <span class="footer-version-text">asistIA v1.1.0-build10038</span><span class="footer-sep"> · </span><span class="footer-credit">Desarrollado por Labs Projects</span>
     </div>
 
   </div>
@@ -2324,7 +2327,7 @@
     </div>
 
     <div class="main-footer">
-      <span class="footer-version-text">asistIA v1.1.0-build10037</span><span class="footer-sep"> · </span><span class="footer-credit">Desarrollado por Labs Projects</span>
+      <span class="footer-version-text">asistIA v1.1.0-build10038</span><span class="footer-sep"> · </span><span class="footer-credit">Desarrollado por Labs Projects</span>
     </div>
   </div>
 
@@ -2336,8 +2339,8 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="/app.js?v=1.1.0-build10037"></script>
-  <script src="/pwa-register.js?v=1.1.0-build10037"></script>
+  <script src="/app.js?v=1.1.0-build10038"></script>
+  <script src="/pwa-register.js?v=1.1.0-build10038"></script>
 
 
   <div id="modal" onclick="cerrarModalPorBackdrop(event)" style="

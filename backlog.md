@@ -60,6 +60,8 @@ Encontrado durante la implementación del drill-down de Inasistencias (Fase 1). 
 
 Encontrado probando Fase 2 en vivo: DNI 72785611 (ROJAS BENAVENTE, Fabricio Máximo) tiene justificación APROBADA para 2026-08-23, pero sigue apareciendo en la lista de Inasistencia (con "Aprobada" en la columna de contexto) porque el criterio de inclusión es solo asistencia física, no justificación.
 
+Confirmado 25/08/2026: si se exportan Asistencia e Inasistencia para la misma fecha y se combinan externamente (ej. tabla dinámica en Excel), un aspirante con justificación (cualquier estado) aparece en AMBOS exports con datos distintos para el mismo DNI+fecha - riesgo real de doble conteo si alguien no lo sabe. Se evaluaron 3 opciones (excluir 'Aprobada' de Inasistencia / agregar aviso sin cambiar lógica / esperar rediseño completo); se optó por agregar un aviso visible (UI + Excel) como solución puente, dejando el rediseño del 'estado único' (ya propuesto arriba) como la solución de fondo pendiente.
+
 Pregunta de producto sin resolver: ¿una justificación aprobada debería sacar a la persona de la lista de "Inasistencia" por completo (tratarla como asistencia justificada, similar a como ya funciona la pestaña Asistencia con las filas virtuales), o alcanza con mostrarla igual con el contexto visible como está hoy?
 
 **IMPORTANTE**: si se decide que sí debe sacarla, hay que aplicar el cambio en LOS DOS LADOS a la vez:

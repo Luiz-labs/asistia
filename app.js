@@ -5816,7 +5816,7 @@ async function asegurarLibreriasPDF() {
     return true
 }
 
-async function descargarExcelDesdeJSON(filename, rows) {
+async function descargarExcelDesdeJSON(filename, rows, notas) {
     await asegurarLibreriasExcel()
     if (!window.XLSX) {
         alert("Librería XLSX no disponible")
@@ -5825,6 +5825,10 @@ async function descargarExcelDesdeJSON(filename, rows) {
     const ws = XLSX.utils.json_to_sheet(rows)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Datos")
+    if (Array.isArray(notas) && notas.length) {
+        const wsNotas = XLSX.utils.aoa_to_sheet(notas.map(n => [n]))
+        XLSX.utils.book_append_sheet(wb, wsNotas, "Notas")
+    }
     XLSX.writeFile(wb, filename)
 }
 
@@ -5971,7 +5975,10 @@ async function exportarReportesExcel() {
     }
 
     const filename = vistaReportesModo === "inasistencia" ? "reportes_inasistencia.xlsx" : "reportes_asistencia.xlsx"
-    await descargarExcelDesdeJSON(filename, cacheReportes)
+    const notas = vistaReportesModo === "inasistencia"
+        ? ["⚠️ Una persona puede aparecer también en Asistencia si tiene justificación (aprobada, pendiente o rechazada). No sumes ambos reportes sin revisar duplicados por DNI+fecha."]
+        : undefined
+    await descargarExcelDesdeJSON(filename, cacheReportes, notas)
     void registrarActividadBackofficeSegura("reportes_excel_exportado", {
         modulo: "reportes",
         modo: vistaReportesModo,
@@ -11513,6 +11520,8 @@ function cambiarModoReportes(modo) {
     const btnI = document.getElementById("btnReportesInasistencia")
     if (btnA) btnA.classList.toggle("is-active", modo === "asistencia")
     if (btnI) btnI.classList.toggle("is-active", modo === "inasistencia")
+    const avisoSolapamiento = document.getElementById("reportesAvisoSolapamiento")
+    if (avisoSolapamiento) avisoSolapamiento.style.display = modo === "inasistencia" ? "block" : "none"
     cargarDatos()
 }
 
