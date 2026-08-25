@@ -117,7 +117,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="/style.css?v=1.1.0-build10036">
+  <link rel="stylesheet" href="/style.css?v=1.1.0-build10037">
 </head>
 
 <body>
@@ -594,6 +594,10 @@
                     </div>
                     <div class="input-date">
                       <input type="date" id="fechaHasta">
+                    </div>
+                    <div class="reportes-toggle-pastilla" role="group" aria-label="Tipo de vista">
+                      <button type="button" id="btnReportesAsistencia" class="reportes-toggle-btn is-active" onclick="cambiarModoReportes('asistencia')">Asistencia</button>
+                      <button type="button" id="btnReportesInasistencia" class="reportes-toggle-btn" onclick="cambiarModoReportes('inasistencia')">Inasistencia</button>
                     </div>
                     <button onclick="aplicarFiltros()">Aplicar</button>
                     <button class="secondary" onclick="limpiarFiltros()">Limpiar filtros</button>
@@ -1859,7 +1863,7 @@
     </div>
 
     <div class="main-footer">
-      <span class="footer-version-text">asistIA v1.1.0-build10036</span><span class="footer-sep"> · </span><span class="footer-credit">Desarrollado por Labs Projects</span>
+      <span class="footer-version-text">asistIA v1.1.0-build10037</span><span class="footer-sep"> · </span><span class="footer-credit">Desarrollado por Labs Projects</span>
     </div>
 
   </div>
@@ -2320,7 +2324,7 @@
     </div>
 
     <div class="main-footer">
-      <span class="footer-version-text">asistIA v1.1.0-build10036</span><span class="footer-sep"> · </span><span class="footer-credit">Desarrollado por Labs Projects</span>
+      <span class="footer-version-text">asistIA v1.1.0-build10037</span><span class="footer-sep"> · </span><span class="footer-credit">Desarrollado por Labs Projects</span>
     </div>
   </div>
 
@@ -2332,8 +2336,8 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="/app.js?v=1.1.0-build10036"></script>
-  <script src="/pwa-register.js?v=1.1.0-build10036"></script>
+  <script src="/app.js?v=1.1.0-build10037"></script>
+  <script src="/pwa-register.js?v=1.1.0-build10037"></script>
 
 
   <div id="modal" onclick="cerrarModalPorBackdrop(event)" style="

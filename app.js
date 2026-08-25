@@ -252,6 +252,7 @@ let cacheReportes = []
 let cacheReportesRaw = []
 let reportesCurrentPage = 1
 let reportesPageSize = 20
+let vistaReportesModo = "asistencia"
 let cacheReportesStaff = []
 let cacheDashboard = []
 let cacheCalendarioGlobal = []
@@ -5529,6 +5530,77 @@ async function obtenerUltimaAsistenciaPorDni(dnis, cursoId) {
     return mapa
 }
 
+async function obtenerAspirantesActivos(cursoId, ubo) {
+    let dataAspirantes = []
+    try {
+        const { data: aspData } = await withTenantScope(supabaseClient
+            .from("aspirantes")
+            .select("dni,nombres,apellidos,ubo,seccion,tenant_id")
+            .eq("curso_id", cursoId)
+        );
+        dataAspirantes = filtrarDataTenantActivo(aspData) || [];
+    } catch (e) {
+        console.error("Error al cargar aspirantes activos:", e);
+    }
+
+    let dnisRetirados = new Set();
+    try {
+        const { data: retData } = await withTenantScope(supabaseClient
+            .from("asistencias")
+            .select("dni,tenant_id")
+            .eq("curso_id", cursoId)
+            .eq("estado", "retirado")
+        );
+        const filteredRet = filtrarDataTenantActivo(retData) || [];
+        dnisRetirados = new Set(filteredRet.map(r => String(r.dni || "").trim()));
+    } catch (e) {
+        console.warn("Error al cargar alumnos retirados:", e);
+    }
+
+    let activos = dataAspirantes.filter(a => {
+        const dniClean = String(a.dni || "").trim();
+        return dniClean && dniClean !== "40636507" && !dnisRetirados.has(dniClean);
+    });
+
+    if (ubo) {
+        activos = activos.filter(a => String(a.ubo || "").trim() === ubo);
+    }
+
+    return activos;
+}
+
+function construirAlumnosPresentes(rows) {
+    const alumnos = {}
+    ;(rows || []).forEach(r => {
+        const dniClean = String(r.dni || "").trim()
+        if (!dniClean || dniClean === "40636507") return
+        if (!alumnos[dniClean]) {
+            alumnos[dniClean] = { nombre: r.nombre, ubo: r.ubo, total: 0 }
+        }
+        alumnos[dniClean].total++
+    })
+    return alumnos
+}
+
+function construirJustificacionPorDni(justifRows) {
+    const mapa = {}
+    ;(justifRows || []).forEach(j => {
+        const dni = String(j.dni || "").trim()
+        if (!dni) return
+        if (!mapa[dni] || String(j.fecha_justificada || "") > String(mapa[dni].fecha_justificada || "")) {
+            mapa[dni] = j
+        }
+    })
+    return mapa
+}
+
+function etiquetaEstadoJustificacion(estadoRevision) {
+    if (estadoRevision === "APROBADA") return "Aprobada"
+    if (estadoRevision === "RECHAZADA") return "Rechazada"
+    if (estadoRevision === "RECIBIDA") return "Pendiente"
+    return "Sin justificar"
+}
+
 function evaluarSemaforoPorRegla(registrosAlumno) {
     const registros = (registrosAlumno || []).slice().sort((a, b) => {
         const f = String(a.fecha || "").localeCompare(String(b.fecha || ""))
@@ -5898,9 +5970,11 @@ async function exportarReportesExcel() {
         return
     }
 
-    await descargarExcelDesdeJSON("reportes_asistencia.xlsx", cacheReportes)
+    const filename = vistaReportesModo === "inasistencia" ? "reportes_inasistencia.xlsx" : "reportes_asistencia.xlsx"
+    await descargarExcelDesdeJSON(filename, cacheReportes)
     void registrarActividadBackofficeSegura("reportes_excel_exportado", {
         modulo: "reportes",
+        modo: vistaReportesModo,
         total: cacheReportes.length,
         rangoDesde: String(fechaDesde?.value || ""),
         rangoHasta: String(fechaHasta?.value || "")
@@ -10617,10 +10691,9 @@ async function cargarDatos() {
             .order("hora", { ascending: false })
         const scopedData = filtrarDataTenantActivo(data)
 
-        // Cargar justificaciones aprobadas para marcar la condición y generar filas virtuales
-        let justifQ = withTenantScope(supabaseClient.from("justificaciones").select("dni,fecha_justificada,nombre,apellido,ubo,seccion,motivo_inasistencia,motivo_inasistencia_otro,tipo_sustento,tipo_sustento_otro"))
+        // Cargar justificaciones del rango (todos los estados) - se filtra client-side según el uso
+        let justifQ = withTenantScope(supabaseClient.from("justificaciones").select("dni,fecha_justificada,nombre,apellido,ubo,seccion,motivo_inasistencia,motivo_inasistencia_otro,tipo_sustento,tipo_sustento_otro,estado_revision"))
             .eq("curso_id", cursoActualId || 1)
-            .eq("estado_revision", "APROBADA")
         if (fechaDesde.value) {
             justifQ = justifQ.gte("fecha_justificada", fechaDesde.value)
         }
@@ -10628,15 +10701,16 @@ async function cargarDatos() {
             justifQ = justifQ.lte("fecha_justificada", fechaHasta.value)
         }
         const { data: justifData } = await justifQ
-        window.justificacionesAprobadasMap = new Map((justifData || []).map(j => [`${j.dni}|${j.fecha_justificada}`, j]))
+        const justifAprobadas = (justifData || []).filter(j => j.estado_revision === "APROBADA")
+        window.justificacionesAprobadasMap = new Map(justifAprobadas.map(j => [`${j.dni}|${j.fecha_justificada}`, j]))
 
         // Generar filas virtuales para justificaciones aprobadas que no tengan asistencia física
         const asistenciasSet = new Set((scopedData || []).filter(d => d.estado !== "retirado").map(a => `${(a.dni || "").trim()}|${a.fecha}`))
         const virtualSet = new Set()
         const virtualAsistencias = []
 
-        if (justifData && justifData.length) {
-            justifData.forEach(j => {
+        if (justifAprobadas.length) {
+            justifAprobadas.forEach(j => {
                 const key = `${(j.dni || "").trim()}|${j.fecha_justificada}`
                 if (!asistenciasSet.has(key) && !virtualSet.has(key)) {
                     virtualSet.add(key)
@@ -10707,7 +10781,18 @@ async function cargarDatos() {
         window.alertasUnificadasMap = alertasMap
         window.alertasUnificadasLista = alertasLista
 
-        renderTabla(allAsistencias)
+        window.reportesAlumnosPresentes = construirAlumnosPresentes(filteredScoped)
+
+        if (vistaReportesModo === "inasistencia") {
+            const uboActual = filtroUbo.value ? filtroUbo.value.trim() : ""
+            const roster = await obtenerAspirantesActivos(Number(cursoActualId || 1) || 1, uboActual)
+            window.reportesInasistenciaBase = calcularAspirantesSinAsistencia(roster, window.reportesAlumnosPresentes)
+            window.reportesJustificacionPorDni = construirJustificacionPorDni(justifData || [])
+            window.reportesInasistenciaResuelta = null
+            await renderTablaInasistenciaReportes()
+        } else {
+            renderTabla(allAsistencias)
+        }
         await cargarAlertasReporte()
     } finally {
         datosAsistenciaCargando = false
@@ -11350,6 +11435,87 @@ async function mostrarDetalleAlerta(key) {
 
 window.mostrarDetalleAlerta = mostrarDetalleAlerta
 
+async function renderTablaInasistenciaReportes() {
+    const kpiGrid = document.getElementById("reporteKpiGrid")
+    if (kpiGrid) kpiGrid.style.display = "none"
+
+    const base = window.reportesInasistenciaBase || []
+    if (!base.length) {
+        cacheReportes = []
+        tabla.innerHTML = buildEmptyStateHTML(
+            "Sin pendientes",
+            "Todos los aspirantes del padrón activo tienen asistencia registrada en el rango seleccionado.",
+            "✅"
+        )
+        return
+    }
+
+    if (!window.reportesInasistenciaResuelta) {
+        const dnis = base.map(a => a.dni)
+        const ultimaMap = await obtenerUltimaAsistenciaPorDni(dnis, Number(cursoActualId || 1) || 1)
+        const justifPorDni = window.reportesJustificacionPorDni || {}
+        window.reportesInasistenciaResuelta = base
+            .map(a => ({
+                ...a,
+                fechaUltima: ultimaMap[a.dni] || null,
+                justificacion: etiquetaEstadoJustificacion(justifPorDni[a.dni]?.estado_revision)
+            }))
+            .sort((x, y) => {
+                if (!x.fechaUltima && y.fechaUltima) return -1
+                if (x.fechaUltima && !y.fechaUltima) return 1
+                return String(y.fechaUltima || "").localeCompare(String(x.fechaUltima || ""))
+            })
+    }
+
+    cacheReportes = window.reportesInasistenciaResuelta.map(x => ({
+        "Nombre": x.nombre,
+        "DNI": x.dni,
+        "UBO": x.ubo,
+        "Última asistencia": x.fechaUltima || "Nunca asistió",
+        "Justificación": x.justificacion
+    }))
+
+    let html = `
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th>
+        <th>DNI</th>
+        <th>UBO</th>
+        <th>Última asistencia</th>
+        <th>Justificación</th>
+      </tr>
+    </thead>
+    <tbody>
+  `
+    window.reportesInasistenciaResuelta.forEach(x => {
+        const ultima = x.fechaUltima
+            ? escapeHtml(x.fechaUltima)
+            : '<span class="badge-risk badge-risk-alto">Nunca asistió</span>'
+        html += `
+      <tr>
+        <td>${escapeHtml(x.nombre)}</td>
+        <td>${escapeHtml(x.dni)}</td>
+        <td>${escapeHtml(x.ubo)}</td>
+        <td>${ultima}</td>
+        <td>${escapeHtml(x.justificacion)}</td>
+      </tr>
+    `
+    })
+    html += "</tbody></table>"
+    tabla.innerHTML = html
+}
+
+function cambiarModoReportes(modo) {
+    if (vistaReportesModo === modo) return
+    vistaReportesModo = modo
+    const btnA = document.getElementById("btnReportesAsistencia")
+    const btnI = document.getElementById("btnReportesInasistencia")
+    if (btnA) btnA.classList.toggle("is-active", modo === "asistencia")
+    if (btnI) btnI.classList.toggle("is-active", modo === "inasistencia")
+    cargarDatos()
+}
+
 async function aplicarFiltros() {
     await cargarDatos()
     void registrarActividadBackofficeSegura("reporte_asistencia_filtros_aplicados", {
@@ -11702,37 +11868,7 @@ async function cargarDashboard() {
     }
 
     // 1. Obtener padrón maestro de alumnos activos del curso (excluyendo retirados)
-    let dataAspirantes = []
-    try {
-        const { data: aspData } = await withTenantScope(supabaseClient
-            .from("aspirantes")
-            .select("dni,nombres,apellidos,ubo,seccion,tenant_id")
-            .eq("curso_id", scope.cursoId)
-        );
-        dataAspirantes = filtrarDataTenantActivo(aspData) || [];
-    } catch (e) {
-        console.error("Error al cargar aspirantes para el dashboard:", e);
-    }
-
-    // Cargar retirados de asistencias
-    let dnisRetirados = new Set();
-    try {
-        const { data: retData } = await withTenantScope(supabaseClient
-            .from("asistencias")
-            .select("dni,tenant_id")
-            .eq("curso_id", scope.cursoId)
-            .eq("estado", "retirado")
-        );
-        const filteredRet = filtrarDataTenantActivo(retData) || [];
-        dnisRetirados = new Set(filteredRet.map(r => String(r.dni || "").trim()));
-    } catch (e) {
-        console.warn("Error al cargar alumnos retirados:", e);
-    }
-
-    const aspirantesActivos = dataAspirantes.filter(a => {
-        const dniClean = String(a.dni || "").trim();
-        return dniClean && dniClean !== "40636507" && !dnisRetirados.has(dniClean);
-    });
+    const aspirantesActivos = await obtenerAspirantesActivos(scope.cursoId, "");
 
     // 2. Cargar programación del calendario global
     let calQ = withTenantScope(supabaseClient

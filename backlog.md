@@ -53,4 +53,18 @@ Encontrado durante la implementación del drill-down de Inasistencias (Fase 1). 
 - **Impacto medido si se corrige**: para el 23/08/2026, `kpiCobertura` bajaría de ~92% (99/108) a ~91% (99/109). Es un cambio real de comportamiento en un KPI que ya ve el usuario en producción, no solo un ajuste interno.
 - **Fix aplicado (curso actual)**: en la rama "global" de `cargarDashboard()`, antes de construir el universo desde el histórico de asistencias, se consulta `cacheCalendarioGlobal` (ya filtrado por `activo=true`/`hay_clase=true` para el rango consultado). Si **todos** los eventos activos del rango son `aplica_a='TODOS_ASPIRANTES'`, el universo pasa a ser `aspirantesActivos` (filtrado por UBO si aplica) — el mismo padrón que ya usa la rama regular — sin depender de asistencia histórica. Confirmado: para el 23/08/2026 el universo sube de 108 a 109 e incluye correctamente a FERNANDEZ GUERRA (DNI 76896127, "Nunca asistió") en el drill-down y en `kpiCobertura`.
 - **Pendiente (no resuelto hoy)**: si algún evento activo del rango tiene `aplica_a` distinto de `TODOS_ASPIRANTES` (`SECCION` o `TODAS` — flujo del próximo curso), el código mantiene el comportamiento histórico anterior (con las limitaciones ya documentadas arriba) y emite `console.warn("Rango con aplica_a mixto, universo no recalculado - revisar cuando se implemente el flujo de secciones")`. La reconstrucción evento-por-evento completa sigue pendiente de diseño para cuando se implemente el flujo de secciones.
+
+---
+
+## E. Decisión pendiente: ¿justificación aprobada debe sacar a alguien de "Inasistencia"?
+
+Encontrado probando Fase 2 en vivo: DNI 72785611 (ROJAS BENAVENTE, Fabricio Máximo) tiene justificación APROBADA para 2026-08-23, pero sigue apareciendo en la lista de Inasistencia (con "Aprobada" en la columna de contexto) porque el criterio de inclusión es solo asistencia física, no justificación.
+
+Pregunta de producto sin resolver: ¿una justificación aprobada debería sacar a la persona de la lista de "Inasistencia" por completo (tratarla como asistencia justificada, similar a como ya funciona la pestaña Asistencia con las filas virtuales), o alcanza con mostrarla igual con el contexto visible como está hoy?
+
+**IMPORTANTE**: si se decide que sí debe sacarla, hay que aplicar el cambio en LOS DOS LADOS a la vez:
+- `kpiInasistencia`/`kpiCobertura` del Dashboard (hoy NO cuenta ninguna justificación como presente, decisión tomada esta misma sesión al arreglar el bug del universo de Calendario Global).
+- El toggle Inasistencia de Reportes (hoy tampoco la cuenta).
+
+Cambiar solo uno de los dos lados reintroduce el mismo tipo de divergencia Dashboard-vs-Reportes que ya se resolvió hoy para el caso del universo de aspirantes activos (ver sección D). No hacerlo a medias.
 - **Pendiente relacionado (ya identificado, no estaba escrito en ningún lado del código hasta ahora)**: `calendario_sedes_gps` (interfaz visual del calendario) y `curso_jornada_reglas` (lo que lee el trigger de push) no están sincronizadas. Las jornadas reales dependen de que exista una regla recurrente que cubra el día, o de crear una fila espejo manual.
