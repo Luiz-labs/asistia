@@ -5498,6 +5498,37 @@ function esMarcacionCalendarioGlobal(r) {
     return tj === "CALENDARIO_GLOBAL";
 }
 
+function calcularAspirantesSinAsistencia(roster, alumnosPresentes) {
+    return (roster || [])
+        .filter(a => !alumnosPresentes[String(a.dni || "").trim()])
+        .map(a => ({
+            dni: String(a.dni || "").trim(),
+            nombre: `${a.apellidos || ""} ${a.nombres || ""}`.trim(),
+            ubo: a.ubo || "-",
+            seccion: a.seccion || "-"
+        }))
+}
+
+async function obtenerUltimaAsistenciaPorDni(dnis, cursoId) {
+    if (!dnis || !dnis.length) return {}
+    const { data, error } = await withTenantScope(supabaseClient
+        .from("asistencias")
+        .select("dni,fecha,estado")
+        .eq("curso_id", cursoId)
+        .in("dni", dnis))
+    if (error) {
+        console.error("Error al obtener última asistencia histórica:", error.message || error)
+        return {}
+    }
+    const filtrados = (filtrarDataTenantActivo(data) || []).filter(esRegistroAsistenciaValido)
+    const mapa = {}
+    filtrados.forEach(r => {
+        const d = String(r.dni || "").trim()
+        if (!mapa[d] || r.fecha > mapa[d]) mapa[d] = r.fecha
+    })
+    return mapa
+}
+
 function evaluarSemaforoPorRegla(registrosAlumno) {
     const registros = (registrosAlumno || []).slice().sort((a, b) => {
         const f = String(a.fecha || "").localeCompare(String(b.fecha || ""))
@@ -11765,6 +11796,7 @@ async function cargarDashboard() {
     let padronTotal = 0;
     let total = 0;
     let alumnos = {};
+    let rosterInasistencias = [];
 
     if (contextoEfectivo === "global") {
         // Numerador: DNI únicos con marcaciones válidas de Calendario Global en el rango
@@ -11805,13 +11837,16 @@ async function cargarDashboard() {
                 univFiltrados = univFiltrados.filter(a => String(a.ubo || "").trim() === scope.ubo);
             }
             padronTotal = univFiltrados.length;
+            rosterInasistencias = univFiltrados;
         } catch (e) {
             console.error("Error al calcular universo acumulado de Calendario Global:", e);
             padronTotal = 0;
+            rosterInasistencias = [];
         }
     } else {
         // Caso Regular o Mixto
         padronTotal = aspirantesFiltrados.length;
+        rosterInasistencias = aspirantesFiltrados;
 
         dataActivos.forEach(r => {
             const dniClean = String(r.dni || "").trim();
@@ -11822,6 +11857,10 @@ async function cargarDashboard() {
         })
         total = Object.keys(alumnos).length;
     }
+
+    window.detalleInasistenciaBase = calcularAspirantesSinAsistencia(rosterInasistencias, alumnos)
+    window.detalleInasistenciaResuelto = null
+    window.detalleInasistenciaCursoId = scope.cursoId
 
     // 7. Cargar y filtrar alertas de marcación en memoria (unificadas)
     let alertasDispNoHabitual = 0;
@@ -12409,6 +12448,63 @@ function verDetalle(color) {
     modalContenido.innerHTML = html
 
     modal.style.display = "flex"
+}
+
+async function verDetalleInasistencias() {
+    const base = window.detalleInasistenciaBase || []
+
+    modalTitulo.innerText = "Aspirantes sin asistencia"
+
+    if (!base.length) {
+        modalContenido.innerHTML = buildEmptyStateHTML(
+            "Sin pendientes",
+            "Todos los aspirantes del padrón activo tienen asistencia registrada en el rango seleccionado.",
+            "✅"
+        )
+        modal.style.display = "flex"
+        return
+    }
+
+    modalContenido.innerHTML = "<p>Cargando historial de asistencia...</p>"
+    modal.style.display = "flex"
+
+    if (!window.detalleInasistenciaResuelto) {
+        const dnis = base.map(a => a.dni)
+        const ultimaMap = await obtenerUltimaAsistenciaPorDni(dnis, window.detalleInasistenciaCursoId)
+        window.detalleInasistenciaResuelto = base
+            .map(a => ({ ...a, fechaUltima: ultimaMap[a.dni] || null }))
+            .sort((x, y) => {
+                if (!x.fechaUltima && y.fechaUltima) return -1
+                if (x.fechaUltima && !y.fechaUltima) return 1
+                return String(y.fechaUltima || "").localeCompare(String(x.fechaUltima || ""))
+            })
+    }
+
+    let html = `
+  <table>
+    <tr>
+      <th>Nombre</th>
+      <th>DNI</th>
+      <th>UBO</th>
+      <th>Última asistencia</th>
+    </tr>
+  `
+    window.detalleInasistenciaResuelto.forEach(x => {
+        const ultima = x.fechaUltima
+            ? x.fechaUltima
+            : '<span class="badge-risk badge-risk-alto">Nunca asistió</span>'
+        html += `
+      <tr>
+        <td>${x.nombre}</td>
+        <td>${x.dni}</td>
+        <td>${x.ubo}</td>
+        <td>${ultima}</td>
+      </tr>
+    `
+    })
+    html += "</table>"
+
+    modalContenido.innerHTML = html
 }
 
 async function cargarUbos() {

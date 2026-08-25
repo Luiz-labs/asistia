@@ -4826,6 +4826,12 @@ select {
     max-height: 86% !important;
   }
 
+  #modalContenido table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
   .section-top {
     grid-template-columns: 1fr;
   }
