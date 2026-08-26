@@ -70,3 +70,40 @@ Pregunta de producto sin resolver: ¿una justificación aprobada debería sacar 
 
 Cambiar solo uno de los dos lados reintroduce el mismo tipo de divergencia Dashboard-vs-Reportes que ya se resolvió hoy para el caso del universo de aspirantes activos (ver sección D). No hacerlo a medias.
 - **Pendiente relacionado (ya identificado, no estaba escrito en ningún lado del código hasta ahora)**: `calendario_sedes_gps` (interfaz visual del calendario) y `curso_jornada_reglas` (lo que lee el trigger de push) no están sincronizadas. Las jornadas reales dependen de que exista una regla recurrente que cubra el día, o de crear una fila espejo manual.
+
+---
+
+## F. Feature propuesta: alerta "nadie del staff marcó" (sin implementar)
+
+Origen: prueba real del domingo 23/08/2026. El staff no tiene control de horario propio, y ese día el primer QR de staff recién se escaneó a las 11:10am (jornada iniciaba ~8:15am según regla DOMINICAL_GRUPAL) - 3 horas tarde. El sistema de push existente solo reacciona DESPUÉS de que alguien del staff escanea (ese escaneo dispara el timer), así que no existe hoy ninguna alerta si el staff simplemente no marca a tiempo.
+
+Diseño acordado con el usuario:
+- Nuevo cron independiente (pg_cron), NO una extensión del sistema existente (`fn_iniciar_push_jornada`) - ese depende de un evento que acá justamente no ocurrió.
+- Se dispara 10 minutos después de `jornada_inicio_at`, SI Y SOLO SI no existe ningún registro en `staff_asistencias` para ese día a esa hora.
+- Se refiere ÚNICAMENTE a la ausencia del PRIMER escaneo de staff del día (no aplica a escaneos posteriores ni a otros eventos).
+- Una sola notificación, no repetida.
+- Destinatarios: AMBOS canales - Staff y Backoffice/Superusuario.
+
+Dependencias que deben resolverse ANTES de implementar esto (no implementar hasta que estén resueltas):
+1. El canal de notificaciones Backoffice/Superusuario sigue sin funcionar (pendiente ya documentado en la lista de seguimiento general - "Push a Superusuario nunca llegó").
+2. `calendario_sedes_gps` y `curso_jornada_reglas` no están sincronizados (pendiente ya documentado en la sección D) - esta alerta nueva necesita `jornada_inicio_at` confiable para CADA día real, y hoy esa fuente depende de que exista una regla recurrente que "por casualidad" cubra el día. Construir esta alerta sobre esa base floja arriesga falsos silencios (no avisa cuando debería) o falsos disparos.
+
+---
+
+## G. BLOQUEANTE para Etapa 3 de seguridad: login de staff_root nunca obtiene sesión real de Supabase Auth
+
+El login de superusuario (origen="staff_root", vía resolver_login_admin RPC) valida credenciales server-side pero NUNCA llama a supabaseClient.auth.signInWithPassword() - a diferencia de tenant_route, que sí lo requiere explícitamente ("En ruta institucional NO aceptamos autenticación solo por RPC, porque RLS necesita un JWT real en el navegador"). Como resultado, el cliente de Supabase en el navegador queda en estado anónimo durante toda la sesión del superusuario, aunque sessionStorage/sesionAdminActiva crean que está logueado.
+
+Esto estuvo invisible durante meses porque instituciones_luiz, perfiles_luiz, usuarios_perfiles_luiz y usuarios_admin tenían políticas allow_all_* abiertas - el cliente anónimo igual podía leer/escribir todo. Recién se hizo visible hoy porque:
+1. La Etapa 2 (fix de app_role()) hizo que el superusuario real empezara a depender de tener una sesión auténtica para las policies "buenas" - exponiendo que nunca la tuvo.
+2. usuarios_admin específicamente ya tenía revocado el SELECT de anon en una sesión de seguridad anterior (por las contraseñas en texto plano) - el superusuario, atrapado en rol anon, ahora rebota con "permission denied" contra ESE arreglo previo y correcto.
+
+IMPACTO: si se cierran allow_all_inst/allow_all_perf/allow_all_usrperf/allow_all_usuarios (Etapa 3 original) sin arreglar esto primero, el superusuario pierde acceso COMPLETO a su propio panel de administración - peor que el estado actual.
+
+BLOQUEA: Etapa 3 completa (instituciones_luiz, perfiles_luiz, usuarios_perfiles_luiz, usuarios_admin) queda pausada hasta resolver esto.
+
+Fix propuesto (para sesión dedicada futura, NO implementar ahora): agregar supabaseClient.auth.signInWithPassword() (o el mecanismo equivalente) también en el camino de staff_root después de validar con resolver_login_admin, para que el navegador obtenga un JWT real de Supabase Auth. Requiere probar exhaustivamente el flujo de login del superusuario antes de tocar cualquier RLS, dado el riesgo de bloqueo total si algo sale mal.
+
+**Incidente real relacionado - RESUELTO (25/08/2026)**: login de esbas2026-xxivcdls falló tras reset de contraseña porque entró por URL raíz (/backoffice/) en vez de institucional (/esbas-24/backoffice/), cayendo en el mismo camino RPC-only de staff_root (sin JWT real) documentado en esta sección. Causa secundaria: usuarios_admin.clave no se había sincronizado con el reset de Supabase Auth. Ambos resueltos: clave sincronizada, usuaria ahora usa la URL correcta.
+
+**Sugerencia de UX (no implementar hoy)**: la URL raíz /backoffice/ quizás debería redirigir automáticamente a pedir el slug de institución en vez de caer silenciosamente en el modo staff_root - hoy es fácil confundirse y terminar en un camino de login más débil (sin JWT real) sin darse cuenta, como pasó en el incidente de arriba.

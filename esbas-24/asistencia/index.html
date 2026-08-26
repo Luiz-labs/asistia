@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/asistencia/style.css?v=1.1.0-build10040">
+  <link rel="stylesheet" href="/asistencia/style.css?v=1.1.0-build10042">
 </head>
 <body>
   <main class="public-shell">
@@ -51,7 +51,7 @@
       <p id="mensaje" class="message-box"></p>
       <p id="pendingCounter" class="pending-counter" hidden></p>
     </section>
-    <footer class="public-footer">asistIA v1.1.0-build10040 · Desarrollado por Labs Projects</footer>
+    <footer class="public-footer">asistIA v1.1.0-build10042 · Desarrollado por Labs Projects</footer>
   </main>
 
   <script src="/version-manager.js"></script>
@@ -60,7 +60,7 @@
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script>
     (() => {
-      const APP_VERSION = "1.1.0-build10040"
+      const APP_VERSION = "1.1.0-build10042"
       const RESET_KEY = `asistia_asistencia_cache_reset_${APP_VERSION}`
       const path = String(window.location.pathname || "")
       const isAsistenciaRoute = /(^|\/)asistencia(\/|$)/.test(path) && !/staff-asistencia/.test(path)
