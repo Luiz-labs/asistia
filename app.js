@@ -4215,8 +4215,6 @@ function volverALandingMovil() {
     const vistaJustif = document.getElementById("vistaJustificaciones")
     if (vistaJustif) vistaJustif.style.display = "none"
 
-    const submenu = document.getElementById("adminMobileConfigSubmenu")
-    if (submenu) submenu.style.display = "none"
     const backBar = document.getElementById("adminMobileBackBar")
     if (backBar) backBar.style.display = "none"
     const landing = document.getElementById("adminMobileLanding")
@@ -4224,41 +4222,6 @@ function volverALandingMovil() {
 
     vistaAdminActual = "landingMovil"
     aplicarRestriccionesPanelPorContexto()
-}
-
-// Tap en la card "Configuración" del landing móvil: muestra el submenú de
-// 3 accesos (Staff / Curso / Operativa) sin entrar todavía a #vistaConfig.
-function abrirSubmenuConfigMovil() {
-    const landing = document.getElementById("adminMobileLanding")
-    if (landing) landing.style.display = "none"
-    const submenu = document.getElementById("adminMobileConfigSubmenu")
-    if (submenu) submenu.style.display = "flex"
-    const backBar = document.getElementById("adminMobileBackBar")
-    if (backBar) backBar.style.display = "flex"
-    vistaAdminActual = "landingMovil"
-}
-
-// Tap en un acceso del submenú móvil de Configuración: entra a
-// #vistaConfig (mostrarVista ya sabe recortar las cargas en móvil) y abre
-// + hace scroll al accordion correspondiente.
-function abrirAccordionConfigMovil(seccion) {
-    const idsPorSeccion = {
-        staff: "accordionStaffInstruccion",
-        curso: "accordionConfigCurso",
-        operativa: "accordionConfigOperativa"
-    }
-    const id = idsPorSeccion[seccion]
-    mostrarVista("config")
-    Object.values(idsPorSeccion).forEach(otroId => {
-        const otroEl = document.getElementById(otroId)
-        if (otroEl) otroEl.open = false
-    })
-    if (!id) return
-    const el = document.getElementById(id)
-    if (el) {
-        el.open = true
-        el.scrollIntoView({ behavior: "smooth", block: "start" })
-    }
 }
 
 function irPanelPrincipalLuizLabs() {
@@ -12460,11 +12423,9 @@ function mostrarVista(vista) {
 
     const movil = esModoAdminMovilLimitado()
     const adminMobileLanding = document.getElementById("adminMobileLanding")
-    const adminMobileConfigSubmenu = document.getElementById("adminMobileConfigSubmenu")
     const adminMobileBackBar = document.getElementById("adminMobileBackBar")
     if (movil) {
         if (adminMobileLanding) adminMobileLanding.style.display = "none"
-        if (adminMobileConfigSubmenu) adminMobileConfigSubmenu.style.display = "none"
         if (adminMobileBackBar) adminMobileBackBar.style.display = "flex"
     } else if (adminMobileBackBar) {
         adminMobileBackBar.style.display = "none"
