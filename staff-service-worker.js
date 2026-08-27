@@ -1,4 +1,4 @@
-const CACHE_NAME = "asistia-staff-pwa-v1.1.0-build10045"
+const CACHE_NAME = "asistia-staff-pwa-v1.1.0-build10047"
 
 const PRECACHE_URLS = [
   "/staff-asistencia/index.html",
@@ -6,8 +6,8 @@ const PRECACHE_URLS = [
   "/staff-asistencia/app.js",
   "/version-manager.js",
   "/update-notifier.js",
-  "/icon-192.png",
-  "/icon-512.png",
+  "/icon-192-staff.png",
+  "/icon-512-staff.png",
   "/asistIA_logo.png"
 ]
 
@@ -118,8 +118,8 @@ self.addEventListener("push", event => {
   const title = data.title || "asistIA Staff"
   const options = {
     body: data.body || "Actualización de asistencia",
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
+    icon: "/icon-192-staff.png",
+    badge: "/icon-192-staff.png",
     vibrate: [100, 50, 100],
     data: {
       url: data.url || "/"
