@@ -10,8 +10,8 @@ export async function onRequest(context) {
   const tenantSlug = tenant || "asistia";
 
   const manifest = {
-    name: "Staff",
-    short_name: "Staff",
+    name: "Staff asistIA",
+    short_name: "Staff asistIA",
     description: "Módulo Staff de asistencia asistIA.",
     id: `/pwa/${tenantSlug}/staff`,
     start_url: tenant ? `/staff-asistencia/?tenant=${tenant}` : `/staff-asistencia/`,
