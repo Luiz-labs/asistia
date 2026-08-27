@@ -22,19 +22,19 @@ export async function onRequest(context) {
     theme_color: "#2563eb",
     icons: [
       {
-        src: "/icon-192.png",
+        src: "/icon-192-staff.png",
         sizes: "192x192",
         type: "image/png",
         purpose: "any"
       },
       {
-        src: "/icon-512.png",
+        src: "/icon-512-staff.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any"
       },
       {
-        src: "/icon-512.png",
+        src: "/icon-512-staff-maskable.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable"
