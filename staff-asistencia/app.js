@@ -472,14 +472,23 @@ async function activarFlujoNotificacionesPush() {
 
         if (cardText) cardText.textContent = "Generando suscripción segura...";
 
-        // 2. Obtener el Service Worker listo
-        const registration = await navigator.serviceWorker.ready;
-
-        // 3. Suscribirse
-        const subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-        });
+        // 2. Obtener el Service Worker listo y suscribirse, con timeout.
+        // Mismo patrón que actualizarEstadoNotificacionesStaff() (líneas 350-354):
+        // sin este Promise.race, un hipo de red puede dejar "Generando suscripción
+        // segura..." colgado para siempre, sin disparar el catch ni mostrar error
+        // (bug real observado en staging, ago-2026 -- se resolvió solo cerrando y
+        // reabriendo la app, pero el código no debía depender de eso).
+        const generarSuscripcionPromise = (async () => {
+            const registration = await navigator.serviceWorker.ready;
+            return registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
+        })();
+        const timeoutSuscripcionPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("No se pudo generar la suscripción. Intenta de nuevo.")), 8000)
+        );
+        const subscription = await Promise.race([generarSuscripcionPromise, timeoutSuscripcionPromise]);
 
         if (cardText) cardText.textContent = "Registrando en el servidor...";
 
@@ -516,7 +525,11 @@ async function activarFlujoNotificacionesPush() {
         }
         if (cardTitle) cardTitle.textContent = "No se pudieron activar las notificaciones";
         if (cardText) cardText.textContent = err.message || "Ocurrió un error inesperado.";
-        if (btnEnable) btnEnable.style.display = "none";
+        if (btnEnable) {
+            btnEnable.textContent = "Reintentar";
+            btnEnable.style.display = "";
+            btnEnable.disabled = false;
+        }
         if (btnDismiss) {
             btnDismiss.disabled = false;
             btnDismiss.textContent = "Cerrar";
