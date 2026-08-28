@@ -164,11 +164,24 @@
         }
       }
 
-      // 4. Baja y desregistro de Service Workers (PWA)
+      // 4. Baja y desregistro SOLO del Service Worker de Backoffice (scope "/").
+      //
+      // ADVERTENCIA: NUNCA reemplazar esto por
+      // navigator.serviceWorker.getRegistrations() (plural, sin argumentos).
+      // Ese método devuelve TODAS las registraciones de Service Worker del
+      // origen completo, sin importar el scope -- incluida la de Staff,
+      // registrada en scope "/staff-asistencia/" (ver
+      // staff-asistencia/index.html). Si un dispositivo tiene ambas PWAs
+      // instaladas, desregistrar el SW de Staff mata como daño colateral su
+      // suscripción push activa, sin que nadie lo haya pedido. getRegistration(scope)
+      // usa el algoritmo de scope-matching del navegador para traer únicamente
+      // el SW dueño de ESTE scope -- es la forma segura de acotar el unregister().
       if ('serviceWorker' in navigator) {
         try {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(registrations.map(reg => reg.unregister()));
+          const registration = await navigator.serviceWorker.getRegistration('/');
+          if (registration) {
+            await registration.unregister();
+          }
         } catch (e) {
           console.warn('Error al dar de baja Service Workers:', e);
         }
