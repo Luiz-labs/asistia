@@ -305,6 +305,11 @@ const HISTORICAL_IMPORT_ALIASES = Object.freeze({
 let historicalImportState = createHistoricalImportState()
 const VISTA_MODO_KEY = "vistaModoManual"
 const ADMIN_SESSION_KEY = "asistia_admin_session_v1"
+// Vencimiento por inactividad de la sesión de Backoffice. Antes vivía en
+// sessionStorage (se borraba sola al cerrar la pestaña/PWA); ahora vive en
+// localStorage para persistir entre reaperturas, así que este TTL es lo único
+// que evita que quede activa indefinidamente en un dispositivo perdido/desbloqueado.
+const ADMIN_SESSION_TTL_MS = 4 * 60 * 60 * 1000 // 4 horas de inactividad
 const COURSE_QR_BASE_URL = "https://asistia.pages.dev"
 let cursoQrState = {
     token: "",
@@ -1517,9 +1522,12 @@ function normalizarSesionAdmin(raw) {
 function guardarSesionAdminEnStorage() {
     try {
         if (sesionAdminActiva?.autenticado) {
-            sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(sesionAdminActiva))
+            const paraGuardar = Object.assign({}, sesionAdminActiva, {
+                expiraEn: Date.now() + ADMIN_SESSION_TTL_MS
+            })
+            localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(paraGuardar))
         } else {
-            sessionStorage.removeItem(ADMIN_SESSION_KEY)
+            localStorage.removeItem(ADMIN_SESSION_KEY)
         }
     } catch (e) {
         console.warn("No se pudo guardar sesión admin:", e)
@@ -1528,14 +1536,22 @@ function guardarSesionAdminEnStorage() {
 
 function cargarSesionAdminDesdeStorage() {
     try {
-        const raw = sessionStorage.getItem(ADMIN_SESSION_KEY)
+        const raw = localStorage.getItem(ADMIN_SESSION_KEY)
         if (!raw) {
             sesionAdminActiva = crearSesionAdminVacia()
             permisosPanelInstitucionalResueltos = false
             sincronizarEstadoLegacyAdmin()
             return sesionAdminActiva
         }
-        sesionAdminActiva = normalizarSesionAdmin(JSON.parse(raw))
+        const parsed = JSON.parse(raw)
+        if (parsed?.expiraEn && Date.now() > Number(parsed.expiraEn)) {
+            localStorage.removeItem(ADMIN_SESSION_KEY)
+            sesionAdminActiva = crearSesionAdminVacia()
+            permisosPanelInstitucionalResueltos = false
+            sincronizarEstadoLegacyAdmin()
+            return sesionAdminActiva
+        }
+        sesionAdminActiva = normalizarSesionAdmin(parsed)
     } catch (e) {
         console.warn("No se pudo leer sesión admin:", e)
         sesionAdminActiva = crearSesionAdminVacia()
@@ -10257,6 +10273,25 @@ async function resolverCredencialesAdmin(usuario, clave, contexto = {}) {
     if (!requiereJwt) {
         resultadoRpc = await resolverCredencialesAdminViaRPC(usuario, clave, tenantContexto)
         if (resultadoRpc) {
+            if (resultadoRpc.valido) {
+                // No debe bloquear el login en ningún caso: resultadoRpc.valido ya
+                // quedó decidido por la RPC. Esto solo intenta, además, dejar al
+                // navegador con una sesión real de Supabase Auth (ver backlog.md
+                // sección G). Si falla o revienta, el superusuario entra igual
+                // que hoy, sin JWT real - eso queda logueado para revisar.
+                let authResultado = { ok: false, intentado: false }
+                try {
+                    authResultado = await autenticarAdminConSupabaseAuth(usuario, clave)
+                } catch (error) {
+                    console.error("[staff_root] Excepción inesperada obteniendo sesión real de Supabase Auth (el login continúa igual vía RPC):", error)
+                }
+                resultadoRpc.viaAuth = !!authResultado.ok
+                if (authResultado.ok) {
+                    console.warn(`[staff_root] Login de "${resultadoRpc.usuario}" obtuvo JWT real de Supabase Auth.`)
+                } else {
+                    console.warn(`[staff_root] Login de "${resultadoRpc.usuario}" NO obtuvo JWT real de Supabase Auth (sesión queda anónima, como hoy). El login continúa igual vía RPC.`)
+                }
+            }
             return resultadoRpc
         }
     }
@@ -10480,7 +10515,8 @@ async function login() {
                 registrarActividad("login_admin", {
                     via: "root",
                     usuario: resultado.usuario,
-                    rol: resultado.rol
+                    rol: resultado.rol,
+                    jwt_real: !!resultado.viaAuth
                 }, { usuario: resultado.usuario, rol: resultado.rol, tenantId: "" })
                 mostrarSelectorStaff = false
                 loginMsg.innerText = ""
@@ -10620,7 +10656,7 @@ function logout() {
     let destino = window.location.pathname
     let origenSesion = ""
     try {
-        const raw = sessionStorage.getItem("asistia_admin_session_v1")
+        const raw = localStorage.getItem(ADMIN_SESSION_KEY)
         if (raw) {
             const parsed = JSON.parse(raw)
             origenSesion = parsed?.origen || ""
