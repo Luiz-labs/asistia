@@ -11,7 +11,6 @@ let cursoContextoValido = true
 let staffSeleccionado = null
 let staffPerfilEditando = false
 let staffPerfilGuardando = false
-let staffSuccessResetTimer = null
 let staffCurrentView = "login"
 
 let tenantLabel
@@ -19,6 +18,7 @@ let codigoBomberoInput
 let staffLookupSection
 let staffCardSection
 let staffSuccessSection
+let staffResumenHoySection
 let mensaje
 let staffProfileModal
 
@@ -57,11 +57,6 @@ function setStaffView(view, detalle = {}) {
     staffCurrentView = view
     console.log("[staff] view:", view)
 
-    if (staffSuccessResetTimer) {
-        clearTimeout(staffSuccessResetTimer)
-        staffSuccessResetTimer = null
-    }
-
     const publicCard = document.querySelector(".public-card")
     if (publicCard) {
         publicCard.dataset.staffState = view
@@ -72,12 +67,14 @@ function setStaffView(view, detalle = {}) {
         setSectionVisible(courseSelectorSection, false)
         setSectionVisible(staffCardSection, false)
         setSectionVisible(staffSuccessSection, false)
+        setSectionVisible(staffResumenHoySection, false)
         setSectionVisible(pwaNotificationCard, false)
         setSectionVisible(staffProfileModal, false)
         if (staffProfileModal) staffProfileModal.setAttribute("aria-hidden", "true")
         document.body.classList.remove("staff-modal-open")
         if (!detalle.preserveMessage) setMensaje("")
         if (staffSuccessSection) staffSuccessSection.innerHTML = ""
+        if (staffResumenHoySection) staffResumenHoySection.innerHTML = ""
         return
     }
 
@@ -86,11 +83,13 @@ function setStaffView(view, detalle = {}) {
         setSectionVisible(courseSelectorSection, false)
         setSectionVisible(staffCardSection, true)
         setSectionVisible(staffSuccessSection, false)
+        setSectionVisible(staffResumenHoySection, false)
         setSectionVisible(pwaNotificationCard, false)
         setSectionVisible(staffProfileModal, false)
         if (staffProfileModal) staffProfileModal.setAttribute("aria-hidden", "true")
         document.body.classList.remove("staff-modal-open")
         if (staffSuccessSection) staffSuccessSection.innerHTML = ""
+        if (staffResumenHoySection) staffResumenHoySection.innerHTML = ""
         return
     }
 
@@ -99,6 +98,7 @@ function setStaffView(view, detalle = {}) {
         setSectionVisible(courseSelectorSection, false)
         setSectionVisible(staffCardSection, false)
         setSectionVisible(staffSuccessSection, false)
+        setSectionVisible(staffResumenHoySection, false)
         setSectionVisible(pwaNotificationCard, false)
         setSectionVisible(staffProfileModal, true, "flex")
         return
@@ -109,6 +109,7 @@ function setStaffView(view, detalle = {}) {
         setSectionVisible(courseSelectorSection, false)
         setSectionVisible(staffCardSection, false)
         setSectionVisible(staffSuccessSection, true)
+        setSectionVisible(staffResumenHoySection, false)
         setSectionVisible(pwaNotificationCard, false)
         setSectionVisible(staffProfileModal, false)
         if (staffProfileModal) staffProfileModal.setAttribute("aria-hidden", "true")
@@ -146,15 +147,25 @@ function setStaffView(view, detalle = {}) {
             if (cardText) cardText.textContent = "Recibe el resumen de asistencia y actualizaciones de la jornada.";
         }
 
+        // Punto común a los dos sub-casos de la tarjeta de notificaciones
+        // (visible u oculta) y también al camino de instalación de PWA: se
+        // muestra una sola vez, antes de que se resuelva cuál de los tres
+        // termina ocurriendo, para no duplicar la llamada.
+        mostrarBotonResumenHoy(tenantActivoId, detalle.curso_id, detalle.fecha)
+
         if (deberiaOfrecerInstalacion()) {
             abrirModalInstalacionPwa();
         } else {
             actualizarEstadoNotificacionesStaff().then(() => {
                 if (pwaNotificationCard && pwaNotificationCard.hidden) {
-                    staffSuccessResetTimer = setTimeout(() => {
-                        resetStaffSeleccionado()
-                    }, 3000)
+                    // La tarjeta de notificaciones quedó oculta: sin el
+                    // auto-reset de 3s, la persona necesita un botón
+                    // explícito para salir de esta pantalla.
+                    mostrarBotonListoResumenHoy()
                 }
+                // Si pwaNotificationCard sigue visible (aún no activó push),
+                // no se agrega "Listo": esa tarjeta ya tiene "Activar
+                // notificaciones" / "Ahora no" como salida propia.
             })
         }
     }
@@ -507,9 +518,16 @@ async function activarFlujoNotificacionesPush() {
 
         // Programar el reset final de la asistencia si estamos en la vista de éxito
         if (staffCurrentView === "exito") {
-            setTimeout(() => {
-                resetStaffSeleccionado();
-            }, 2500);
+            if (tieneResumenHoyVisible()) {
+                // Hay resumen visible: los botones de esta tarjeta acaban de
+                // ocultarse (líneas arriba), así que sin "Listo" la persona
+                // quedaría sin ninguna salida explícita en esta pantalla.
+                mostrarBotonListoResumenHoy();
+            } else {
+                setTimeout(() => {
+                    resetStaffSeleccionado();
+                }, 2500);
+            }
         } else {
             // Si estamos en perfil, refrescamos el estado visual de la tarjeta
             setTimeout(() => {
@@ -544,7 +562,11 @@ function descartarNotificacionesPush() {
     setSectionVisible(pwaNotificationCard, false);
 
     if (staffCurrentView === "exito") {
-        resetStaffSeleccionado();
+        if (tieneResumenHoyVisible()) {
+            mostrarBotonListoResumenHoy();
+        } else {
+            resetStaffSeleccionado();
+        }
     }
 }
 
@@ -558,6 +580,7 @@ function enlazarIds() {
     staffLookupSection = document.getElementById("staffLookupSection")
     staffCardSection = document.getElementById("staffCardSection")
     staffSuccessSection = document.getElementById("staffSuccessSection")
+    staffResumenHoySection = document.getElementById("staffResumenHoySection")
     mensaje = document.getElementById("mensaje")
     staffProfileModal = document.getElementById("staffProfileModal")
     // Elementos PWA y cursos
@@ -1185,6 +1208,93 @@ function obtenerJornadaStaff(weekday) {
     return "GENERAL"
 }
 
+async function obtenerResumenHoyStaff(tenantId, cursoId, fechaHoy) {
+    if (!haySupabase()) return { estado: "error" }
+    try {
+        const { data, error } = await supabaseClient
+            .from("staff_push_tracker")
+            .select("corte1_presentes, corte1_puntual, corte1_en, corte2_presentes, corte2_puntual, corte2_en, corte3_presentes, corte3_puntual, corte3_en")
+            .eq("tenant_id", tenantId)
+            .eq("curso_id", cursoId)
+            .eq("fecha_jornada", fechaHoy)
+            .maybeSingle()
+
+        if (error) {
+            console.error("Error consultando resumen de hoy:", error)
+            return { estado: "error" }
+        }
+        if (!data) return { estado: "sin_datos_aun" }
+
+        const cortes = [
+            { presentes: data.corte3_presentes, puntual: data.corte3_puntual, en: data.corte3_en },
+            { presentes: data.corte2_presentes, puntual: data.corte2_puntual, en: data.corte2_en },
+            { presentes: data.corte1_presentes, puntual: data.corte1_puntual, en: data.corte1_en },
+        ]
+        const corte = cortes.find(c => c.presentes !== null && c.presentes !== undefined)
+        if (!corte) return { estado: "sin_datos_aun" }
+
+        return {
+            estado: "con_datos",
+            presentes: corte.presentes,
+            puntual: corte.puntual,
+            tardanza: corte.presentes - (corte.puntual ?? 0),
+            horaCorte: corte.en
+        }
+    } catch (e) {
+        console.error("Error inesperado en resumen de hoy:", e)
+        return { estado: "error" }
+    }
+}
+
+function mostrarBotonResumenHoy(tenantId, cursoId, fecha) {
+    if (!staffResumenHoySection) return
+    setSectionVisible(staffResumenHoySection, true)
+    staffResumenHoySection.innerHTML = `
+      <button id="btnVerResumenHoy" class="secondary-btn" type="button">📋 Ver resumen de hoy</button>
+      <div id="staffResumenHoyResultado"></div>
+    `
+    document.getElementById("btnVerResumenHoy")?.addEventListener("click", () => verResumenHoyStaff(tenantId, cursoId, fecha))
+}
+
+function tieneResumenHoyVisible() {
+    return !!(staffResumenHoySection && !staffResumenHoySection.hidden)
+}
+
+function mostrarBotonListoResumenHoy() {
+    if (document.getElementById("btnListoResumenHoy")) return
+    if (!staffSuccessSection) return
+    staffSuccessSection.insertAdjacentHTML("beforeend", `
+      <div class="staff-card-actions">
+        <button id="btnListoResumenHoy" class="tertiary-btn" type="button">Listo</button>
+      </div>
+    `)
+    document.getElementById("btnListoResumenHoy")?.addEventListener("click", resetStaffSeleccionado)
+}
+
+async function verResumenHoyStaff(tenantId, cursoId, fecha) {
+    const btn = document.getElementById("btnVerResumenHoy")
+    const contenedor = document.getElementById("staffResumenHoyResultado")
+    if (btn) { btn.disabled = true; btn.textContent = "Cargando..." }
+
+    const resumen = await obtenerResumenHoyStaff(tenantId, cursoId, fecha)
+
+    if (btn) { btn.disabled = false; btn.textContent = "📋 Ver resumen de hoy" }
+    if (!contenedor) return
+
+    if (resumen.estado === "con_datos") {
+        contenedor.innerHTML = `
+          <div class="success-summary">
+            <div><strong>Puntual</strong><span>${resumen.puntual}</span></div>
+            <div><strong>Tardanza</strong><span>${resumen.tardanza}</span></div>
+          </div>
+        `
+    } else if (resumen.estado === "sin_datos_aun") {
+        contenedor.innerHTML = `<p class="inline-form-msg warning">Aún no hay datos disponibles, intenta de nuevo en unos minutos.</p>`
+    } else {
+        contenedor.innerHTML = `<p class="inline-form-msg error">No se pudo cargar el resumen. Intenta de nuevo.</p>`
+    }
+}
+
 async function buscarStaffPorCodigo() {
     const codigo = normalizarCodigoBombero(codigoBomberoInput?.value)
     if (codigoBomberoInput) codigoBomberoInput.value = codigo
@@ -1263,7 +1373,7 @@ async function buscarStaffPorCodigo() {
     try {
         const { data: existente, error: errorConsulta } = await supabaseClient
             .from("staff_asistencias")
-            .select("id")
+            .select("id, curso_id")
             .eq("tenant_id", tenantActivoId)
             .eq("staff_id", data.id)
             .eq("fecha", lima.fecha)
@@ -1272,8 +1382,10 @@ async function buscarStaffPorCodigo() {
         if (!errorConsulta && existente?.id) {
             setMensaje("Ya registraste asistencia staff hoy.", "warning")
             void actualizarEstadoNotificacionesStaff()
+            mostrarBotonResumenHoy(tenantActivoId, existente.curso_id, lima.fecha)
         } else {
             setSectionVisible(pwaNotificationCard, false);
+            setSectionVisible(staffResumenHoySection, false);
         }
     } catch (e) {
         console.error("Error al consultar asistencia del día:", e)
@@ -1353,7 +1465,9 @@ async function registrarAsistenciaStaff() {
         hora: lima.hora,
         tipo_staff: payload.tipo_staff,
         nombres: staffSeleccionado.nombres,
-        apellidos: staffSeleccionado.apellidos
+        apellidos: staffSeleccionado.apellidos,
+        curso_id: cursoActualId,
+        fecha: lima.fecha
     })
     setMensaje("")
 }
@@ -1386,13 +1500,21 @@ function bindEventos() {
     document.getElementById("btnRejectInstallInvite")?.addEventListener("click", () => {
         localStorage.setItem("asistia_staff_install_dismissed_at", String(Date.now()));
         cerrarModalInstalacionPwa();
-        resetStaffSeleccionado();
+        if (tieneResumenHoyVisible()) {
+            mostrarBotonListoResumenHoy();
+        } else {
+            resetStaffSeleccionado();
+        }
     });
 
     document.getElementById("btnDismissInstallInvite")?.addEventListener("click", () => {
         localStorage.setItem("asistia_staff_install_dismissed_at", String(Date.now()));
         cerrarModalInstalacionPwa();
-        resetStaffSeleccionado();
+        if (tieneResumenHoyVisible()) {
+            mostrarBotonListoResumenHoy();
+        } else {
+            resetStaffSeleccionado();
+        }
     });
 
     document.getElementById("btnAcceptInstallInvite")?.addEventListener("click", async () => {
@@ -1402,7 +1524,11 @@ function bindEventos() {
             const { outcome } = await deferredPrompt.userChoice;
             console.log(`[staff] Resultado del prompt de instalación: ${outcome}`);
             deferredPrompt = null;
-            resetStaffSeleccionado();
+            if (tieneResumenHoyVisible()) {
+                mostrarBotonListoResumenHoy();
+            } else {
+                resetStaffSeleccionado();
+            }
         } else {
             abrirGuiaManualInstalacion();
         }
@@ -1411,17 +1537,29 @@ function bindEventos() {
     // Eventos de Guía Manual iOS/Android
     document.getElementById("btnDismissIosGuide")?.addEventListener("click", () => {
         cerrarGuiaManualInstalacion();
-        resetStaffSeleccionado();
+        if (tieneResumenHoyVisible()) {
+            mostrarBotonListoResumenHoy();
+        } else {
+            resetStaffSeleccionado();
+        }
     });
 
     document.getElementById("btnCloseIosGuide")?.addEventListener("click", () => {
         cerrarGuiaManualInstalacion();
-        resetStaffSeleccionado();
+        if (tieneResumenHoyVisible()) {
+            mostrarBotonListoResumenHoy();
+        } else {
+            resetStaffSeleccionado();
+        }
     });
 
     document.getElementById("btnCloseIosGuideX")?.addEventListener("click", () => {
         cerrarGuiaManualInstalacion();
-        resetStaffSeleccionado();
+        if (tieneResumenHoyVisible()) {
+            mostrarBotonListoResumenHoy();
+        } else {
+            resetStaffSeleccionado();
+        }
     });
 
     // Evento de soporte WhatsApp
@@ -1438,10 +1576,18 @@ function bindEventos() {
                 cancelarEdicionPerfilStaff()
             } else if (pwaInstallInviteModal && !pwaInstallInviteModal.hidden) {
                 cerrarModalInstalacionPwa()
-                resetStaffSeleccionado()
+                if (tieneResumenHoyVisible()) {
+                    mostrarBotonListoResumenHoy()
+                } else {
+                    resetStaffSeleccionado()
+                }
             } else if (pwaIosGuideModal && !pwaIosGuideModal.hidden) {
                 cerrarGuiaManualInstalacion()
-                resetStaffSeleccionado()
+                if (tieneResumenHoyVisible()) {
+                    mostrarBotonListoResumenHoy()
+                } else {
+                    resetStaffSeleccionado()
+                }
             } else if (pwaNotificationCard && !pwaNotificationCard.hidden) {
                 descartarNotificacionesPush()
             }

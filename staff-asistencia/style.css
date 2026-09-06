@@ -582,6 +582,10 @@ button {
   color: #1f7a3b;
 }
 
+.inline-form-msg.warning {
+  color: #946200;
+}
+
 .staff-profile-actions {
   display: grid;
   grid-template-columns: 1fr;
