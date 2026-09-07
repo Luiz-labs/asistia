@@ -1038,7 +1038,7 @@ async function obtenerRegistrosPreviosDispositivos(deviceIds, fechaLimite) {
 
 function unificarAlertasDispositivo(scopedData, preRegs, scopedDatabaseAlertas) {
     const activos = (scopedData || [])
-        .filter(r => r.estado !== "retirado" && r.device_id !== "virtual_justif")
+        .filter(r => !esAspiranteRetirado(r.dni) && r.device_id !== "virtual_justif")
         .slice()
         .sort((a, b) => {
             const aKey = `${a.fecha || ""} ${a.hora || ""}`
@@ -5468,11 +5468,28 @@ function obtenerDniPruebaConfigurado() {
     return String(cursoConfigCache?.oper_dni_prueba || "").trim();
 }
 
+let dnisAspirantesRetiradosCache = new Set()
+
+async function refrescarDnisAspirantesRetirados(cursoId) {
+    const { data } = await withTenantScope(supabaseClient
+        .from("aspirantes")
+        .select("dni,tenant_id")
+        .eq("curso_id", Number(cursoId || 1) || 1)
+        .eq("estado", "retirado"))
+    const scoped = filtrarDataTenantActivo(data) || []
+    dnisAspirantesRetiradosCache = new Set(scoped.map(a => String(a.dni || "").trim()))
+    return dnisAspirantesRetiradosCache
+}
+
+function esAspiranteRetirado(dni) {
+    return dnisAspirantesRetiradosCache.has(String(dni || "").trim())
+}
+
 function esRegistroAsistenciaValido(r) {
     if (!r) return false;
     const dniClean = String(r.dni || "").trim();
     if (!dniClean || dniClean === obtenerDniPruebaConfigurado()) return false;
-    if (r.estado === "retirado") return false;
+    if (esAspiranteRetirado(r.dni)) return false;
     return true;
 }
 
@@ -5518,7 +5535,7 @@ async function obtenerAspirantesActivos(cursoId, ubo) {
     try {
         const { data: aspData } = await withTenantScope(supabaseClient
             .from("aspirantes")
-            .select("dni,nombres,apellidos,ubo,seccion,tenant_id")
+            .select("dni,nombres,apellidos,ubo,seccion,tenant_id,estado")
             .eq("curso_id", cursoId)
         );
         dataAspirantes = filtrarDataTenantActivo(aspData) || [];
@@ -5526,23 +5543,15 @@ async function obtenerAspirantesActivos(cursoId, ubo) {
         console.error("Error al cargar aspirantes activos:", e);
     }
 
-    let dnisRetirados = new Set();
-    try {
-        const { data: retData } = await withTenantScope(supabaseClient
-            .from("asistencias")
-            .select("dni,tenant_id")
-            .eq("curso_id", cursoId)
-            .eq("estado", "retirado")
-        );
-        const filteredRet = filtrarDataTenantActivo(retData) || [];
-        dnisRetirados = new Set(filteredRet.map(r => String(r.dni || "").trim()));
-    } catch (e) {
-        console.warn("Error al cargar alumnos retirados:", e);
-    }
+    // Mantiene la caché compartida al día para esRegistroAsistenciaValido/
+    // unificarAlertasDispositivo/renderTabla, sin consulta adicional.
+    dnisAspirantesRetiradosCache = new Set(
+        dataAspirantes.filter(a => a.estado === "retirado").map(a => String(a.dni || "").trim())
+    );
 
     let activos = dataAspirantes.filter(a => {
         const dniClean = String(a.dni || "").trim();
-        return dniClean && dniClean !== obtenerDniPruebaConfigurado() && !dnisRetirados.has(dniClean);
+        return dniClean && dniClean !== obtenerDniPruebaConfigurado() && a.estado !== "retirado";
     });
 
     if (ubo) {
@@ -10684,6 +10693,7 @@ async function cargarDatos() {
     datosAsistenciaCargando = true
     try {
         reportesCurrentPage = 1
+        await refrescarDnisAspirantesRetirados(cursoActualId || 1)
         let q = withTenantScope(supabaseClient.from("asistencias").select("*"))
 
         if (fechaDesde.value) {
@@ -10715,7 +10725,7 @@ async function cargarDatos() {
         window.justificacionesAprobadasMap = new Map(justifAprobadas.map(j => [`${j.dni}|${j.fecha_justificada}`, j]))
 
         // Generar filas virtuales para justificaciones aprobadas que no tengan asistencia física
-        const asistenciasSet = new Set((scopedData || []).filter(d => d.estado !== "retirado").map(a => `${(a.dni || "").trim()}|${a.fecha}`))
+        const asistenciasSet = new Set((scopedData || []).filter(d => !esAspiranteRetirado(d.dni)).map(a => `${(a.dni || "").trim()}|${a.fecha}`))
         const virtualSet = new Set()
         const virtualAsistencias = []
 
@@ -10748,7 +10758,7 @@ async function cargarDatos() {
         }
 
         // Aplicar filtro de UBO exacto a las filas físicas y virtuales si corresponde
-        let filteredScoped = (scopedData || []).filter(d => d.estado !== "retirado")
+        let filteredScoped = (scopedData || []).filter(d => !esAspiranteRetirado(d.dni))
         let filteredVirtual = virtualAsistencias
         if (filtroUbo.value) {
             const uboTarget = String(filtroUbo.value).trim().toLowerCase()
@@ -10811,7 +10821,7 @@ async function cargarDatos() {
 
 function renderTabla(data) {
     const activos = (data || [])
-        .filter(r => r.estado !== "retirado")
+        .filter(r => !esAspiranteRetirado(r.dni))
         .slice()
         .sort((a, b) => {
             const aKey = `${a.fecha || ""} ${formatearHoraVisible(a.hora || "")}`
@@ -12365,10 +12375,9 @@ async function buscarAspirantes() {
     const ubo = filtroUboConfig.value
     const texto = String(filtroTextoRetiro?.value || "").trim().toLowerCase()
 
-    // 1. Obtener todos los aspirantes del curso y tenant activos
     let q = withTenantScope(supabaseClient
         .from("aspirantes")
-        .select("dni,nombres,apellidos,ubo,tenant_id,curso_id")
+        .select("dni,nombres,apellidos,ubo,tenant_id,curso_id,estado")
         .eq("curso_id", Number(cursoActualId || 1) || 1))
 
     if (ubo) {
@@ -12378,19 +12387,11 @@ async function buscarAspirantes() {
     const { data: dataAspirantes } = await q
     const scopedAspirantes = filtrarDataTenantActivo(dataAspirantes)
 
-    // 2. Obtener los DNIs retirados de la tabla asistencias
-    const { data: dataRetirados } = await withTenantScope(supabaseClient
-        .from("asistencias")
-        .select("dni,tenant_id")
-        .eq("estado", "retirado"))
-    const scopedRetirados = filtrarDataTenantActivo(dataRetirados)
-    const setRetirados = new Set((scopedRetirados || []).map(r => String(r.dni || "").trim()))
-
     const dedupe = new Map()
 
     ;(scopedAspirantes || []).forEach(a => {
         const dni = String(a?.dni || "").trim()
-        if (setRetirados.has(dni)) return // Excluir si ya está retirado
+        if (a.estado === "retirado") return // Excluir si ya está retirado
 
         const nombre = `${a.nombres || ""} ${a.apellidos || ""}`.replace(/\s+/g, " ").trim()
         const matchTexto = !texto ||
@@ -12426,15 +12427,17 @@ async function buscarAspirantes() {
 async function retirarAspirante(dni) {
 
     const { error } = await withTenantScope(supabaseClient
-        .from("asistencias")
+        .from("aspirantes")
         .update({ estado: "retirado" })
-        .eq("dni", dni))
+        .eq("dni", dni)
+        .eq("curso_id", Number(cursoActualId || 1) || 1))
 
     if (error) {
         alert("Error al retirar")
         console.error(error)
     } else {
         alert("Aspirante retirado correctamente")
+        await refrescarDnisAspirantesRetirados(cursoActualId || 1)
         buscarAspirantes() // 🔥 refresca lista
         registrarActividad("aspirante_retirado", {
             dni: String(dni || "").trim()
@@ -13471,8 +13474,9 @@ async function cargarRetirados() {
     const texto = String(filtroTextoRetirados?.value || "").trim().toLowerCase()
 
     let q = withTenantScope(supabaseClient
-        .from("asistencias")
-        .select("dni,nombre,ubo,tenant_id")
+        .from("aspirantes")
+        .select("dni,nombres,apellidos,ubo,tenant_id,curso_id")
+        .eq("curso_id", Number(cursoActualId || 1) || 1)
         .eq("estado", "retirado"))
 
     if (ubo) {
@@ -13485,7 +13489,7 @@ async function cargarRetirados() {
 
         ; (scopedData || []).forEach(a => {
             const dni = String(a?.dni || "").trim()
-            const nombre = String(a?.nombre || "").trim()
+            const nombre = `${a?.apellidos || ""} ${a?.nombres || ""}`.replace(/\s+/g, " ").trim()
             const matchTexto = !texto ||
                 dni.toLowerCase().includes(texto) ||
                 nombre.toLowerCase().includes(texto)
@@ -13521,10 +13525,12 @@ function limpiarRetirados() {
 async function reactivar(dni) {
 
     await withTenantScope(supabaseClient
-        .from("asistencias")
-        .update({ estado: null })
-        .eq("dni", dni))
+        .from("aspirantes")
+        .update({ estado: "activo" })
+        .eq("dni", dni)
+        .eq("curso_id", Number(cursoActualId || 1) || 1))
 
+    await refrescarDnisAspirantesRetirados(cursoActualId || 1)
     cargarRetirados()
     registrarActividad("aspirante_reactivado", {
         dni: String(dni || "").trim()
