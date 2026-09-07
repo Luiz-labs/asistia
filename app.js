@@ -5464,10 +5464,14 @@ function describirMotivoSemaforo(motivo) {
     return mapa[motivo] || String(motivo || "Sin criterio")
 }
 
+function obtenerDniPruebaConfigurado() {
+    return String(cursoConfigCache?.oper_dni_prueba || "").trim();
+}
+
 function esRegistroAsistenciaValido(r) {
     if (!r) return false;
     const dniClean = String(r.dni || "").trim();
-    if (!dniClean || dniClean === "40636507") return false;
+    if (!dniClean || dniClean === obtenerDniPruebaConfigurado()) return false;
     if (r.estado === "retirado") return false;
     return true;
 }
@@ -5538,7 +5542,7 @@ async function obtenerAspirantesActivos(cursoId, ubo) {
 
     let activos = dataAspirantes.filter(a => {
         const dniClean = String(a.dni || "").trim();
-        return dniClean && dniClean !== "40636507" && !dnisRetirados.has(dniClean);
+        return dniClean && dniClean !== obtenerDniPruebaConfigurado() && !dnisRetirados.has(dniClean);
     });
 
     if (ubo) {
@@ -5552,7 +5556,7 @@ function construirAlumnosPresentes(rows) {
     const alumnos = {}
     ;(rows || []).forEach(r => {
         const dniClean = String(r.dni || "").trim()
-        if (!dniClean || dniClean === "40636507") return
+        if (!dniClean || dniClean === obtenerDniPruebaConfigurado()) return
         if (!alumnos[dniClean]) {
             alumnos[dniClean] = { nombre: r.nombre, ubo: r.ubo, total: 0 }
         }
@@ -10843,7 +10847,7 @@ function renderTabla(data) {
         const key = `${r.fecha}|${r.hora || ""}|${dev}|${dniVal}`;
         const hayAlerta = window.alertasUnificadasMap?.has(key) || false;
         
-        if (dniVal && dniVal !== "40636507") {
+        if (dniVal && dniVal !== obtenerDniPruebaConfigurado()) {
             dnisUnicos.add(dniVal);
         }
         
