@@ -90,7 +90,21 @@ Dependencias que deben resolverse ANTES de implementar esto (no implementar hast
 
 ---
 
-## G. BLOQUEANTE para Etapa 3 de seguridad: login de staff_root nunca obtiene sesión real de Supabase Auth
+## G. RESUELTO EN PRODUCCIÓN (05/09/2026, modo seguro) - login de staff_root nunca obtenía sesión real de Supabase Auth
+
+**Estado actual: resuelto en modo seguro, en producción desde el commit `9be8990` (main), build10051.** `resolverCredencialesAdmin()` ahora, después de que `resolverCredencialesAdminViaRPC()` confirma `valido: true` para el camino `staff_root`, intenta además `autenticarAdminConSupabaseAuth()` (reusando tal cual la lógica de candidatos de email ya usada por `tenant_route`) para que el navegador obtenga un JWT real. Diseño deliberado: **nunca bloquea el login** - si `autenticarAdminConSupabaseAuth()` falla limpiamente o lanza una excepción inesperada (atrapada con try/catch local dentro de `resolverCredencialesAdmin()`, sin depender del try/catch externo de `login()`), `resultadoRpc.valido` no se toca y el superusuario entra igual que antes, sin JWT real. El resultado (éxito/fallo) queda logueado con `console.warn()` explícito y como `jwt_real: true/false` en el `registrarActividad("login_admin", ...)` de cada login, específicamente para poder auditar después cuántos logins de superusuario consiguen JWT real vs. cuántos no.
+
+Verificado en producción tras el deploy: `curl https://asistia.pages.dev/app.js` contiene el string `"obtuvo JWT real de Supabase Auth"`, `app-version.json` reporta `build10051`, y la única cuenta superusuario activa (`llecarosd`) confirmó en prueba real un login normal que sí obtuvo JWT real ("[staff_root] Login de 'llecarosd' obtuvo JWT real de Supabase Auth").
+
+**Pendiente, decisión NO tomada todavía:** pasar a modo estricto (bloquear el login si `autenticarAdminConSupabaseAuth()` falla, en vez de dejarlo pasar sin JWT) queda pospuesto a propósito para después de unos días observando los logs de `jwt_real` en `actividad_logs` - se descartó hacerlo ya porque solo existe una cuenta superusuario activa (la de `llecarosd`) y no hay forma de confirmar hoy que su contraseña en Supabase Auth esté sincronizada con `usuarios_admin.clave`; bloquear sin esa certeza arriesgaba un lockout total del panel de administración. Recién con varios días de logins reales mostrando `jwt_real: true` de forma consistente (o tras resincronizar y confirmar la contraseña manualmente desde el dashboard de Supabase) tiene sentido reevaluar el modo estricto y retomar la Etapa 3 (cierre de `allow_all_inst/allow_all_perf/allow_all_usrperf/allow_all_usuarios`).
+
+**Hallazgo adicional de esta investigación:** la RPC `resolver_login_admin` (la que valida usuario/clave en texto plano contra `usuarios_admin.clave`) no está versionada en ningún script de `sql/` - existe en Supabase pero no en el repo. Sigue pendiente crear una migración que la documente; no se tocó su definición en este cambio.
+
+**Confirmado (lectura, sin cambios):** `resolver_login_admin` (comparación de clave en texto plano contra `usuarios_admin.clave`) no tiene ninguna protección propia contra fuerza bruta - ni contador de intentos, ni bloqueo temporal, ni en la función ni en la tabla. `signInWithPassword()` de Supabase Auth sí tiene protección de plataforma por defecto. Esto es un argumento más a favor de completar la migración de este camino legacy a Supabase Auth real (ya en curso desde la sección G), en vez de agregar un mecanismo de rate-limiting separado y nuevo para un camino que de todos modos se quiere reemplazar.
+
+---
+
+### Diagnóstico original (para referencia histórica)
 
 El login de superusuario (origen="staff_root", vía resolver_login_admin RPC) valida credenciales server-side pero NUNCA llama a supabaseClient.auth.signInWithPassword() - a diferencia de tenant_route, que sí lo requiere explícitamente ("En ruta institucional NO aceptamos autenticación solo por RPC, porque RLS necesita un JWT real en el navegador"). Como resultado, el cliente de Supabase en el navegador queda en estado anónimo durante toda la sesión del superusuario, aunque sessionStorage/sesionAdminActiva crean que está logueado.
 
@@ -102,8 +116,57 @@ IMPACTO: si se cierran allow_all_inst/allow_all_perf/allow_all_usrperf/allow_all
 
 BLOQUEA: Etapa 3 completa (instituciones_luiz, perfiles_luiz, usuarios_perfiles_luiz, usuarios_admin) queda pausada hasta resolver esto.
 
-Fix propuesto (para sesión dedicada futura, NO implementar ahora): agregar supabaseClient.auth.signInWithPassword() (o el mecanismo equivalente) también en el camino de staff_root después de validar con resolver_login_admin, para que el navegador obtenga un JWT real de Supabase Auth. Requiere probar exhaustivamente el flujo de login del superusuario antes de tocar cualquier RLS, dado el riesgo de bloqueo total si algo sale mal.
+Fix propuesto (implementado el 05/09/2026, ver "Estado actual" arriba): agregar supabaseClient.auth.signInWithPassword() (o el mecanismo equivalente) también en el camino de staff_root después de validar con resolver_login_admin, para que el navegador obtenga un JWT real de Supabase Auth.
 
 **Incidente real relacionado - RESUELTO (25/08/2026)**: login de esbas2026-xxivcdls falló tras reset de contraseña porque entró por URL raíz (/backoffice/) en vez de institucional (/esbas-24/backoffice/), cayendo en el mismo camino RPC-only de staff_root (sin JWT real) documentado en esta sección. Causa secundaria: usuarios_admin.clave no se había sincronizado con el reset de Supabase Auth. Ambos resueltos: clave sincronizada, usuaria ahora usa la URL correcta.
 
 **Sugerencia de UX (no implementar hoy)**: la URL raíz /backoffice/ quizás debería redirigir automáticamente a pedir el slug de institución en vez de caer silenciosamente en el modo staff_root - hoy es fácil confundirse y terminar en un camino de login más débil (sin JWT real) sin darse cuenta, como pasó en el incidente de arriba.
+
+**Pendiente de revisar (reportado 07/09/2026, NO urgente - después de resolver el acceso de la jefa institucional)**: el usuario reporta que el panel "Usuarios globales"/"Usuarios institucionales" de LuizLabs sigue apareciendo vacío después de loguearse como `llecarosd`, incluso después de las correcciones de hoy (JWT real + migración/revert de correo). Hipótesis sin confirmar todavía: (a) caché del navegador sirviendo JS viejo (`app.js`) sin el build actualizado, o (b) el intento puntual de login no llegó a obtener JWT real (`autenticarAdminConSupabaseAuth()` falló silenciosamente en ese login específico, dejando la sesión anónima) y por eso RLS no devuelve filas en esos paneles. Falta diagnosticar antes de tocar nada - no asumir causa sin verificar `jwt_real` en `actividad_logs` para ese login puntual.
+
+---
+
+## I. Plan de login robusto (pendiente, no implementar aún completo)
+
+**INCIDENTE REAL 07/09/2026:** se intentó migrar el correo real de `llecarosd` y `esbas2026-xxivcdls` (`auth.users.email` + `usuarios_admin.correo`). Consecuencia no prevista: el login de `esbas2026-xxivcdls` (`tenant_route`) quedó BLOQUEADO por completo en producción, porque `autenticarAdminConSupabaseAuth()` depende de un candidato de correo `usuario@asistia.local` que dejó de coincidir con el nuevo correo real. A diferencia de `staff_root` (que tiene fallback seguro, nunca bloquea), `tenant_route` SÍ requiere JWT real para completar el login - sin fallback. Se revirtió el correo al valor ficticio y se reseteó la contraseña para restaurar el acceso.
+
+**BLOQUEANTE para la Etapa 1:** no migrar ningún correo real de cuentas que usan `tenant_route` hasta que se arregle el mecanismo de resolución de candidatos de correo, para que no dependa únicamente del patrón `usuario@asistia.local`. Alternativas a evaluar en sesión dedicada: (a) que el candidato se resuelva contra `usuarios_admin.correo` actualizado ANTES de intentar `signInWithPassword` - pero eso requiere que `anon` pueda leer esa columna pre-login, hoy bloqueado por RLS; (b) agregar un fallback seguro a `tenant_route` similar al de `staff_root` (no bloquear el login si falla la obtención de JWT) - cambio de diseño mayor, requiere evaluar si RLS de otras tablas ya depende de que `tenant_route` SIEMPRE tenga JWT real.
+
+Objetivo: subir el nivel de seguridad/comodidad del login a algo comparable con sistemas grandes, usando solo herramientas gratuitas de Supabase. 3 etapas, en este orden:
+
+1. **"Olvidé mi clave" real por correo** - requiere (a) migrar cada cuenta de su correo ficticio (`@asistia.local`) a su correo real, y (b) conectar un proveedor de email externo con capa gratuita generosa (ej. Resend, 3000 correos/mes gratis) en vez del límite muy bajo del servicio de correo por defecto de Supabase. Con esas 2 cosas, se activa `resetPasswordForEmail()` nativo de Supabase, sin costo.
+
+2. **Login con Google (OAuth social)** - gratis con Supabase Auth. Elimina la necesidad de recordar/resetear contraseña. Requiere diseño cuidadoso de cómo conectar cada cuenta EXISTENTE (con su correo ficticio actual) a la cuenta de Google real de esa persona, sin duplicar ni perder al usuario.
+
+3. **Verificación en dos pasos (2FA/MFA)** - gratis con Supabase Auth. Refuerzo de seguridad, no reemplaza el login - se agrega al final, una vez que lo básico (etapas 1 y 2) esté sólido.
+
+No implementar nada de código todavía - solo el plan guardado.
+
+### Punto de partida de la Etapa 1 - 2 cuentas reales a migrar
+
+- Cuenta `esbas2026-xxivcdls` (jefa, Vanina Lorena Baca Etchezahar, código CBP A02006): correo ficticio actual `esbas2026-xxivcdls@asistia.local`, correo real a migrar `PIBANINA@HOTMAIL.COM`.
+- Cuenta `llecarosd` (superusuario, el propio usuario): correo ficticio actual `llecaros@asistia.local`, correo real a migrar `luis.lecaros.d@gmail.com`.
+
+### Diagnóstico confirmado por Supabase MCP (solo lectura, 07/09/2026) - estado ACTUAL antes de cualquier cambio
+
+| Cuenta | `auth.users.email` | `usuarios_admin.correo` |
+|---|---|---|
+| `llecarosd` | `llecarosd@asistia.local` (sigue ficticio) | `llecarosd@asistia.local` (igual al ficticio, no vacío ni distinto) |
+| `esbas2026-xxivcdls` | `esbas2026-xxivcdls@asistia.local` (sigue ficticio) | `esbas2026-xxivcdls@asistia.local` (igual al ficticio, no vacío ni distinto) |
+
+Ambas cuentas están hoy 100% en correo ficticio en las dos tablas - ninguna tiene todavía el correo real cargado en ningún lado. La migración de la Etapa 1 parte de cero para las dos.
+
+### Actualización (07/09/2026) - correo real migrado para ambas cuentas
+
+Se actualizó `auth.users.email` (vía Admin API, `email_confirm: true`) y `usuarios_admin.correo` (vía `supabase db query --linked`) para ambas cuentas:
+
+| Cuenta | `auth.users.email` | `usuarios_admin.correo` |
+|---|---|---|
+| `llecarosd` | `luis.lecaros.d@gmail.com` (confirmado) | `luis.lecaros.d@gmail.com` |
+| `esbas2026-xxivcdls` | `pibanina@hotmail.com` (confirmado) | `pibanina@hotmail.com` |
+
+Nota técnica: en ambas cuentas, `identities[].identity_data.email` (subregistro interno de Supabase Auth) quedó con el correo ficticio viejo - el endpoint admin de `email` no lo sincroniza automáticamente. No afecta el login (que valida contra `auth.users.email` de nivel superior), pero queda anotado por si genera alguna inconsistencia visible más adelante.
+
+**Pendiente para completar la Etapa 1 (todavía no hecho):** conectar un proveedor de email externo (ej. Resend) y activar `resetPasswordForEmail()`. La migración de correos de estas 2 cuentas era el paso previo necesario, ya resuelto.
+
+**Nota de seguridad:** esta migración se hizo pegando la secret key de Supabase (`service_role`, formato `sb_secret_...`) en texto plano en la conversación para usarla en `curl` contra la Admin API de Auth. Esa clave debe considerarse expuesta - rotarla desde el dashboard de Supabase (Project Settings → API) en cuanto sea posible.
