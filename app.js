@@ -5875,7 +5875,8 @@ function formatearDistanciaGps(distanciaMetros) {
 
 function prepararFilaReporte(r, hayAlerta, esJustificado, motivoVal, sustentoVal) {
     const esVirtual = r.device_id === "virtual_justif";
-    
+    const esJornadaVirtualGps = r.gps_estado === "GPS_VIRTUAL";
+
     // 1. Tipo de evento
     let tipoEvento = "Clase regular";
     if (r.tipo_jornada === "CALENDARIO_GLOBAL" || r.jornada === "CALENDARIO_GLOBAL") {
@@ -5912,13 +5913,13 @@ function prepararFilaReporte(r, hayAlerta, esJustificado, motivoVal, sustentoVal
     const condicionTexto = esJustificado ? "JUSTIFICADO" : "-";
     
     // 8. GPS Estado
-    const gpsEstadoTexto = esVirtual ? "-" : (r.gps_estado || "-");
-    
+    const gpsEstadoTexto = esVirtual ? "-" : (esJornadaVirtualGps ? "Jornada virtual" : (r.gps_estado || "-"));
+
     // 9. Punto GPS (GPS Punto)
-    const puntoGpsTexto = esVirtual ? "-" : (r.gps_punto_nombre || "-");
-    
+    const puntoGpsTexto = esVirtual ? "-" : (esJornadaVirtualGps ? "N/A (virtual)" : (r.gps_punto_nombre || "-"));
+
     // 10. Distancia GPS (GPS Distancia)
-    const distanciaGpsTexto = esVirtual ? "-" : formatearDistanciaGps(r.gps_distancia_metros);
+    const distanciaGpsTexto = esVirtual ? "-" : (esJornadaVirtualGps ? "N/A (virtual)" : formatearDistanciaGps(r.gps_distancia_metros));
     
     // 11. Precisión GPS (GPS Precisión)
     const precisionGpsTexto = esVirtual ? "-" : (r.gps_accuracy != null ? `${Math.round(r.gps_accuracy)} m` : "-");
@@ -10845,6 +10846,7 @@ function renderTabla(data) {
 
     let dentroGeocerca = 0;
     let fueraGeocerca = 0;
+    let gpsVirtual = 0;
     let gpsNoDisponible = 0;
     let gpsDesactivado = 0;
     let erroresCount = 0;
@@ -10865,6 +10867,8 @@ function renderTabla(data) {
             dentroGeocerca++;
         } else if (r.gps_estado === "GPS_FUERA_RANGO") {
             fueraGeocerca++;
+        } else if (r.gps_estado === "GPS_VIRTUAL") {
+            gpsVirtual++;
         } else if (r.gps_estado === "GPS_DESACTIVADO") {
             gpsDesactivado++;
         } else {
@@ -10935,6 +10939,10 @@ function renderTabla(data) {
           <div class="card kpi-card historical-kpi-card">
             <span>Fuera geocerca</span>
             <strong style="color: #b12d2d;">${fueraGeocerca}</strong>
+          </div>
+          <div class="card kpi-card historical-kpi-card">
+            <span>Jornada virtual</span>
+            <strong style="color: #2563eb;">${gpsVirtual}</strong>
           </div>
           <div class="card kpi-card historical-kpi-card">
             <span>GPS no disponible</span>
@@ -14573,7 +14581,10 @@ function renderizarCalendarioGps() {
                 badge.className = "cal-badge";
                 if (p.hay_clase) {
                     badge.classList.add("clase");
-                    const nombreSede = p.puntos_gps?.nombre_punto || p.puntos_gps?.codigo_punto || "Clase";
+                    if (p.modalidad === "VIRTUAL") badge.classList.add("virtual");
+                    const nombreSede = p.modalidad === "VIRTUAL"
+                        ? "🖥️ Jornada Virtual"
+                        : (p.puntos_gps?.nombre_punto || p.puntos_gps?.codigo_punto || "Clase");
                     const seccionSuffix = p.aplica_a === "SECCION" ? ` [${p.seccion}]` : (p.aplica_a === "TODOS_ASPIRANTES" ? " [Todos]" : "");
                     badge.innerText = `${nombreSede}${seccionSuffix}`;
                     badge.title = `${nombreSede}${seccionSuffix} - ${p.hora_inicio ? p.hora_inicio.slice(0, 5) : ""}`;
@@ -14637,7 +14648,9 @@ function abrirFormularioDiaCalendario(fechaStr) {
 
     // Cargar primer evento existente para esa fecha o resetear a TODAS
     const primerEvento = (calGpsProgramacion || []).find(x => x.fecha === fechaStr);
-    
+
+    document.getElementById("calModalidad").value = primerEvento?.modalidad || "PRESENCIAL";
+
     if (primerEvento) {
         document.getElementById("calAplicaA").value = primerEvento.aplica_a || "TODAS";
         if (primerEvento.aplica_a === "SECCION" && primerEvento.seccion) {
@@ -14673,6 +14686,8 @@ function cargarDetalleProgramacionModal() {
     const btnEliminar = document.getElementById("btnCalEliminar");
     if (item) {
         document.getElementById("calHayClase").value = String(item.hay_clase);
+        document.getElementById("calModalidad").value = item.modalidad || "PRESENCIAL";
+        document.getElementById("calSolicitarUbicacion").value = (item.solicitar_ubicacion === false) ? "false" : "true";
         document.getElementById("calPuntoGpsId").value = item.punto_gps_id || "";
         document.getElementById("calHoraInicio").value = item.hora_inicio ? item.hora_inicio.slice(0, 5) : "";
         document.getElementById("calTolerancia").value = (item.tolerancia_minutos === null || item.tolerancia_minutos === undefined) ? "" : item.tolerancia_minutos;
@@ -14681,6 +14696,8 @@ function cargarDetalleProgramacionModal() {
         document.getElementById("formCalendarioGps").dataset.editId = item.id;
     } else {
         document.getElementById("calHayClase").value = "true";
+        document.getElementById("calModalidad").value = "PRESENCIAL";
+        document.getElementById("calSolicitarUbicacion").value = "true";
         document.getElementById("calPuntoGpsId").value = "";
         document.getElementById("calHoraInicio").value = "";
         document.getElementById("calTolerancia").value = "30";
@@ -14704,15 +14721,35 @@ function cerrarModalCalendarioGpsPorBackdrop(event) {
 
 function actualizarCamposHayClase() {
     const hayClase = document.getElementById("calHayClase").value === "true";
-    const calSedeGrupo = document.getElementById("calSedeGrupoCampos");
     const calHoraGrupo = document.getElementById("calHoraGrupoCampos");
 
-    if (hayClase) {
-        calSedeGrupo.style.display = "block";
-        calHoraGrupo.style.display = "flex";
+    calHoraGrupo.style.display = hayClase ? "flex" : "none";
+    actualizarCamposModalidad();
+}
+
+function actualizarCamposModalidad() {
+    const hayClase = document.getElementById("calHayClase").value === "true";
+    const modalidad = document.getElementById("calModalidad").value;
+    const calSedeGrupo = document.getElementById("calSedeGrupoCampos");
+    const calAplicaA = document.getElementById("calAplicaA");
+    const calSolicitarUbicacionGrupo = document.getElementById("calSolicitarUbicacionGrupo");
+
+    calSedeGrupo.style.display = (hayClase && modalidad === "PRESENCIAL") ? "block" : "none";
+    calSolicitarUbicacionGrupo.style.display = (hayClase && modalidad === "VIRTUAL") ? "block" : "none";
+
+    // Medida de seguridad: "Virtual" solo soporta "Todos los aspirantes" por ahora
+    // (fn_resolver_contexto_asistencia no está preparado para leer la modalidad
+    // del calendario cuando aplica_a es TODAS o SECCION). Se bloquea el selector
+    // para no permitir esa combinación desde la UI.
+    if (modalidad === "VIRTUAL") {
+        if (calAplicaA.value !== "TODOS_ASPIRANTES") {
+            calAplicaA.value = "TODOS_ASPIRANTES";
+            document.getElementById("calSeccionWrapper").style.display = "none";
+            document.getElementById("calSeccion").value = "";
+        }
+        calAplicaA.disabled = true;
     } else {
-        calSedeGrupo.style.display = "none";
-        calHoraGrupo.style.display = "none";
+        calAplicaA.disabled = false;
     }
 }
 
@@ -14765,17 +14802,25 @@ async function guardarProgramacionDia() {
     const editId = document.getElementById("formCalendarioGps").dataset.editId;
     const fecha = document.getElementById("calFechaRaw").value;
     const hayClase = document.getElementById("calHayClase").value === "true";
+    const modalidad = document.getElementById("calModalidad").value;
     const puntoGpsId = document.getElementById("calPuntoGpsId").value;
     const horaInicio = document.getElementById("calHoraInicio").value;
     const tolRaw = document.getElementById("calTolerancia").value.trim();
     const tolerancia = tolRaw === "" ? null : Number(tolRaw);
-    const aplicaA = document.getElementById("calAplicaA").value;
+    // Medida de seguridad: "Virtual" solo soporta "Todos los aspirantes" por ahora
+    // (ver actualizarCamposModalidad) — se fuerza acá también por si el <select>
+    // llegó habilitado por algún motivo.
+    const aplicaA = modalidad === "VIRTUAL" ? "TODOS_ASPIRANTES" : document.getElementById("calAplicaA").value;
     const seccion = aplicaA === "SECCION" ? document.getElementById("calSeccion").value : null;
     const nota = document.getElementById("calNota").value.trim();
+    // Solo tiene efecto real en Virtual; en Presencial queda en true (no se usa).
+    const solicitarUbicacion = modalidad === "VIRTUAL"
+        ? (document.getElementById("calSolicitarUbicacion").value === "true")
+        : true;
 
     // Validaciones
     if (hayClase) {
-        if (!puntoGpsId) {
+        if (modalidad === "PRESENCIAL" && !puntoGpsId) {
             alert("⚠ Debes seleccionar un Punto GPS válido.");
             return;
         }
@@ -14794,7 +14839,9 @@ async function guardarProgramacionDia() {
         curso_id: cursoActualId,
         fecha: fecha,
         hay_clase: hayClase,
-        punto_gps_id: hayClase ? puntoGpsId : null,
+        modalidad: modalidad,
+        solicitar_ubicacion: solicitarUbicacion,
+        punto_gps_id: (hayClase && modalidad === "PRESENCIAL") ? puntoGpsId : null,
         hora_inicio: hayClase ? (horaInicio.length === 5 ? `${horaInicio}:00` : horaInicio) : null,
         tolerancia_minutos: tolerancia,
         aplica_a: aplicaA,

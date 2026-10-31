@@ -1944,8 +1944,17 @@ async function guardarAsistencia() {
         let modoEvaluado = gpsModo;
         let configCargadaEvaluada = tieneConfigCargada;
 
-        const tienePuntoProgramado = prog && prog.success === true && prog.hay_clase === true && 
+        const tienePuntoProgramado = prog && prog.success === true && prog.hay_clase === true &&
             prog.punto_gps && prog.punto_gps.latitud != null && prog.punto_gps.longitud != null;
+
+        const modalidadProgramada = (prog && prog.success === true)
+            ? String(prog.modalidad || "PRESENCIAL").toUpperCase()
+            : "PRESENCIAL";
+        const esJornadaVirtual = modalidadProgramada === "VIRTUAL" && prog && prog.success === true && prog.hay_clase === true;
+        // La jornada virtual decide pedir ubicación o no por DÍA (campo
+        // calendario_sedes_gps.solicitar_ubicacion), nunca por el gpsModo
+        // institucional — son cosas independientes.
+        const solicitarUbicacionVirtual = esJornadaVirtual ? (prog.solicitar_ubicacion !== false) : false;
 
         if (tienePuntoProgramado && (!tieneConfigCargada || gpsModo === "desactivado")) {
             modoEvaluado = "solo_registrar";
@@ -1958,10 +1967,61 @@ async function guardarAsistencia() {
             registrarDiagnosticoGps({ estado: "GPS_NO_DISPONIBLE" });
         }
 
-        if (configCargadaEvaluada && modoEvaluado !== "desactivado") {
+        if (esJornadaVirtual) {
+            // --- Jornada virtual: su propio interruptor (decidido al programar
+            // el día), totalmente independiente del gpsModo institucional.
+            // NUNCA bloquea el registro (no existe "fuera de rango" porque no
+            // hay punto de referencia contra el cual comparar).
+            if (solicitarUbicacionVirtual) {
+                setEstadoCargandoBotonRegistrar(true, "Obteniendo ubicación...");
+                try {
+                    const coords = await obtenerUbicacionNavegador();
+                    gpsData = {
+                        latitud: coords.latitude,
+                        longitud: coords.longitude,
+                        accuracy: coords.accuracy,
+                        distancia_metros: null,
+                        estado: "GPS_VIRTUAL",
+                        punto_nombre: "Jornada Virtual",
+                        modo: "virtual",
+                        mensaje: "Jornada virtual: ubicación registrada sin comparar contra un punto GPS."
+                    };
+                    registrarDiagnosticoGps({
+                        estado: "GPS_VIRTUAL",
+                        precision: coords.accuracy,
+                        duracionMs: coords.duracionMs
+                    });
+                } catch (geoError) {
+                    console.warn("Error capturando ubicación (jornada virtual):", geoError);
+                    const detalleError = obtenerDetalleErrorGps(geoError);
+                    gpsData = {
+                        estado: detalleError.estado,
+                        modo: "virtual",
+                        mensaje: detalleError.mensaje,
+                        punto_nombre: "Jornada Virtual"
+                    };
+                    registrarDiagnosticoGps({
+                        estado: detalleError.estado,
+                        codigo: detalleError.codigo,
+                        duracionMs: geoError.duracionMs
+                    });
+                    // A diferencia de presencial, aquí NUNCA se hace return: la jornada
+                    // virtual no bloquea el registro aunque falle la geolocalización.
+                    postRegisterAlert = "No fue posible obtener tu ubicación. La asistencia fue registrada igualmente (jornada virtual).";
+                }
+            } else {
+                gpsData = {
+                    estado: "GPS_NO_SOLICITADO",
+                    modo: "virtual",
+                    punto_nombre: "Jornada Virtual",
+                    mensaje: "Jornada virtual: no se solicitó ubicación para este día."
+                };
+                registrarDiagnosticoGps({ estado: "GPS_NO_SOLICITADO" });
+            }
+        } else if (configCargadaEvaluada && modoEvaluado !== "desactivado") {
             if (prog && prog.success === true && prog.hay_clase === true) {
                 const punto = prog.punto_gps;
-                
+
                 if (punto && punto.latitud != null && punto.longitud != null) {
                     setEstadoCargandoBotonRegistrar(true, "Obteniendo ubicación...");
                     try {
